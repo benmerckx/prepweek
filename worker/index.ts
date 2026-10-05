@@ -6,19 +6,97 @@
 // relays/merges CRDT changes between them. So "one database per sheet" comes
 // for free, colocated with the sockets, with no cross-request DB round trips.
 //
-// Routing: wss://<host>/sync/<sheetId>  → Durable Object named "sync/<sheetId>"
+// Routing (all take ?k=<share key> once a sheet has private links):
+//   wss://<host>/sync/<sheetId>      → Durable Object named "sync/<sheetId>"
+//   wss://<host>/presence/<sheetId>  → presence relay for the sheet
+//   /files/<sheetId>/<id>            → attachment bytes in R2
+//   /share/<sheetId>                 → GET sharing state, POST enable/rotate/disable
 // Everything else is served from ../dist (the Bun-built app).
 import { DurableObject } from 'cloudflare:workers';
 import { createMergeableStore } from 'tinybase';
 import { createDurableObjectSqlStoragePersister } from 'tinybase/persisters/persister-durable-object-sql-storage';
-import {
-  getWsServerDurableObjectFetch,
-  WsServerDurableObject,
-} from 'tinybase/synchronizers/synchronizer-ws-server-durable-object';
+import { WsServerDurableObject } from 'tinybase/synchronizers/synchronizer-ws-server-durable-object';
+
+export type Role = 'edit' | 'view' | 'none';
+interface Share {
+  edit: string;
+  view: string;
+}
+
+/** TinyBase sync messages a view-only client may send: requests to read. */
+const READ_MESSAGES = new Set([1 /* GetContentHashes */, 4, 5, 6, 7 /* Get…Diff */]);
+
+const newToken = () => {
+  const b = crypto.getRandomValues(new Uint8Array(18));
+  return btoa(String.fromCharCode(...b))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_');
+};
 
 export class SheetDurableObject extends WsServerDurableObject {
   override createPersister() {
     return createDurableObjectSqlStoragePersister(createMergeableStore(), this.ctx.storage.sql);
+  }
+
+  // --- Link sharing ---
+  //
+  // A sheet starts open: anyone who knows its URL can edit (like the demo).
+  // Turning on private links mints two secret keys; from then on the edit
+  // link or the view link is needed. Resetting replaces both and drops
+  // everyone connected, so old links stop working at once.
+
+  /** What `key` allows on this sheet. */
+  async access(key: string): Promise<Role> {
+    const share = await this.ctx.storage.get<Share>('share');
+    if (!share) return 'edit';
+    if (key && key === share.edit) return 'edit';
+    if (key && key === share.view) return 'view';
+    return 'none';
+  }
+
+  /** Sharing state for someone holding `key`; the keys only for editors. */
+  async shareInfo(key: string) {
+    const share = await this.ctx.storage.get<Share>('share');
+    const role = await this.access(key);
+    return { role, private: !!share, ...(share && role === 'edit' ? share : {}) };
+  }
+
+  async setSharing(key: string, action: 'enable' | 'rotate' | 'disable') {
+    if ((await this.access(key)) !== 'edit') return null;
+    if (action === 'disable') {
+      await this.ctx.storage.delete('share');
+      return this.shareInfo('');
+    }
+    const share = { edit: newToken(), view: newToken() };
+    await this.ctx.storage.put<Share>('share', share);
+    // Everyone reconnects and is checked against the new links.
+    for (const ws of this.ctx.getWebSockets()) ws.close(4001, 'Sharing links changed');
+    return this.shareInfo(share.edit);
+  }
+
+  override async fetch(request: Request) {
+    const role = request.headers.get('x-prepweek-role');
+    const response = await super.fetch!(request);
+    // Mark view-only sockets; the mark lives on the socket (survives hibernation).
+    const id = request.headers.get('sec-websocket-key');
+    if (role === 'view' && id) for (const ws of this.ctx.getWebSockets(id)) ws.serializeAttachment({ view: true });
+    return response;
+  }
+
+  override webSocketMessage(client: WebSocket, message: string | ArrayBuffer) {
+    if ((client.deserializeAttachment() as { view?: boolean } | null)?.view) {
+      // Payload: "<toClientId>\n[requestId, messageType, body]". Fragments
+      // (large messages) and anything that carries content are dropped.
+      const raw = message.toString();
+      const body = raw.slice(raw.indexOf('\n') + 1);
+      if (!body.startsWith('[')) return;
+      try {
+        if (!READ_MESSAGES.has(JSON.parse(body)[1])) return;
+      } catch {
+        return;
+      }
+    }
+    return super.webSocketMessage!(client, message);
   }
 }
 
@@ -68,22 +146,48 @@ export class PresenceDurableObject extends DurableObject {
   }
 }
 
-const sync = getWsServerDurableObjectFetch('SHEETS');
+/** The sheet's Durable Object (TinyBase names it after the sync path). */
+const sheetStub = (env: Env, sheet: string) => env.SHEETS.get(env.SHEETS.idFromName(`sync/${sheet}`));
+const forbidden = () => new Response('This sheet needs a share link', { status: 403 });
+const json = (data: unknown, status = 200) =>
+  new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
 
 export default {
   async fetch(request: Request, env: Env) {
     const url = new URL(request.url);
-    if (url.pathname.startsWith('/sync/')) {
-      // TODO(auth): verify the user may open this sheet before upgrading,
-      // e.g. a session cookie / JWT checked here.
-      return sync(request, env);
+    const route = /^\/(sync|files|presence|share)\/([^/]+)/.exec(url.pathname);
+    if (!route) return env.ASSETS.fetch(request);
+    const kind = route[1]!;
+    const sheet = decodeURIComponent(route[2]!);
+    const key = url.searchParams.get('k') ?? '';
+    const stub = sheetStub(env, sheet);
+
+    if (kind === 'share') {
+      if (request.method === 'GET') return json(await stub.shareInfo(key));
+      if (request.method === 'POST') {
+        const { action } = (await request.json().catch(() => ({}))) as { action?: string };
+        if (action !== 'enable' && action !== 'rotate' && action !== 'disable') return json({ error: 'Unknown action' }, 400);
+        const info = await stub.setSharing(key, action);
+        return info ? json(info) : forbidden();
+      }
+      return new Response('Method not allowed', { status: 405 });
     }
-    if (url.pathname.startsWith('/files/')) return files(request, env, url);
-    if (url.pathname.startsWith('/presence/')) {
-      const sheet = decodeURIComponent(url.pathname.slice('/presence/'.length));
-      return env.PRESENCE.get(env.PRESENCE.idFromName(sheet)).fetch(request);
+
+    const role = await stub.access(key);
+    if (role === 'none') return forbidden();
+    if (kind === 'sync') {
+      if (request.headers.get('upgrade')?.toLowerCase() !== 'websocket') return new Response('Upgrade required', { status: 426 });
+      // The role is decided here, never by the client.
+      const headers = new Headers(request.headers);
+      headers.set('x-prepweek-role', role);
+      return stub.fetch(new Request(request, { headers }));
     }
-    return env.ASSETS.fetch(request);
+    if (kind === 'files') {
+      if (request.method !== 'GET' && role !== 'edit') return forbidden();
+      return files(request, env, url);
+    }
+    // Presence: viewers are present too.
+    return env.PRESENCE.get(env.PRESENCE.idFromName(sheet)).fetch(request);
   },
 } satisfies ExportedHandler<Env>;
 
@@ -93,7 +197,6 @@ const MAX_FILE_BYTES = 25 * 1024 * 1024;
  * Attachment bytes: PUT/GET /files/<sheet>/<id>, stored in R2 under
  * <sheet>/<id>. Optional: without an R2 binding named FILES this returns 501
  * and the app keeps attachments in each browser only.
- * TODO(auth): same as /sync, check access to <sheet> here.
  */
 async function files(request: Request, env: Env, url: URL): Promise<Response> {
   if (!env.FILES) return new Response('File storage is not configured', { status: 501 });

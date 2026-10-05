@@ -7,6 +7,7 @@ import ReconnectingWebSocket from 'reconnecting-websocket';
 import { PALETTE, getUser, newId } from './store.ts';
 import { displayName, getMe, onMeChange } from './identity.ts';
 import { getServerHttp, getSheet } from './sync.ts';
+import { withKey } from './access.ts';
 
 export interface Cursor {
   /** Fractional day under the pointer. */
@@ -120,7 +121,7 @@ export const startPresence = () => {
   }
   const http = getServerHttp();
   if (http) {
-    socket = new ReconnectingWebSocket(`${http.replace(/^http/, 'ws')}/presence/${encodeURIComponent(getSheet())}`);
+    socket = new ReconnectingWebSocket(() => withKey(`${http.replace(/^http/, 'ws')}/presence/${encodeURIComponent(getSheet())}`));
     socket.addEventListener('message', (e) => receive(e.data));
     socket.addEventListener('open', flush);
   }

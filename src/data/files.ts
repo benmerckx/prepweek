@@ -8,6 +8,7 @@
 //    open them too. Without R2 the upload is skipped and files stay local.
 
 import { getServerHttp, getSheet } from './sync.ts';
+import { withKey } from './access.ts';
 
 export const MAX_FILE_BYTES = 25 * 1024 * 1024;
 
@@ -34,7 +35,7 @@ const tx = async <T,>(mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRe
 
 const remoteUrl = (id: string) => {
   const base = getServerHttp();
-  return base ? `${base}/files/${encodeURIComponent(getSheet())}/${encodeURIComponent(id)}` : null;
+  return base ? withKey(`${base}/files/${encodeURIComponent(getSheet())}/${encodeURIComponent(id)}`) : null;
 };
 
 /** Store locally, then upload in the background when a server is configured. */

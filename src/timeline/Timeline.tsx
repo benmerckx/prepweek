@@ -13,6 +13,7 @@ import { ActivityPanel } from './Discussion.tsx';
 import { watchDesktopNotifications } from '../data/notify.ts';
 import { publish, startPresence, type Peer } from '../data/presence.ts';
 import { PresenceLayer } from './Presence.tsx';
+import { LockScreen, ShareDialog, useAccess } from './Share.tsx';
 import { Minimap } from './Minimap.tsx';
 import { Editor } from './Editor.tsx';
 import { Toolbar } from './Toolbar.tsx';
@@ -73,6 +74,10 @@ const isTyping = (t: EventTarget | null) =>
 
 export function Timeline({ model }: { model: TimelineModel }) {
   useSyncExternalStore(model.subscribe, model.getVersion);
+  const access = useAccess();
+  const readOnly = access?.role === 'view';
+  const [sharing, setSharing] = useState(false);
+  const openShare = useCallback(() => setSharing(true), []);
   const todayDay = useMemo(getToday, []);
   const vp = useMemo(() => new Viewport(), []);
   const scrollerRef = useRef<HTMLDivElement>(null);
@@ -519,7 +524,8 @@ export function Timeline({ model }: { model: TimelineModel }) {
   // --- Keyboard ---
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (isTyping(e.target) || importingRef.current) return;
+      // Dialogs and drawers handle their own keys.
+      if (isTyping(e.target) || importingRef.current || document.querySelector('.modal-backdrop, .drawer-backdrop')) return;
       const mod = e.metaKey || e.ctrlKey;
       const sel = selectedRef.current;
       const t = sel ? getTask(sel) : undefined;
@@ -620,6 +626,11 @@ export function Timeline({ model }: { model: TimelineModel }) {
   }, []);
 
   const onDoubleClick = (e: React.MouseEvent) => {
+    if (readOnly) {
+      const el = (e.target as HTMLElement).closest<HTMLElement>('[data-task]');
+      if (el) setEditing(el.dataset.task!);
+      return;
+    }
     const el = (e.target as HTMLElement).closest<HTMLElement>('[data-task]');
     if (el) {
       setSelected(el.dataset.task!);
@@ -677,12 +688,13 @@ export function Timeline({ model }: { model: TimelineModel }) {
     const top = below + EDITOR_H > viewBottom && blockTop - EDITOR_H - 6 > 0 ? blockTop - EDITOR_H - 6 : below;
     editor = compact ? (
       // A bottom sheet on phones, outside the scroller so it stays put.
-      createPortal(<Editor key={editTask.id} task={editTask} model={model} x={0} y={0} sheet onClose={closeEditor} />, document.body)
+      createPortal(<Editor key={editTask.id} task={editTask} model={model} x={0} y={0} sheet readOnly={readOnly} onClose={closeEditor} />, document.body)
     ) : (
       <Editor
         key={editTask.id}
         task={editTask}
         model={model}
+        readOnly={readOnly}
         x={Math.max(0, scale.x(editTask.start))}
         y={top}
         onClose={closeEditor}
@@ -693,7 +705,7 @@ export function Timeline({ model }: { model: TimelineModel }) {
   return (
     <div
       ref={appRef}
-      className={'app' + (drag ? ` is-${drag.kind}` : '') + (compact ? ' compact' : '') + (dense ? ' dense' : '')}
+      className={'app' + (drag ? ` is-${drag.kind}` : '') + (compact ? ' compact' : '') + (dense ? ' dense' : '') + (readOnly ? ' readonly' : '')}
       style={{ ['--sidebar-w' as string]: `${sidebarW}px` }}
     >
       <Toolbar
@@ -721,6 +733,8 @@ export function Timeline({ model }: { model: TimelineModel }) {
         onOpenTask={revealTask}
         onOpenActivity={openActivity}
         onFollow={followPeer}
+        readOnly={readOnly}
+        onShare={openShare}
       />
       <div className="scroller" ref={scrollerRef}>
         <div
@@ -821,6 +835,8 @@ export function Timeline({ model }: { model: TimelineModel }) {
         <Minimap model={model} vp={vp} today={todayDay} />
       </div>
       {msEdit && <MilestoneEditor key={msEdit.id} id={msEdit.id} anchor={msEdit.anchor} fresh={msEdit.fresh} sheet={compact} onClose={() => setMsEdit(null)} />}
+      {sharing && <ShareDialog onClose={() => setSharing(false)} />}
+      {access?.role === 'none' && <LockScreen />}
       {activityOpen && (
         <ActivityPanel
           onClose={() => setActivityOpen(false)}

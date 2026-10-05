@@ -15,10 +15,12 @@ interface Props {
   y: number;
   /** Render as a bottom sheet (phones). */
   sheet?: boolean;
+  /** View-only link: show, don't edit. */
+  readOnly?: boolean;
   onClose(): void;
 }
 
-export function Editor({ task, model, x, y, sheet, onClose }: Props) {
+export function Editor({ task, model, x, y, sheet, readOnly, onClose }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
   /** The text field that last had focus, so picking a color can keep it. */
@@ -32,7 +34,7 @@ export function Editor({ task, model, x, y, sheet, onClose }: Props) {
 
   useEffect(() => {
     // On phones only jump into the keyboard for a new (untitled) task.
-    if (!sheet || !task.title) {
+    if (!readOnly && (!sheet || !task.title)) {
       titleRef.current?.focus({ preventScroll: true });
       titleRef.current?.select();
     }
@@ -94,7 +96,7 @@ export function Editor({ task, model, x, y, sheet, onClose }: Props) {
   return (
     <div
       ref={ref}
-      className={'editor' + (sheet ? ' sheet' : '') + (dropping ? ' dropping' : '')}
+      className={'editor' + (sheet ? ' sheet' : '') + (dropping ? ' dropping' : '') + (readOnly ? ' readonly' : '')}
       data-no-drag
       style={sheet ? undefined : { transform: `translate(${x}px, ${y}px)` }}
       onPointerDown={(e) => e.stopPropagation()}
@@ -126,77 +128,81 @@ export function Editor({ task, model, x, y, sheet, onClose }: Props) {
         if (e.key === 'Escape') onClose();
       }}
     >
-      <input
-        ref={titleRef}
-        className="editor-title"
-        placeholder="What's the plan?"
-        defaultValue={task.title}
-        onFocus={(e) => (lastField.current = e.currentTarget)}
-        onBlur={saveTitle}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            saveTitle();
-            onClose();
-          }
-        }}
-      />
-      <div className="editor-meta">
-        <Calendar />
-        <span>{formatRange(task.start, task.end)}</span>
-        <span className="editor-days">
-          {workdays(task.start, task.end)} workday{workdays(task.start, task.end) === 1 ? '' : 's'}
-        </span>
-      </div>
-      <div className="editor-fields">
-        <ProjectField task={task} model={model} />
-        <TagField task={task} model={model} />
-        <RepeatField task={task} />
-      </div>
-      <div className="swatches">
-        {PALETTE.map((c) => (
-          <button
-            key={c}
-            className={'swatch' + (c === task.color ? ' on' : '')}
-            style={{ background: c }}
-            aria-pressed={c === task.color}
-            aria-label={`Color ${c}`}
-            // Don't take focus: the text field keeps it, so on phones the
-            // keyboard stays up while you pick a color.
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => {
-              updateTask(task.id, { color: c }, 'Recolor task');
-              const f = lastField.current;
-              if (f && document.activeElement !== f) f.focus({ preventScroll: true });
-            }}
-          >
-            {c === task.color && <Check size={13} />}
-          </button>
-        ))}
-      </div>
-      <textarea
-        className="editor-notes"
-        placeholder="Notes"
-        defaultValue={task.notes}
-        rows={2}
-        onFocus={(e) => (lastField.current = e.currentTarget)}
-        onBlur={(e) => e.currentTarget.value !== task.notes && updateTask(task.id, { notes: e.currentTarget.value }, 'Edit notes')}
-      />
+      <fieldset className="editor-fieldset" disabled={readOnly}>
+        <input
+          ref={titleRef}
+          className="editor-title"
+          placeholder="What's the plan?"
+          defaultValue={task.title}
+          onFocus={(e) => (lastField.current = e.currentTarget)}
+          onBlur={saveTitle}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              saveTitle();
+              onClose();
+            }
+          }}
+        />
+        <div className="editor-meta">
+          <Calendar />
+          <span>{formatRange(task.start, task.end)}</span>
+          <span className="editor-days">
+            {workdays(task.start, task.end)} workday{workdays(task.start, task.end) === 1 ? '' : 's'}
+          </span>
+        </div>
+        <div className="editor-fields">
+          <ProjectField task={task} model={model} />
+          <TagField task={task} model={model} />
+          <RepeatField task={task} />
+        </div>
+        <div className="swatches">
+          {PALETTE.map((c) => (
+            <button
+              key={c}
+              className={'swatch' + (c === task.color ? ' on' : '')}
+              style={{ background: c }}
+              aria-pressed={c === task.color}
+              aria-label={`Color ${c}`}
+              // Don't take focus: the text field keeps it, so on phones the
+              // keyboard stays up while you pick a color.
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                updateTask(task.id, { color: c }, 'Recolor task');
+                const f = lastField.current;
+                if (f && document.activeElement !== f) f.focus({ preventScroll: true });
+              }}
+            >
+              {c === task.color && <Check size={13} />}
+            </button>
+          ))}
+        </div>
+        <textarea
+          className="editor-notes"
+          placeholder="Notes"
+          defaultValue={task.notes}
+          rows={2}
+          onFocus={(e) => (lastField.current = e.currentTarget)}
+          onBlur={(e) => e.currentTarget.value !== task.notes && updateTask(task.id, { notes: e.currentTarget.value }, 'Edit notes')}
+        />
+      </fieldset>
       <Attachments taskId={task.series} onError={setError} />
       {error && <p className="editor-error">{error}</p>}
       <Discussion taskId={task.series} collapsed={sheet && !task.comments} />
       <div className="editor-actions">
-        <button
-          className="btn danger"
-          title={task.repeat ? 'Delete only this occurrence' : 'Delete task'}
-          onClick={() => {
-            deleteTask(task.id);
-            onClose();
-          }}
-        >
-          <Trash />
-          {task.repeat ? 'Delete this' : 'Delete'}
-        </button>
-        {task.repeat && (
+        {!readOnly && (
+          <button
+            className="btn danger"
+            title={task.repeat ? 'Delete only this occurrence' : 'Delete task'}
+            onClick={() => {
+              deleteTask(task.id);
+              onClose();
+            }}
+          >
+            <Trash />
+            {task.repeat ? 'Delete this' : 'Delete'}
+          </button>
+        )}
+        {task.repeat && !readOnly && (
           <button
             className="btn danger ghost"
             title="Delete every occurrence"

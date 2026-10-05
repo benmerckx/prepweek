@@ -4,6 +4,7 @@ import { createWsSynchronizer } from 'tinybase/synchronizers/synchronizer-ws-cli
 import ReconnectingWebSocket from 'reconnecting-websocket';
 import { store } from './store.ts';
 import { seed } from './seed.ts';
+import { withKey } from './access.ts';
 
 export type SyncStatus = 'local' | 'connecting' | 'online' | 'offline';
 
@@ -80,12 +81,18 @@ export const startSync = async (sheetId: string) => {
 
   // Never block first paint on the network: the local replica is already
   // usable, the server merges in when it answers.
-  if (server) void connect(server, sheetId);
+  if (server)
+    connect(server, sheetId).catch((e) => {
+      // e.g. refused because the sheet is private and our link isn't valid.
+      console.warn('Sync connection failed', e);
+      setStatus('offline');
+    });
 };
 
 const connect = async (server: string, sheetId: string) => {
   setStatus('connecting');
-  const ws = new ReconnectingWebSocket(`${server.replace(/\/$/, '')}/${encodeURIComponent(sheetId)}`);
+  // A function, so a reconnect after the share links are reset uses the new key.
+  const ws = new ReconnectingWebSocket(() => withKey(`${server.replace(/\/$/, '')}/${encodeURIComponent(sheetId)}`));
   ws.addEventListener('close', () => setStatus('offline'));
   const remote = await createWsSynchronizer(store, ws as unknown as WebSocket);
   // Re-sync after every (re)connect so offline edits propagate.

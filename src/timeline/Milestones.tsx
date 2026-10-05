@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import type { Milestone } from './model.ts';
 import type { Viewport } from './viewport.ts';
 import type { Scale } from './scale.ts';
-import { createMilestone, deleteMilestone, MILESTONE_COLORS, store, updateMilestone } from '../data/store.ts';
+import { createMilestone, deleteMilestone, MILESTONE_COLORS, store, updateMilestone, isReadOnly } from '../data/store.ts';
 import { formatDay } from '../lib/dates.ts';
 import { useBackToClose } from '../lib/useBackToClose.ts';
 import { Check, Flag, Plus, Trash } from '../ui/icons.tsx';
@@ -77,6 +77,7 @@ export const MilestoneBand = memo(function MilestoneBand({ milestones, d0, d1, s
           swallowClick.current = false;
           return;
         }
+        if (isReadOnly()) return;
         const day = Math.floor(vp.dayAt(e.clientX));
         const id = createMilestone({ day, title: '', color: MILESTONE_COLORS[0] });
         // The lane spans the body, so its left edge is day `origin`.
@@ -99,7 +100,7 @@ export const MilestoneBand = memo(function MilestoneBand({ milestones, d0, d1, s
             style={{ transform: `translateX(${scale.x(day)}px)`, ['--c' as string]: m.color }}
             title={`${m.title || 'Untitled milestone'} · ${formatDay(day)}`}
             onPointerDown={(e) => {
-              if (e.button !== 0) return;
+              if (e.button !== 0 || isReadOnly()) return;
               e.stopPropagation();
               (e.currentTarget.parentElement as HTMLElement).setPointerCapture(e.pointerId);
               press.current = { id: m.id, el: e.currentTarget, pointerId: e.pointerId, x: e.clientX, day: m.day, moved: false };

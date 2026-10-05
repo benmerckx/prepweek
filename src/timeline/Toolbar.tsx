@@ -10,7 +10,7 @@ import { NotificationsMenu } from './Discussion.tsx';
 import { PresenceAvatars } from './Presence.tsx';
 import type { Peer } from '../data/presence.ts';
 import type { ViewConfig } from '../data/store.ts';
-import { Check, ChevronLeft, ChevronRight, Close, Folder, History, Logo, Minus, More, People, Plus, Redo, Search as SearchIc, Undo, Upload } from '../ui/icons.tsx';
+import { Check, ChevronLeft, ChevronRight, Close, Eye, Folder, History, LinkIcon, Logo, Minus, More, People, Plus, Redo, Search as SearchIc, Undo, Upload } from '../ui/icons.tsx';
 
 interface Props {
   colW: number;
@@ -38,6 +38,8 @@ interface Props {
   onOpenActivity(): void;
   /** Jump to where another person on the sheet is. */
   onFollow(p: Peer): void;
+  readOnly: boolean;
+  onShare(): void;
 }
 
 
@@ -120,11 +122,21 @@ export const Toolbar = memo(function Toolbar(props: Props) {
       <PeopleMenu {...props} />
       <FilterMenu model={model} filter={props.filter} onFilter={props.onFilter} onManageProjects={props.onManageProjects} />
       <PresenceAvatars onFollow={props.onFollow} />
+      {props.readOnly && (
+        <span className="ro-chip" title="You have a view-only link">
+          <Eye size={14} />
+          View only
+        </span>
+      )}
       <NotificationsMenu onOpenTask={props.onOpenTask} />
       <div className={`sync sync-${sync}`} title={SYNC_HELP[sync]}>
         <span className="dot" />
         <span className="sync-label">{sync === 'local' ? 'Local' : sync}</span>
       </div>
+      <button className="btn primary tb-share" onClick={props.onShare} title="Share this sheet">
+        <LinkIcon size={14} />
+        Share
+      </button>
       <button className="btn tb-import" onClick={props.onImport} title="Import from Teamweek / Toggl Plan">
         <Upload />
         Import
@@ -158,16 +170,20 @@ export const Toolbar = memo(function Toolbar(props: Props) {
           <Toggle label="Hide weekends" on={props.hideWeekends} onToggle={props.onToggleWeekends} />
           <Toggle label="Compact rows" on={props.dense} onToggle={props.onToggleDense} />
           <div className="menu-sep" />
-          <button className="menu-item" onClick={() => confirm('Replace everything with fresh demo data?') && seed()}>
-            Reset demo data
-          </button>
-          <button
-            className="menu-item"
-            title="Load 120 people × 2 years (~25k tasks)"
-            onClick={() => confirm('Replace everything with a large stress-test dataset?') && seed(120, 1.6, 11)}
-          >
-            Stress test (120 people)
-          </button>
+          {!props.readOnly && (
+            <>
+              <button className="menu-item" onClick={() => confirm('Replace everything with fresh demo data?') && seed()}>
+                Reset demo data
+              </button>
+              <button
+                className="menu-item"
+                title="Load 120 people × 2 years (~25k tasks)"
+                onClick={() => confirm('Replace everything with a large stress-test dataset?') && seed(120, 1.6, 11)}
+              >
+                Stress test (120 people)
+              </button>
+            </>
+          )}
         </div>
       </details>
     </header>

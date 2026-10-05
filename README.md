@@ -33,7 +33,18 @@ Open `/s/<anything>` for a separate sheet. The default sheet seeds demo data;
 | Jump to today | <kbd>T</kbd> |
 | Focus on a person | click their avatar (<kbd>⌘</kbd>/<kbd>Shift</kbd>-click adds more), the people menu in the toolbar, or <kbd>F</kbd> on a selected task; <kbd>Esc</kbd> or the chip in the corner shows everyone again |
 | Find tasks | <kbd>/</kbd>, type; non-matching blocks fade, <kbd>Enter</kbd> / <kbd>⇧Enter</kbd> jump to the next/previous match |
-
+| Projects, clients, tags | in a task's editor; **⋯ → Projects…** manages them (rename, client, color for all its tasks, archive) |
+| Filter | the funnel in the toolbar: by project (grouped by client) and tag; combines with search |
+| Saved views | the **Views** menu left in the toolbar saves focus, search, filters, weekends, density and zoom for everyone on the sheet |
+| Repeat a task | **Repeat** in its editor (every workday/week/2 weeks/month, optional end date). Dragging the first one moves the series; dragging another detaches it |
+| Teams | click a name → **Team**. Team headers collapse; double-click one to rename the team |
+| Reorder people | drag a name up or down (long-press on touch); drop it under another team to move it there |
+| Hide weekends / compact rows | **⋯ → View** |
+| Comments | in a task's editor; type **@** to mention someone |
+| Activity | **⋯ → Activity**: every change, by whom; each task's editor has its own **History** |
+| Notifications | the bell: mentions, comments on your tasks and changes others make to your work |
+| See who's here | faces in the toolbar (click one to jump to them), their pointers and selections in their color, their view on the minimap |
+| Share | **Share**: private edit and view-only links |
 | Milestones | click the milestone lane under the dates (or **+** in the corner); drag a flag to move it, click to rename, recolor or delete |
 | Attachments | in a task's editor: **File** / **Link**, drop files on the editor, or paste an image |
 | Import from Teamweek / Toggl Plan | **Import** in the toolbar (or ⋯ menu), or drop the CSV anywhere on the app |
@@ -185,8 +196,31 @@ index, permissions, and reporting exports.
 Sync is enabled automatically when the app is served by the worker. Locally,
 run `bun run worker:dev` and open
 `http://localhost:8787/s/team?sync=ws://localhost:8787/sync` in two browsers.
-`?sync=off` turns it off again. The worker has no authentication yet; there
-is a TODO at the upgrade point in `worker/index.ts`.
+`?sync=off` turns it off again.
+
+Presence (faces, pointers, selections) is ephemeral and stays out of the
+CRDT: tabs use a BroadcastChannel, other machines a relay-only
+`PresenceDurableObject` per sheet at `/presence/<sheet>`.
+
+### Sharing
+
+A sheet starts open: anyone with its address can edit, which suits a demo.
+**Share → Turn on private links** mints two secret keys, stored in the
+sheet's Durable Object: an edit link and a view-only link (`/s/<sheet>?k=…`).
+From then on the worker checks the key on every sync, presence and file
+request, and the sheet shows a lock screen without one. The key is
+remembered per sheet and removed from the address bar.
+
+View-only is enforced by the server, not just the UI: the sheet's object
+only forwards read requests from a view-only socket (TinyBase's
+`GetContentHashes` / `Get…Diff` messages) and drops anything that carries
+content. **Reset links** replaces both keys and disconnects everyone, so old
+links stop working at once.
+
+Links are keys, not accounts. For sign-in with company accounts, put the
+worker behind [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/policies/access/);
+people pick who they are on the sheet (for comments and notifications) from
+the bell or the comment box.
 
 ### Deploying
 

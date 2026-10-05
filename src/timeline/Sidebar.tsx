@@ -1,6 +1,6 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { PALETTE, deleteUser, getUser, renameTeam, reorderUsers, store, updateUser } from '../data/store.ts';
+import { PALETTE, deleteUser, getUser, isReadOnly, renameTeam, reorderUsers, store, updateUser } from '../data/store.ts';
 import { isWeekend } from '../lib/dates.ts';
 import { useBackToClose } from '../lib/useBackToClose.ts';
 import { Check, ChevronDown, Trash } from '../ui/icons.tsx';
@@ -87,7 +87,7 @@ export const Sidebar = memo(function Sidebar({ model, rows, tops, r0, r1, focuse
   // Reorder gesture: drag a row (mouse), or long-press then drag (touch).
   const onPointerDown = (e: React.PointerEvent) => {
     const el = (e.target as HTMLElement).closest<HTMLElement>('.person');
-    if (!el || e.button !== 0 || (e.target as HTMLElement).closest('.avatar, input')) return;
+    if (!el || e.button !== 0 || isReadOnly() || (e.target as HTMLElement).closest('.avatar, input')) return;
     const id = el.dataset.user!;
     const box = wrap.current!.getBoundingClientRect();
     const i = latest.current.rows.findIndex((r) => r.userId === id);
@@ -170,7 +170,7 @@ export const Sidebar = memo(function Sidebar({ model, rows, tops, r0, r1, focuse
   };
 
   const openEditor = (id: string, el: HTMLElement) => {
-    if (suppressClick.current) return;
+    if (suppressClick.current || isReadOnly()) return;
     setEditing({ id, anchor: el.getBoundingClientRect() });
   };
 

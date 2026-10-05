@@ -9,7 +9,7 @@ import {
   updateProject,
   updateTask,
 } from '../data/store.ts';
-import { useBackToClose } from '../lib/useBackToClose.ts';
+import { useBackToClose, useEscape } from '../lib/useBackToClose.ts';
 import { Check, ChevronDown, Close, Folder, Plus, Tag, Trash } from '../ui/icons.tsx';
 import type { Project, TaskView, TimelineModel } from './model.ts';
 
@@ -247,6 +247,7 @@ export function TagField({ task, model }: { task: TaskView; model: TimelineModel
 
 export function ProjectsDialog({ model, onClose }: { model: TimelineModel; onClose(): void }) {
   useBackToClose(true, onClose);
+  useEscape(onClose);
   const [name, setName] = useState('');
   const [client, setClient] = useState('');
   const [showArchived, setShowArchived] = useState(false);
@@ -262,7 +263,7 @@ export function ProjectsDialog({ model, onClose }: { model: TimelineModel; onClo
 
   return createPortal(
     <div className="modal-backdrop" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal projects" role="dialog" aria-label="Projects" onKeyDown={(e) => e.key === 'Escape' && onClose()}>
+      <div className="modal projects" role="dialog" aria-label="Projects">
         <header className="modal-head">
           <h2>Projects</h2>
           <button className="tb-search-btn" aria-label="Close" onClick={onClose}>

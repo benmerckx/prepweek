@@ -3549,3 +3549,201 @@ button.tag-chip {
 .app.compact .presence-face:nth-child(n + 3) {
   display: none;
 }
+
+/* =============================================================================
+   Sharing and read-only
+   ========================================================================== */
+
+.editor-fieldset {
+  display: contents;
+}
+.tb-share {
+  flex: none;
+}
+.ro-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  height: 26px;
+  padding: 0 9px;
+  border-radius: 13px;
+  background: var(--panel);
+  color: var(--text-dim);
+  font-size: 12px;
+  font-weight: 600;
+}
+.readonly .tb-import,
+.readonly .seg:has(.redo),
+.readonly .add-person,
+.readonly .corner-ms-add,
+.readonly .task .handle {
+  display: none;
+}
+.readonly .task {
+  cursor: pointer;
+}
+.readonly .person-name {
+  cursor: default;
+}
+.editor.readonly .field-chip,
+.editor.readonly .tags-field,
+.editor.readonly .repeat-field,
+.editor.readonly .editor-notes {
+  background: var(--panel);
+  cursor: default;
+}
+.editor.readonly .swatch:not(.on) {
+  display: none;
+}
+
+.modal.share {
+  width: min(560px, 100%);
+}
+.share-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 20px 20px;
+  overflow-y: auto;
+}
+.share-state {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--panel);
+}
+.share-state div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.share-state span:not(.share-icon) {
+  color: var(--text-dim);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+.share-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.share-state.open .share-icon {
+  background: color-mix(in srgb, var(--warn) 16%, transparent);
+  color: var(--warn);
+}
+.share-row {
+  display: grid;
+  grid-template-columns: 120px 1fr auto;
+  align-items: center;
+  gap: 10px;
+}
+.share-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.share-row-text span {
+  color: var(--text-dim);
+  font-size: 11.5px;
+}
+.share-url {
+  min-width: 0;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  outline: none;
+  background: var(--panel);
+  color: var(--text-dim);
+  font: inherit;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+.share-url:focus {
+  border-color: var(--accent);
+  color: var(--text);
+}
+.btn.copied {
+  border-color: var(--ok);
+  color: var(--ok);
+}
+.share-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+}
+.share-note {
+  margin: 0;
+  line-height: 1.5;
+}
+.share-foot {
+  margin: 4px 0 0;
+  color: var(--text-faint);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.modal.share .btn.big {
+  align-self: flex-start;
+}
+@media (max-width: 640px) {
+  .share-row {
+    grid-template-columns: 1fr auto;
+  }
+  .share-row-text {
+    grid-column: 1 / -1;
+  }
+}
+
+.lock {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  backdrop-filter: blur(10px);
+}
+.lock-card {
+  max-width: 380px;
+  padding: 28px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--raised);
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+.lock-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  margin-bottom: 12px;
+  border-radius: 14px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.lock-card h1 {
+  margin: 0 0 8px;
+  font-size: 18px;
+  letter-spacing: -0.01em;
+}
+.lock-card p {
+  margin: 0;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+.app.compact .tb-share {
+  width: 32px;
+  padding: 0;
+  font-size: 0;
+  gap: 0;
+}

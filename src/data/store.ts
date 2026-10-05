@@ -308,7 +308,13 @@ const restore = (snaps: Snap[], other: Snap[]) => {
 /**
  * Run a local, undoable mutation. `touches` lists the rows that may change.
  */
+/** View-only sheets: every local command is refused here, in one place. */
+let readOnly = false;
+export const setReadOnly = (v: boolean) => (readOnly = v);
+export const isReadOnly = () => readOnly;
+
 export const commit = (label: string, touches: [TableId, string][], mutate: () => void) => {
+  if (readOnly) return;
   const before = touches.map(([t, id]) => snap(t, id));
   let after: Snap[] = [];
   let changed = false;
@@ -327,6 +333,7 @@ export const commit = (label: string, touches: [TableId, string][], mutate: () =
 };
 
 export const undo = () => {
+  if (readOnly) return;
   const e = undoStack.pop();
   if (!e) return;
   store.transaction(() => {
@@ -338,6 +345,7 @@ export const undo = () => {
 };
 
 export const redo = () => {
+  if (readOnly) return;
   const e = redoStack.pop();
   if (!e) return;
   store.transaction(() => {

@@ -30,3 +30,18 @@ export function useBackToClose(open: boolean, close: () => void) {
     };
   }, [open]);
 }
+
+/**
+ * Escape closes an overlay wherever focus is. The listener is added once:
+ * re-adding it while a keydown is being dispatched (another handler
+ * re-rendering us) would make the browser skip it.
+ */
+export function useEscape(close: () => void) {
+  const ref = useRef(close);
+  ref.current = close;
+  useEffect(() => {
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && ref.current();
+    window.addEventListener('keydown', esc);
+    return () => window.removeEventListener('keydown', esc);
+  }, []);
+}

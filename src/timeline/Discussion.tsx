@@ -1,10 +1,10 @@
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
-import { addComment, deleteComment, store, type CommentRow } from '../data/store.ts';
+import { addComment, deleteComment, isReadOnly, store, type CommentRow } from '../data/store.ts';
 import { displayName, getMe, isMe, onMeChange, setMe } from '../data/identity.ts';
 import { getSeen, markSeen, notifications, type Note } from '../data/notify.ts';
 import { ago, useTables } from '../lib/useTable.ts';
-import { useBackToClose } from '../lib/useBackToClose.ts';
+import { useBackToClose, useEscape } from '../lib/useBackToClose.ts';
 import { Bell, Close, Comment, History, Send, Trash } from '../ui/icons.tsx';
 
 const PAST: Record<string, string> = {
@@ -274,7 +274,7 @@ export function Discussion({ taskId, collapsed: startCollapsed = false }: { task
                   <div className="disc-meta">
                     <b>{it.by || 'Someone'}</b>
                     <span>{ago(it.at)}</span>
-                    {isMe(it.byId, it.by) && (
+                    {isMe(it.byId, it.by) && !isReadOnly() && (
                       <button className="disc-del" aria-label="Delete comment" onClick={() => deleteComment(it.id)}>
                         <Trash size={12} />
                       </button>
@@ -298,7 +298,7 @@ export function Discussion({ taskId, collapsed: startCollapsed = false }: { task
           <div ref={end} />
         </div>
       )}
-      {signedIn ? (
+      {isReadOnly() ? null : signedIn ? (
         <Composer taskId={taskId} />
       ) : asking ? (
         <WhoAreYou compact key={me.name} />
@@ -315,6 +315,7 @@ export function Discussion({ taskId, collapsed: startCollapsed = false }: { task
 
 export function ActivityPanel({ onOpenTask, onClose }: { onOpenTask(id: string): void; onClose(): void }) {
   useBackToClose(true, onClose);
+  useEscape(onClose);
   const v = useTables('activity', 'comments');
   const [limit, setLimit] = useState(150);
   const rows = useMemo(() => {
@@ -326,7 +327,7 @@ export function ActivityPanel({ onOpenTask, onClose }: { onOpenTask(id: string):
 
   return createPortal(
     <div className="drawer-backdrop" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
-      <aside className="drawer" role="dialog" aria-label="Activity" onKeyDown={(e) => e.key === 'Escape' && onClose()}>
+      <aside className="drawer" role="dialog" aria-label="Activity">
         <header className="modal-head">
           <h2>Activity</h2>
           <button className="tb-search-btn" aria-label="Close" onClick={onClose}>

@@ -1,6 +1,6 @@
 import type { TimelineModel } from './model.ts';
 import { HEADER_H, type Viewport } from './viewport.ts';
-import { createTask, getUser, updateTask } from '../data/store.ts';
+import { createTask, getUser, isReadOnly, updateTask } from '../data/store.ts';
 
 // Pointer-driven move / resize / create, written from scratch on Pointer
 // Events. Design points that make it feel solid:
@@ -111,6 +111,8 @@ export class DragController {
       const grab = kind === 'resize-end' ? col - sc.col(task.end + 1) : col - sc.col(task.start);
       this.s = { ...base, kind, taskId: task.id, userId: task.userId, start: task.start, end: task.end, grab, anchor: 0 };
     } else {
+      // View-only: tapping a block selects it, nothing else.
+      if (isReadOnly()) return;
       const row = this.model.personAt(this.vp.yAt(e.clientY));
       if (!row) return;
       const d = sc.dayOfCol(Math.floor(col));
@@ -144,6 +146,7 @@ export class DragController {
     }
     if (!s.started) {
       if (Math.hypot(e.clientX - s.downX, e.clientY - s.downY) < SLOP) return;
+      if (isReadOnly()) return this.end();
       this.begin();
     }
     this.update();
@@ -162,6 +165,7 @@ export class DragController {
     const s = this.s;
     if (!s?.pending) return;
     s.pending = false;
+    if (isReadOnly()) return;
     navigator.vibrate?.(8);
     this.begin();
     this.update();
