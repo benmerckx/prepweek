@@ -66,6 +66,7 @@ export const seed = (people = 24, density = 1, seedValue = 7) => {
         name: `${FIRST[u % FIRST.length]} ${LAST[(u * 7) % LAST.length]}`,
         color: PALETTE[u % PALETTE.length]!,
         order: u,
+        team: people > 40 ? '' : u < 6 ? 'Design' : u < 16 ? 'Engineering' : 'Product',
       });
       // Each person has a few "main" projects and some noise.
       const mains = [pick(PROJECTS), pick(PROJECTS), pick(PROJECTS)];

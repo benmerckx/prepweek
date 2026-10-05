@@ -111,7 +111,7 @@ export class DragController {
       const grab = kind === 'resize-end' ? col - sc.col(task.end + 1) : col - sc.col(task.start);
       this.s = { ...base, kind, taskId: task.id, userId: task.userId, start: task.start, end: task.end, grab, anchor: 0 };
     } else {
-      const row = this.model.rows[this.model.rowAt(this.vp.yAt(e.clientY))];
+      const row = this.model.personAt(this.vp.yAt(e.clientY));
       if (!row) return;
       const d = sc.dayOfCol(Math.floor(col));
       this.s = { ...base, kind: 'create', taskId: NEW_TASK_ID, userId: row.userId, start: d, end: d, grab: 0, anchor: d };
@@ -196,7 +196,8 @@ export class DragController {
         start = sc.dayOfCol(startCol);
         // Keep the length in visible columns (workdays when weekends are hidden).
         end = sc.hideWeekends ? sc.dayOfCol(startCol + Math.max(1, sc.cols(s.start, s.end)) - 1) : start + (s.end - s.start);
-        if (row) {
+        // Over a team header: stay with the current person.
+        if (row?.kind === 'person') {
           userId = row.userId;
           lane = Math.max(0, Math.floor((y - this.model.rowTops[ri]! - pad) / laneH));
         }

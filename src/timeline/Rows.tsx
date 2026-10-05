@@ -1,10 +1,9 @@
-import { memo, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { memo, useLayoutEffect, useRef } from 'react';
 import { labelPinner } from './pin.ts';
 import { Notes, Paperclip } from '../ui/icons.tsx';
 import { CHUNK, visibleTasks, type Dims, type RowLayout, type TaskView } from './model.ts';
 import type { Scale } from './scale.ts';
-import { renameUser } from '../data/store.ts';
-import { formatRange, isWeekend, workdays } from '../lib/dates.ts';
+import { formatRange, workdays } from '../lib/dates.ts';
 
 interface BlockProps {
   task: TaskView;
@@ -92,6 +91,7 @@ interface RowProps {
 }
 
 export const RowView = memo(function RowView({ row, top, scale, dims, d0, d1, selectedId, dragId, filter }: RowProps) {
+  if (row.kind === 'team') return <div className="row team-band" style={{ transform: `translateY(${top}px)`, height: row.height }} />;
   const tiles = [];
   for (let c = d0; c <= d1; c += CHUNK) {
     tiles.push(
@@ -173,112 +173,5 @@ export const GridBackground = memo(function GridBackground({ d0, d1, scale, heig
         <div className="today-col" style={{ transform: `translateX(${scale.x(today)}px)`, width: colW, height }} />
       )}
     </>
-  );
-});
-
-interface SidebarProps {
-  rows: RowLayout[];
-  tops: number[];
-  r0: number;
-  r1: number;
-  focused: boolean;
-  today: number;
-  onFocusPerson(id: string, additive: boolean): void;
-}
-
-export const Sidebar = memo(function Sidebar({ rows, tops, r0, r1, focused, today, onFocusPerson }: SidebarProps) {
-  const out = [];
-  for (let i = r0; i <= r1 && i < rows.length; i++) {
-    const r = rows[i]!;
-    out.push(<SidebarRow key={r.userId} row={r} top={tops[i]!} focused={focused} today={today} onFocusPerson={onFocusPerson} />);
-  }
-  return <>{out}</>;
-});
-
-const initials = (name: string) =>
-  name
-    .split(/\s+/)
-    .map((p) => p[0] ?? '')
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
-
-const LOAD_DAYS = 28;
-
-/**
- * Share of workdays in the next four weeks that have at least one task,
- * plus how much of it is parallel work (2+ tasks on the same day).
- */
-const upcomingLoad = (row: RowLayout, today: number) => {
-  const end = today + LOAD_DAYS - 1;
-  let booked = 0;
-  let parallel = 0;
-  let total = 0;
-  for (let d = today; d <= end; d++) if (!isWeekend(d)) total++;
-  for (const c of row.clusters) {
-    if (c.end < today) continue;
-    if (c.start > end) break;
-    for (let d = Math.max(c.start, today); d <= Math.min(c.end, end); d++) {
-      if (isWeekend(d)) continue;
-      booked++;
-      if (c.lanes > 1) parallel++;
-    }
-  }
-  return { pct: total ? booked / total : 0, parallel: total ? parallel / total : 0 };
-};
-
-interface RowProps2 {
-  row: RowLayout;
-  top: number;
-  focused: boolean;
-  today: number;
-  onFocusPerson(id: string, additive: boolean): void;
-}
-
-const SidebarRow = memo(function SidebarRow({ row, top, focused, today, onFocusPerson }: RowProps2) {
-  const [editing, setEditing] = useState(false);
-  const load = useMemo(() => upcomingLoad(row, today), [row.clusters, today]); // eslint-disable-line react-hooks/exhaustive-deps
-  const first = row.name.split(/\s+/)[0];
-  return (
-    <div className={'person' + (focused ? ' in-focus' : '')} style={{ transform: `translateY(${top}px)`, height: row.height }}>
-      <button
-        className="avatar"
-        style={{ ['--c' as string]: row.color }}
-        title={focused ? 'Show everyone' : `Focus on ${first} (⌘/Shift-click to add)`}
-        aria-label={focused ? 'Show everyone' : `Focus on ${row.name}`}
-        aria-pressed={focused}
-        onClick={(e) => onFocusPerson(row.userId, e.metaKey || e.ctrlKey || e.shiftKey)}
-      >
-        {initials(row.name)}
-      </button>
-      {editing ? (
-        <input
-          className="person-input"
-          autoFocus
-          defaultValue={row.name}
-          onBlur={(e) => {
-            const v = e.currentTarget.value.trim();
-            if (v && v !== row.name) renameUser(row.userId, v);
-            setEditing(false);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') e.currentTarget.blur();
-            if (e.key === 'Escape') setEditing(false);
-          }}
-        />
-      ) : (
-        <div className="person-name" onDoubleClick={() => setEditing(true)} title={`${row.name} (double-click to rename)`}>
-          <span className="person-full">{row.name}</span>
-          <span className="person-first">{first}</span>
-          <div className="person-sub" title="Booked workdays in the next 4 weeks">
-            <span className="load">
-              <span className="load-fill" style={{ width: `${Math.round(load.pct * 100)}%` }} />
-              <span className="load-over" style={{ width: `${Math.round(load.parallel * 100)}%` }} />
-            </span>
-            {Math.round(load.pct * 100)}% booked
-          </div>
-        </div>
-      )}
-    </div>
   );
 });

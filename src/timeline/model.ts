@@ -16,9 +16,15 @@ export interface Dims {
   blockH: number;
   pad: number;
   minLanes: number;
+  /** Height of a team header row. */
+  teamH: number;
 }
-export const COMFORTABLE: Dims = { laneH: 30, blockH: 26, pad: 6, minLanes: 2 };
-export const COMPACT: Dims = { laneH: 22, blockH: 19, pad: 4, minLanes: 1 };
+export const COMFORTABLE: Dims = { laneH: 30, blockH: 26, pad: 6, minLanes: 2, teamH: 34 };
+export const COMPACT: Dims = { laneH: 22, blockH: 19, pad: 4, minLanes: 1, teamH: 28 };
+/** Key prefix of team header rows (can't collide with generated ids). */
+export const TEAM_ROW = 'team:';
+/** People without a team, when others have one. */
+export const NO_TEAM = '';
 /** Days per render tile. A multiple of 7, so tiles start on Mondays. */
 export const CHUNK = 28;
 
@@ -51,6 +57,13 @@ export interface Milestone {
 }
 
 export interface RowLayout {
+  /** A person, or a team header above its people. */
+  kind: 'person' | 'team';
+  /** The person's team; for a header, the team it heads. */
+  team: string;
+  /** Header only: people in the team, and whether they're hidden. */
+  count?: number;
+  collapsed?: boolean;
   userId: string;
   name: string;
   color: string;
@@ -75,6 +88,8 @@ export interface Preview {
   title?: string;
   color?: string;
 }
+
+const EMPTY_ROW = { tasks: [], maxSpan: 0, laneCount: 0, clusters: [], color: '' };
 
 export const rowHeight = (lanes: number, d: Dims) => d.pad * 2 + Math.max(lanes, d.minLanes) * d.laneH;
 
@@ -116,10 +131,45 @@ export class TimelineModel {
   setDims(d: Dims) {
     if (d === this.dims) return;
     this.dims = d;
+    this.usersDirty = true;
     const [a, b] = this.heightWindow;
     this.heightWindow = [NaN, NaN]; // force setHeightWindow to recompute
     this.setHeightWindow(a, b);
   }
+  /** People shown (not counting team headers). */
+  personCount = 0;
+  /** Team names in display order (empty when not grouped). */
+  teams: string[] = [];
+  private collapsed = new Set<string>();
+  isCollapsed = (team: string) => this.collapsed.has(team);
+  setCollapsed(teams: Iterable<string>) {
+    this.collapsed = new Set(teams);
+    this.usersDirty = true;
+    this.flush();
+  }
+
+  /** Every person id in display order: grouped by team, collapsed included. */
+  displayOrder(): string[] {
+    const users = this.allUsers();
+    if (!users.some((u) => u.team)) return users.map((u) => u.id);
+    const teams = new Map<string, string[]>();
+    for (const u of users) {
+      const list = teams.get(u.team);
+      if (list) list.push(u.id);
+      else teams.set(u.team, [u.id]);
+    }
+    const order = [...teams.keys()].sort((a, b) => (a === NO_TEAM ? 1 : b === NO_TEAM ? -1 : 0));
+    return order.flatMap((t) => teams.get(t)!);
+  }
+
+  /** The person row at body y; a team header resolves to its first person. */
+  personAt(y: number): RowLayout | undefined {
+    const i = this.rowAt(y);
+    for (let j = i; j < this.rows.length; j++) if (this.rows[j]!.kind === 'person') return this.rows[j];
+    for (let j = i - 1; j >= 0; j--) if (this.rows[j]!.kind === 'person') return this.rows[j];
+    return undefined;
+  }
+
   /** Focus mode: only these people are shown (null = everyone). */
   private focus: ReadonlySet<string> | null = null;
   private dirtyUsers = new Set<string>();
@@ -172,10 +222,10 @@ export class TimelineModel {
   }
 
   /** All people on the sheet in order, regardless of focus. */
-  allUsers(): { id: string; name: string; color: string }[] {
+  allUsers(): { id: string; name: string; color: string; team: string; email: string; order: number }[] {
     return this.store
       .getRowIds('users')
-      .map((id) => ({ id, ...(this.store.getRow('users', id) as UserRow) }))
+      .map((id) => ({ id, team: '', ...(this.store.getRow('users', id) as UserRow) }))
       .sort((a, b) => a.order - b.order || a.name.localeCompare(b.name));
   }
 
@@ -387,7 +437,7 @@ export class TimelineModel {
     const m = this.byUser.get(userId);
     if (m) for (const t of tasks) if (m.has(t.id) && !(p && p.id === t.id)) m.set(t.id, t);
     const height = rowHeight(lanesIn(clusters, this.heightWindow[0], this.heightWindow[1]), this.dims);
-    return { userId, name: user.name, color: user.color, tasks, maxSpan, laneCount, clusters, height };
+    return { kind: 'person', team: user.team ?? '', userId, name: user.name, color: user.color, tasks, maxSpan, laneCount, clusters, height };
   }
 
   setHeightWindow(d0: number, d1: number) {
@@ -396,7 +446,7 @@ export class TimelineModel {
     this.heightWindow = [d0, d1];
     let changed = false;
     this.rows = this.rows.map((r) => {
-      const height = rowHeight(lanesIn(r.clusters, d0, d1), this.dims);
+      const height = r.kind === 'team' ? this.dims.teamH : rowHeight(lanesIn(r.clusters, d0, d1), this.dims);
       if (height === r.height) return r;
       changed = true;
       return { ...r, height };
@@ -414,13 +464,45 @@ export class TimelineModel {
         .filter(([id]) => !this.focus || this.focus.has(id))
         .sort((a, b) => a[1].order - b[1].order || a[1].name.localeCompare(b[1].name));
       const old = new Map(this.rows.map((r) => [r.userId, r]));
-      this.rows = users.map(([id, u]) => {
+      const person = ([id, u]: readonly [string, UserRow]): RowLayout => {
         const prev = old.get(id);
         if (prev && !this.dirtyUsers.has(id)) {
-          return prev.name === u.name && prev.color === u.color ? prev : { ...prev, name: u.name, color: u.color };
+          const team = u.team ?? '';
+          return prev.name === u.name && prev.color === u.color && prev.team === team ? prev : { ...prev, name: u.name, color: u.color, team };
         }
         return this.layoutRow(id, u);
-      });
+      };
+      // Group by team once anyone has one (not while focusing on people).
+      const grouped = !this.focus && users.some(([, u]) => u.team);
+      this.personCount = users.length;
+      if (!grouped) {
+        this.teams = [];
+        this.rows = users.map(person);
+      } else {
+        const teams = new Map<string, (readonly [string, UserRow])[]>();
+        for (const e of users) {
+          const t = e[1].team ?? '';
+          const list = teams.get(t);
+          if (list) list.push(e);
+          else teams.set(t, [e]);
+        }
+        // Teams in the order of their first person; "No team" last.
+        const order = [...teams.keys()].sort((a, b) => (a === NO_TEAM ? 1 : b === NO_TEAM ? -1 : 0));
+        this.teams = order;
+        this.rows = [];
+        for (const t of order) {
+          const members = teams.get(t)!;
+          const collapsed = this.collapsed.has(t);
+          const key = TEAM_ROW + t;
+          const prev = old.get(key);
+          this.rows.push(
+            prev && prev.count === members.length && prev.collapsed === collapsed && prev.height === this.dims.teamH
+              ? prev
+              : { ...EMPTY_ROW, kind: 'team', team: t, userId: key, name: t || 'No team', count: members.length, collapsed, height: this.dims.teamH },
+          );
+          if (!collapsed) for (const m of members) this.rows.push(person(m));
+        }
+      }
       this.dirtyUsers.clear();
       changed = true;
     } else if (this.dirtyUsers.size) {

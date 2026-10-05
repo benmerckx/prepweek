@@ -5,7 +5,8 @@ import { Scale } from './scale.ts';
 import { COMPACT_QUERY, HEADER_H, SIDEBAR_W, SIDEBAR_W_COMPACT, Viewport, ZOOM_MAX, ZOOM_MIN } from './viewport.ts';
 import { DragController, type DragKind } from './drag.ts';
 import { Header } from './Header.tsx';
-import { GridBackground, RowView, Sidebar, matches, type TaskFilter } from './Rows.tsx';
+import { GridBackground, RowView, matches, type TaskFilter } from './Rows.tsx';
+import { Sidebar } from './Sidebar.tsx';
 import { NO_FILTER, type FilterState } from './Filters.tsx';
 import { ProjectsDialog } from './Projects.tsx';
 import { Minimap } from './Minimap.tsx';
@@ -29,6 +30,7 @@ interface Win {
 const ZOOM_KEY = 'prepweek:zoom';
 const WEEKENDS_KEY = 'prepweek:hideWeekends';
 const DENSITY_KEY = 'prepweek:density';
+const COLLAPSED_KEY = 'prepweek:collapsedTeams';
 
 const readFlag = (key: string) => {
   try {
@@ -124,6 +126,25 @@ export function Timeline({ model }: { model: TimelineModel }) {
   const [query, setQuery] = useState('');
   const q = query.trim().toLowerCase();
   const focus = model.getFocus();
+  // Collapsed teams are a per-device preference.
+  useState(() => {
+    try {
+      const v = JSON.parse(localStorage.getItem(COLLAPSED_KEY) ?? '[]');
+      if (Array.isArray(v) && v.length) model.setCollapsed(v);
+    } catch {}
+  });
+  const toggleTeam = useCallback(
+    (team: string) => {
+      const next = new Set(model.teams.filter(model.isCollapsed));
+      if (next.has(team)) next.delete(team);
+      else next.add(team);
+      model.setCollapsed(next);
+      try {
+        localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...next]));
+      } catch {}
+    },
+    [model],
+  );
   const [filterState, setFilterState] = useState<FilterState>(NO_FILTER);
   const [managingProjects, setManagingProjects] = useState(false);
   const manageProjects = useCallback(() => setManagingProjects(true), []);
@@ -496,7 +517,9 @@ export function Timeline({ model }: { model: TimelineModel }) {
         }
       } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
         e.preventDefault();
-        const i = model.indexOfUser(t.userId) + (e.key === 'ArrowUp' ? -1 : 1);
+        const dir = e.key === 'ArrowUp' ? -1 : 1;
+        let i = model.indexOfUser(t.userId) + dir;
+        while (model.rows[i]?.kind === 'team') i += dir;
         const row = model.rows[i];
         if (row) updateTask(sel, { userId: row.userId, lane: -1 }, 'Move task');
       }
@@ -543,7 +566,7 @@ export function Timeline({ model }: { model: TimelineModel }) {
       return;
     }
     if ((e.target as HTMLElement).closest('[data-no-drag]')) return;
-    const row = model.rows[model.rowAt(vp.yAt(e.clientY))];
+    const row = model.personAt(vp.yAt(e.clientY));
     if (!row) return;
     const day = Math.floor(vp.dayAt(e.clientX));
     const id = createTask({ userId: row.userId, start: day, end: day, title: '', color: row.color, lane: -1, notes: '' });
@@ -650,14 +673,14 @@ export function Timeline({ model }: { model: TimelineModel }) {
               <button className="focus-chip" onClick={clearFocus} title="Show everyone (Esc)">
                 <span className="corner-label">Focus</span>
                 <span className="corner-count">
-                  {rows.length}/{store.getRowCount('users')}
+                  {model.personCount}/{store.getRowCount('users')}
                 </span>
                 <span aria-hidden>×</span>
               </button>
             ) : (
               <>
                 <span className="corner-label">People</span>
-                <span className="corner-count">{rows.length}</span>
+                <span className="corner-count">{model.personCount}</span>
               </>
             )}
             </div>
@@ -684,6 +707,9 @@ export function Timeline({ model }: { model: TimelineModel }) {
           </div>
           <div className="sidebar">
             <Sidebar
+              model={model}
+              sheet={compact}
+              onToggleTeam={toggleTeam}
               rows={rows}
               tops={model.rowTops}
               r0={Math.max(0, win.r0)}

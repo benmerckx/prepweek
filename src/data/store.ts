@@ -9,7 +9,7 @@ export const PALETTE = [
   '#06b6d4', '#ec4899', '#64748b', '#84cc16', '#f97316',
 ] as const;
 
-export type UserRow = { name: string; color: string; order: number; email: string };
+export type UserRow = { name: string; color: string; order: number; email: string; team?: string };
 export type TaskRow = {
   userId: string;
   start: number; // day number, inclusive
@@ -33,6 +33,7 @@ store.setTablesSchema({
     color: { type: 'string', default: PALETTE[0] },
     order: { type: 'number', default: 0 },
     email: { type: 'string', default: '' },
+    team: { type: 'string', default: '' },
   },
   tasks: {
     userId: { type: 'string', default: '' },
@@ -394,6 +395,48 @@ export const applyImport = (
     }
   });
   return { people: plan.people.filter((p) => !p.existingId).length, tasks: plan.tasks.length };
+};
+
+export const updateUser = (id: string, patch: Partial<UserRow>, label = 'Edit person') =>
+  commit(label, [['users', id]], () => {
+    for (const [k, v] of Object.entries(patch)) store.setCell('users', id, k, v as string | number);
+  });
+
+/** Remove a person with their tasks and those tasks' attachments. */
+export const deleteUser = (id: string) => {
+  const tasks = store.getRowIds('tasks').filter((t) => store.getCell('tasks', t, 'userId') === id);
+  const taskSet = new Set(tasks);
+  const atts = store.getRowIds('attachments').filter((a) => taskSet.has(store.getCell('attachments', a, 'taskId') as string));
+  commit(
+    'Remove person',
+    [['users', id], ...tasks.map((t) => ['tasks', t] as [TableId, string]), ...atts.map((a) => ['attachments', a] as [TableId, string])],
+    () => {
+      for (const a of atts) store.delRow('attachments', a);
+      for (const t of tasks) store.delRow('tasks', t);
+      store.delRow('users', id);
+    },
+  );
+};
+
+/**
+ * Put people in this order (and optionally move one into another team).
+ * Only rows whose order actually changes are written.
+ */
+export const reorderUsers = (ids: string[], moved?: { id: string; team: string }) => {
+  const changed = ids.filter((id, i) => store.getCell('users', id, 'order') !== i);
+  if (moved && !changed.includes(moved.id)) changed.push(moved.id);
+  commit(moved && getUser(moved.id)?.team !== moved.team ? 'Move to team' : 'Reorder people', changed.map((id) => ['users', id] as [TableId, string]), () => {
+    ids.forEach((id, i) => store.getCell('users', id, 'order') !== i && store.setCell('users', id, 'order', i));
+    if (moved) store.setCell('users', moved.id, 'team', moved.team);
+  });
+};
+
+/** Rename a team: every member moves to the new name in one step. */
+export const renameTeam = (from: string, to: string) => {
+  const ids = store.getRowIds('users').filter((u) => store.getCell('users', u, 'team') === from);
+  commit('Rename team', ids.map((u) => ['users', u] as [TableId, string]), () => {
+    for (const u of ids) store.setCell('users', u, 'team', to);
+  });
 };
 
 export const renameUser = (id: string, name: string) =>

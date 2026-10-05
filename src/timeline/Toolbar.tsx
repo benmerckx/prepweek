@@ -61,7 +61,7 @@ export const Toolbar = memo(function Toolbar(props: Props) {
   const sync = useSyncExternalStore(onSyncStatus, getSyncStatus);
   // Re-render on edits only when what we show changes (counts, focus), not
   // on every recolor or drag.
-  const counts = useCallback(() => `${model.rows.length}|${store.getRowCount('tasks')}|${model.getFocus()?.size ?? 0}`, [model]);
+  const counts = useCallback(() => `${model.personCount}|${store.getRowCount('tasks')}|${model.getFocus()?.size ?? 0}`, [model]);
   useSyncExternalStore(model.subscribe, counts);
   const taskCount = store.getRowCount('tasks');
 
@@ -126,7 +126,7 @@ export const Toolbar = memo(function Toolbar(props: Props) {
         </summary>
         <div className="tb-menu" onClick={(e) => (e.currentTarget.parentElement as HTMLDetailsElement).removeAttribute('open')}>
           <div className="tb-menu-stats">
-            {model.rows.length === 1 ? '1 person' : `${model.rows.length} people`} · {taskCount.toLocaleString()} tasks
+            {model.personCount === 1 ? '1 person' : `${model.personCount} people`} · {taskCount.toLocaleString()} tasks
             <div className={`sync sync-${sync}`}>
               <span className="dot" />
               {SYNC_HELP[sync]}
