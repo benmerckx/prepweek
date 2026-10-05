@@ -9,7 +9,7 @@ export const PALETTE = [
   '#06b6d4', '#ec4899', '#64748b', '#84cc16', '#f97316',
 ] as const;
 
-export type UserRow = { name: string; color: string; order: number };
+export type UserRow = { name: string; color: string; order: number; email: string };
 export type TaskRow = {
   userId: string;
   start: number; // day number, inclusive
@@ -28,6 +28,7 @@ store.setTablesSchema({
     name: { type: 'string', default: '' },
     color: { type: 'string', default: PALETTE[0] },
     order: { type: 'number', default: 0 },
+    email: { type: 'string', default: '' },
   },
   tasks: {
     userId: { type: 'string', default: '' },
@@ -152,6 +153,45 @@ export const createUser = (name: string): string => {
   const color = PALETTE[order % PALETTE.length]!;
   commit('Add person', [['users', id]], () => store.setRow('users', id, { name, color, order }));
   return id;
+};
+
+/** Apply an import plan as one undoable command. */
+export const applyImport = (plan: {
+  people: { key: string; name: string; email: string; existingId?: string }[];
+  tasks: { id: string; personKey: string; start: number; end: number; title: string; color: string; notes: string }[];
+}) => {
+  const ids = new Map<string, string>();
+  let order = Math.max(-1, ...store.getRowIds('users').map((u) => getUser(u)!.order)) + 1;
+  const touches: [TableId, string][] = [];
+  for (const p of plan.people) {
+    const id = p.existingId ?? newId();
+    ids.set(p.key, id);
+    touches.push(['users', id]);
+  }
+  for (const t of plan.tasks) touches.push(['tasks', t.id]);
+  commit(`Import ${plan.tasks.length} tasks`, touches, () => {
+    for (const p of plan.people) {
+      const id = ids.get(p.key)!;
+      if (p.existingId) {
+        if (p.email && !getUser(id)!.email) store.setCell('users', id, 'email', p.email);
+      } else {
+        store.setRow('users', id, { name: p.name, email: p.email, color: PALETTE[order % PALETTE.length]!, order });
+        order++;
+      }
+    }
+    for (const t of plan.tasks) {
+      store.setRow('tasks', t.id, {
+        userId: ids.get(t.personKey)!,
+        start: t.start,
+        end: t.end,
+        title: t.title,
+        color: t.color,
+        notes: t.notes,
+        lane: -1,
+      });
+    }
+  });
+  return { people: plan.people.filter((p) => !p.existingId).length, tasks: plan.tasks.length };
 };
 
 export const renameUser = (id: string, name: string) =>

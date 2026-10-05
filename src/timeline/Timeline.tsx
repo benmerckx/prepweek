@@ -9,6 +9,8 @@ import { Minimap } from './Minimap.tsx';
 import { Editor } from './Editor.tsx';
 import { Toolbar } from './Toolbar.tsx';
 import { labelPinner } from './pin.ts';
+import { ImportDialog } from '../import/ImportDialog.tsx';
+import { useBackToClose } from '../lib/useBackToClose.ts';
 import { createTask, createUser, deleteTask, getTask, redo, store, undo, updateTask } from '../data/store.ts';
 import { dayFromYMD, formatRange, startOfWeek, startOfYear, today as getToday, ymd } from '../lib/dates.ts';
 
@@ -339,7 +341,7 @@ export function Timeline({ model }: { model: TimelineModel }) {
   // --- Keyboard ---
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (isTyping(e.target)) return;
+      if (isTyping(e.target) || importingRef.current) return;
       const mod = e.metaKey || e.ctrlKey;
       const sel = selectedRef.current;
       const t = sel ? getTask(sel) : undefined;
@@ -399,6 +401,30 @@ export function Timeline({ model }: { model: TimelineModel }) {
 
   const closeEditor = useCallback(() => setEditing(null), []);
 
+  // --- Import ---
+  const [importing, setImporting] = useState<{ file: File | null } | null>(null);
+  const importingRef = useRef(importing);
+  importingRef.current = importing;
+  // Dropping a CSV anywhere on the app opens the importer with it.
+  useEffect(() => {
+    const isFiles = (e: DragEvent) => e.dataTransfer?.types.includes('Files');
+    const over = (e: DragEvent) => {
+      if (isFiles(e)) e.preventDefault();
+    };
+    const drop = (e: DragEvent) => {
+      const f = e.dataTransfer?.files[0];
+      if (!f) return;
+      e.preventDefault();
+      if (!importingRef.current && /\.(csv|txt)$/i.test(f.name)) setImporting({ file: f });
+    };
+    window.addEventListener('dragover', over);
+    window.addEventListener('drop', drop);
+    return () => {
+      window.removeEventListener('dragover', over);
+      window.removeEventListener('drop', drop);
+    };
+  }, []);
+
   const onDoubleClick = (e: React.MouseEvent) => {
     const el = (e.target as HTMLElement).closest<HTMLElement>('[data-task]');
     if (el) {
@@ -439,6 +465,8 @@ export function Timeline({ model }: { model: TimelineModel }) {
   }
 
   const editTask = editing && !drag ? model.findTask(editing) : undefined;
+  // Back button closes the editor instead of leaving the app.
+  useBackToClose(!!editTask, closeEditor);
   let editor = null;
   if (editTask) {
     const i = model.indexOfUser(editTask.userId);
@@ -479,6 +507,7 @@ export function Timeline({ model }: { model: TimelineModel }) {
         onNextMatch={jumpToMatch}
         onFocusPerson={focusPerson}
         onClearFocus={clearFocus}
+        onImport={() => setImporting({ file: null })}
       />
       <div className="scroller" ref={scrollerRef}>
         <div
@@ -548,6 +577,17 @@ export function Timeline({ model }: { model: TimelineModel }) {
         </div>
         <Minimap model={model} vp={vp} today={todayDay} />
       </div>
+      {importing && (
+        <ImportDialog
+          initialFile={importing.file}
+          onClose={() => setImporting(null)}
+          onImported={(range) => {
+            setImporting(null);
+            // Show the imported work if it's nowhere near the current view.
+            if (range && (todayDay < range[0] || todayDay > range[1])) vp.scrollToDay(range[0], 0.1, true);
+          }}
+        />
+      )}
     </div>
   );
 }

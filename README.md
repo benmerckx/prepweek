@@ -34,6 +34,35 @@ Open `/s/<anything>` for a separate sheet. The default sheet seeds demo data;
 | Focus on a person | click their avatar (<kbd>⌘</kbd>/<kbd>Shift</kbd>-click adds more), the people menu in the toolbar, or <kbd>F</kbd> on a selected task; <kbd>Esc</kbd> or the chip in the corner shows everyone again |
 | Find tasks | <kbd>/</kbd>, type; non-matching blocks fade, <kbd>Enter</kbd> / <kbd>⇧Enter</kbd> jump to the next/previous match |
 
+| Import from Teamweek / Toggl Plan | **Import** in the toolbar (or ⋯ menu), or drop the CSV anywhere on the app |
+
+The browser/Android back button closes the open editor or dialog instead of
+leaving the app.
+
+### Importing from Teamweek / Toggl Plan
+
+In Toggl Plan (formerly Teamweek) use **⋯ → Export tasks** in the Team or
+Plan view. This needs an Owner or Admin. Drop the CSV on prepweek. Columns
+are recognised by name (task, assignee name and email, start and end date,
+project, status, tags, notes, estimate, color), and you can fix the mapping
+before importing. Day/month order is detected from the dates; when it can't
+be told, the dialog asks.
+
+- People are matched to the sheet by email, then by name; anyone else is
+  added.
+- A task with several assignees gets one block per person.
+- Completed and unassigned tasks are skipped by default, and undated tasks
+  are always skipped.
+- Project, tags and estimate go into the task notes. Blocks are colored per
+  project.
+- The whole import is one undo step. Task ids are derived from the row, so
+  importing a newer export of the same data updates those tasks instead of
+  duplicating them.
+
+The code is in `src/import/` (parser and mapping are pure and unit-tested).
+A live sync with the Toggl Plan API would need an OAuth app and a server-side
+proxy, and is not built.
+
 Each person also shows how booked they are over the next four weeks; the
 darker part of the bar is parallel work.
 

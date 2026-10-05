@@ -1,0 +1,288 @@
+// Import from a Teamweek / Toggl Plan task export (CSV).
+//
+// Toggl Plan's "Export tasks" CSV holds task name, status, project, segment,
+// tags, assignee name + email, dates, recurrence, estimate and start/end
+// times. Exact headers vary between Teamweek-era exports, Toggl Plan and
+// whatever a spreadsheet app re-saved, so nothing here depends on exact
+// names: columns are guessed from synonyms and the user can correct the
+// mapping in the dialog before importing.
+
+import { dayFromYMD, type Day } from '../lib/dates.ts';
+import { PALETTE } from '../data/store.ts';
+
+export const FIELDS = ['title', 'assignee', 'email', 'start', 'end', 'project', 'notes', 'tags', 'status', 'color', 'estimate'] as const;
+export type Field = (typeof FIELDS)[number];
+export type Mapping = Partial<Record<Field, number>>;
+
+export const FIELD_LABELS: Record<Field, string> = {
+  title: 'Task name',
+  assignee: 'Assignee',
+  email: 'Assignee email',
+  start: 'Start date',
+  end: 'End date',
+  project: 'Project',
+  notes: 'Notes',
+  tags: 'Tags',
+  status: 'Status',
+  color: 'Color',
+  estimate: 'Estimate',
+};
+
+/** Normalized header synonyms, best first. */
+const SYNONYMS: Record<Field, string[]> = {
+  title: ['taskname', 'task', 'tasktitle', 'title', 'name'],
+  assignee: ['assigneename', 'assignee', 'assignees', 'assignedto', 'user', 'username', 'member', 'membername', 'person', 'people', 'owner'],
+  email: ['assigneeemail', 'assigneeemails', 'email', 'useremail', 'memberemail', 'emails'],
+  start: ['startdate', 'start', 'startson', 'from', 'begin', 'startdatetime', 'starttime'],
+  end: ['enddate', 'end', 'endson', 'to', 'until', 'duedate', 'due', 'enddatetime', 'endtime'],
+  project: ['projectname', 'project', 'plan', 'group', 'client'],
+  notes: ['notes', 'note', 'description', 'details', 'comment', 'comments'],
+  tags: ['tags', 'tag', 'labels', 'label', 'segment'],
+  status: ['taskstatus', 'status', 'state', 'done', 'completed'],
+  color: ['color', 'colour', 'hex', 'taskcolor', 'projectcolor'],
+  estimate: ['estimatedminutes', 'estimateminutes', 'estimatesminutes', 'estimate', 'estimatedtime', 'estimatedhours', 'estimates'],
+};
+
+const norm = (h: string) => h.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+/** Best-effort column mapping from the header row. */
+export const guessMapping = (header: string[]): Mapping => {
+  const cols = header.map(norm);
+  const used = new Set<number>();
+  const mapping: Mapping = {};
+  // Exact synonym matches first (in field order), then prefix/contains.
+  for (const pass of [0, 1, 2] as const) {
+    for (const f of FIELDS) {
+      if (mapping[f] !== undefined) continue;
+      for (const syn of SYNONYMS[f]) {
+        const i = cols.findIndex(
+          (c, i) => !used.has(i) && (pass === 0 ? c === syn : pass === 1 ? c.startsWith(syn) : syn.length > 3 && c.includes(syn)),
+        );
+        if (i >= 0) {
+          mapping[f] = i;
+          used.add(i);
+          break;
+        }
+      }
+    }
+  }
+  return mapping;
+};
+
+// --- Dates -------------------------------------------------------------------
+
+export type DateOrder = 'dmy' | 'mdy';
+
+const NUMERIC = /^(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{2,4})\b/;
+const ISO = /^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})\b/;
+
+/** Decide day/month order from the values; `ambiguous` if nothing tells. */
+export const detectDateOrder = (values: string[]): { order: DateOrder; ambiguous: boolean } => {
+  let dmy = false;
+  let mdy = false;
+  for (const v of values) {
+    const m = NUMERIC.exec(v.trim());
+    if (!m) continue;
+    if (Number(m[1]) > 12) dmy = true;
+    if (Number(m[2]) > 12) mdy = true;
+  }
+  if (dmy && !mdy) return { order: 'dmy', ambiguous: false };
+  if (mdy && !dmy) return { order: 'mdy', ambiguous: false };
+  const anyNumeric = values.some((v) => NUMERIC.test(v.trim()));
+  return { order: 'dmy', ambiguous: anyNumeric };
+};
+
+const valid = (y: number, m: number, d: number) => m >= 1 && m <= 12 && d >= 1 && d <= 31 && y > 1900 && y < 2200;
+
+/** Parse one date cell to a day number, or null. Times are ignored. */
+export const parseDate = (raw: string, order: DateOrder): Day | null => {
+  const s = raw.trim();
+  if (!s) return null;
+  let m = ISO.exec(s);
+  if (m) {
+    const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+    return valid(y, mo, d) ? dayFromYMD(y, mo - 1, d) : null;
+  }
+  m = NUMERIC.exec(s);
+  if (m) {
+    let y = Number(m[3]);
+    if (y < 100) y += 2000;
+    const [a, b] = [Number(m[1]), Number(m[2])];
+    const [d, mo] = order === 'dmy' ? [a, b] : [b, a];
+    return valid(y, mo, d) ? dayFromYMD(y, mo - 1, d) : null;
+  }
+  // Spreadsheet serial date (days since 1899-12-30).
+  if (/^\d{5}(\.\d+)?$/.test(s)) return Math.floor(Number(s)) - 25569;
+  // "Mar 4, 2025", "4 March 2025", …
+  const t = Date.parse(s);
+  if (!Number.isNaN(t)) {
+    const dt = new Date(t);
+    return dayFromYMD(dt.getFullYear(), dt.getMonth(), dt.getDate());
+  }
+  return null;
+};
+
+// --- Plan ----------------------------------------------------------------------
+
+export interface ExistingUser {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export interface ImportOptions {
+  mapping: Mapping;
+  dateOrder: DateOrder;
+  includeDone: boolean;
+  /** What to do with tasks that have no assignee. */
+  unassigned: 'skip' | 'row';
+}
+
+export interface PlannedPerson {
+  key: string;
+  name: string;
+  email: string;
+  /** Set when this matches someone already on the sheet. */
+  existingId?: string;
+  tasks: number;
+}
+
+export interface PlannedTask {
+  id: string;
+  personKey: string;
+  start: Day;
+  end: Day;
+  title: string;
+  color: string;
+  notes: string;
+}
+
+export interface ImportPlan {
+  people: PlannedPerson[];
+  tasks: PlannedTask[];
+  skipped: { noDate: number; unassigned: number; done: number };
+  range: [Day, Day] | null;
+}
+
+const DONE = /^(done|completed?|closed|archived|finished|yes|true|x)$/i;
+const HEX = /^#?([0-9a-f]{6}|[0-9a-f]{3})$/i;
+
+const hash = (s: string) => {
+  // FNV-1a, 32-bit, as base36.
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 0x01000193);
+  return (h >>> 0).toString(36);
+};
+
+const colorFor = (key: string) => {
+  let h = 0;
+  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) | 0;
+  return PALETTE[Math.abs(h) % PALETTE.length]!;
+};
+
+const splitList = (s: string) =>
+  s
+    .split(/[;,\n]| & /)
+    .map((x) => x.trim())
+    .filter(Boolean);
+
+const nameFromEmail = (email: string) =>
+  email
+    .split('@')[0]!
+    .split(/[._-]+/)
+    .filter(Boolean)
+    .map((p) => p[0]!.toUpperCase() + p.slice(1))
+    .join(' ');
+
+export const buildPlan = (rows: string[][], opts: ImportOptions, existing: ExistingUser[]): ImportPlan => {
+  const { mapping: mp } = opts;
+  const cell = (row: string[], f: Field) => (mp[f] === undefined ? '' : (row[mp[f]!] ?? '').trim());
+  const byEmail = new Map(existing.filter((u) => u.email).map((u) => [u.email.toLowerCase(), u]));
+  const byName = new Map(existing.map((u) => [u.name.toLowerCase(), u]));
+  const people = new Map<string, PlannedPerson>();
+  const tasks = new Map<string, PlannedTask>();
+  const skipped = { noDate: 0, unassigned: 0, done: 0 };
+  let min = Infinity;
+  let max = -Infinity;
+
+  const person = (name: string, email: string): PlannedPerson => {
+    const e = email.toLowerCase();
+    const match = (e && byEmail.get(e)) || (name && byName.get(name.toLowerCase())) || undefined;
+    const key = match ? match.id : `new:${e || name.toLowerCase()}`;
+    let p = people.get(key);
+    if (!p) {
+      p = { key, name: match?.name ?? (name || nameFromEmail(email)), email: match?.email || email, existingId: match?.id, tasks: 0 };
+      people.set(key, p);
+    }
+    return p;
+  };
+
+  for (const row of rows) {
+    if (!opts.includeDone && DONE.test(cell(row, 'status'))) {
+      skipped.done++;
+      continue;
+    }
+    let start = parseDate(cell(row, 'start'), opts.dateOrder);
+    let end = parseDate(cell(row, 'end'), opts.dateOrder);
+    if (start === null && end === null) {
+      skipped.noDate++;
+      continue;
+    }
+    start ??= end!;
+    end ??= start;
+    if (end < start) [start, end] = [end, start];
+
+    const names = splitList(cell(row, 'assignee'));
+    const emails = splitList(cell(row, 'email'));
+    const count = Math.max(names.length, emails.length);
+    const assignees: PlannedPerson[] = [];
+    const who = new Map<PlannedPerson, string>();
+    const add = (name: string, email: string) => {
+      const p = person(name, email);
+      assignees.push(p);
+      who.set(p, (email || name).toLowerCase());
+    };
+    for (let i = 0; i < count; i++) {
+      add(names.length === count ? names[i]! : (names[0] ?? ''), emails.length === count ? emails[i]! : '');
+    }
+    if (assignees.length === 0) {
+      if (opts.unassigned === 'skip') {
+        skipped.unassigned++;
+        continue;
+      }
+      add('Unassigned', '');
+    }
+
+    const project = cell(row, 'project');
+    const title = cell(row, 'title') || project || 'Untitled';
+    const rawColor = cell(row, 'color');
+    const color = HEX.test(rawColor) ? (rawColor.startsWith('#') ? rawColor : `#${rawColor}`) : colorFor(project || title);
+    const tags = cell(row, 'tags');
+    const est = cell(row, 'estimate');
+    const notes = [
+      cell(row, 'notes'),
+      project && title !== project ? `Project: ${project}` : '',
+      tags ? `Tags: ${tags}` : '',
+      est && Number(est) > 0 ? `Estimate: ${est}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n');
+
+    for (const p of assignees) {
+      // Deterministic id from what the file says (not from who it matched
+      // on this sheet), so importing the same export again updates in place.
+      const id = `tw${hash(`${who.get(p)}|${title}|${project}|${start}|${end}`)}`;
+      if (!tasks.has(id)) p.tasks++;
+      tasks.set(id, { id, personKey: p.key, start, end, title, color, notes });
+      if (start < min) min = start;
+      if (end > max) max = end;
+    }
+  }
+
+  return {
+    people: [...people.values()].sort((a, b) => b.tasks - a.tasks),
+    tasks: [...tasks.values()],
+    skipped,
+    range: min === Infinity ? null : [min, max],
+  };
+};

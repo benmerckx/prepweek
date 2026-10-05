@@ -18,6 +18,7 @@ interface Props {
   onNextMatch(dir?: 1 | -1): void;
   onFocusPerson(id: string, additive?: boolean): void;
   onClearFocus(): void;
+  onImport(): void;
 }
 
 const SearchIcon = () => (
@@ -109,6 +110,9 @@ export function Toolbar(props: Props) {
         <span className="dot" />
         <span className="sync-label">{sync === 'local' ? 'Local' : sync}</span>
       </div>
+      <button className="btn tb-import" onClick={props.onImport} title="Import a Teamweek / Toggl Plan CSV export">
+        Import
+      </button>
       <details className="tb-more">
         <summary className="btn" aria-label="More">
           ⋯
@@ -117,26 +121,21 @@ export function Toolbar(props: Props) {
           <div className="tb-menu-stats">
             {model.rows.length === 1 ? '1 person' : `${model.rows.length} people`} · {taskCount.toLocaleString()} tasks
           </div>
+          <button className="btn" onClick={props.onImport}>
+            Import from Teamweek…
+          </button>
           <button className="btn" onClick={() => confirm('Replace everything with fresh demo data?') && seed()}>
             Reset demo
           </button>
-          <button className="btn" onClick={() => confirm('Replace everything with a large stress-test dataset?') && seed(120, 1.6, 11)}>
+          <button
+            className="btn"
+            title="Load 120 people × 2 years (~25k tasks)"
+            onClick={() => confirm('Replace everything with a large stress-test dataset?') && seed(120, 1.6, 11)}
+          >
             Stress test
           </button>
         </div>
       </details>
-      <div className="tb-group tb-actions">
-        <button className="btn" onClick={() => confirm('Replace everything with fresh demo data?') && seed()}>
-          Reset demo
-        </button>
-        <button
-          className="btn"
-          title="Load 120 people × 2 years (~25k tasks)"
-          onClick={() => confirm('Replace everything with a large stress-test dataset?') && seed(120, 1.6, 11)}
-        >
-          Stress
-        </button>
-      </div>
     </header>
   );
 }
