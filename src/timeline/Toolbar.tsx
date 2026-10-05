@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { memo, useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { flushSync } from 'react-dom';
 import { canRedo, canUndo, onHistoryChange, redo, store, undo } from '../data/store.ts';
 import { getSyncStatus, onSyncStatus } from '../data/sync.ts';
@@ -33,7 +33,7 @@ const SYNC_HELP = {
 
 const historySnapshot = () => (canUndo() ? 1 : 0) | (canRedo() ? 2 : 0);
 
-export function Toolbar(props: Props) {
+export const Toolbar = memo(function Toolbar(props: Props) {
   const { colW, model, onZoom, onToday, onPage } = props;
   const [searchOpen, setSearchOpen] = useState(false);
 
@@ -48,7 +48,10 @@ export function Toolbar(props: Props) {
   }, []);
   const hist = useSyncExternalStore(onHistoryChange, historySnapshot);
   const sync = useSyncExternalStore(onSyncStatus, getSyncStatus);
-  useSyncExternalStore(model.subscribe, model.getVersion);
+  // Re-render on edits only when what we show changes (counts, focus), not
+  // on every recolor or drag.
+  const counts = useCallback(() => `${model.rows.length}|${store.getRowCount('tasks')}|${model.getFocus()?.size ?? 0}`, [model]);
+  useSyncExternalStore(model.subscribe, counts);
   const taskCount = store.getRowCount('tasks');
 
   return (
@@ -135,7 +138,7 @@ export function Toolbar(props: Props) {
       </details>
     </header>
   );
-}
+});
 
 function Search({ query, onQuery, matchCount, onNextMatch, open, setOpen }: Props & { open: boolean; setOpen(o: boolean): void }) {
   const input = useRef<HTMLInputElement>(null);
@@ -203,8 +206,10 @@ function Search({ query, onQuery, matchCount, onNextMatch, open, setOpen }: Prop
 function PeopleMenu({ model, onFocusPerson, onClearFocus }: Props) {
   const focus = model.getFocus();
   const ref = useRef<HTMLDetailsElement>(null);
+  // The list is only built while the menu is open.
+  const [open, setOpen] = useState(false);
   return (
-    <details className="tb-people" ref={ref}>
+    <details className="tb-people" ref={ref} onToggle={(e) => setOpen(e.currentTarget.open)}>
       <summary className={'btn icon' + (focus ? ' active' : '')} aria-label="Focus on people" title="Focus on people">
         <People />
         {focus && <span className="tb-badge">{focus.size}</span>}
@@ -215,7 +220,7 @@ function PeopleMenu({ model, onFocusPerson, onClearFocus }: Props) {
           Everyone
         </button>
         <div className="tb-people-list">
-          {model.allUsers().map((u) => (
+          {open && model.allUsers().map((u) => (
             <button
               key={u.id}
               className={'tb-person' + (focus?.has(u.id) ? ' on' : '')}

@@ -412,6 +412,10 @@ export function Timeline({ model }: { model: TimelineModel }) {
   }, [model, vp, zoomTo, todayDay, focusPerson]);
 
   const closeEditor = useCallback(() => setEditing(null), []);
+  // Stable callbacks so the memoized toolbar skips re-rendering on edits.
+  const goToday = useCallback(() => vp.scrollToDay(todayDay - 2, 0, true), [vp, todayDay]);
+  const page = useCallback((dir: -1 | 1) => vp.scroller?.scrollBy({ left: dir * vp.viewWidth * 0.8, behavior: 'smooth' }), [vp]);
+  const openImport = useCallback(() => setImporting({ file: null }), []);
 
   // --- Import ---
   const [importing, setImporting] = useState<{ file: File | null } | null>(null);
@@ -457,6 +461,10 @@ export function Timeline({ model }: { model: TimelineModel }) {
   const bodyW = range.days * colW;
   const bodyH = Math.max(model.totalHeight + 64, vp.viewHeight);
   const rows = model.rows;
+  // Only the rows holding the selected / dragged block get those ids, so a
+  // selection change re-renders two rows instead of all of them.
+  const selUser = selected ? model.findTask(selected)?.userId : undefined;
+  const dragUser = drag ? model.getPreview()?.userId ?? model.findTask(drag.id)?.userId : undefined;
   const rendered = [];
   for (let i = Math.max(0, win.r0); i <= win.r1 && i < rows.length; i++) {
     const r = rows[i]!;
@@ -469,8 +477,8 @@ export function Timeline({ model }: { model: TimelineModel }) {
         colW={colW}
         d0={win.d0}
         d1={win.d1}
-        selectedId={selected}
-        dragId={drag?.id ?? null}
+        selectedId={r.userId === selUser || r.userId === dragUser ? selected : null}
+        dragId={r.userId === dragUser ? (drag?.id ?? null) : null}
         query={q}
       />,
     );
@@ -509,9 +517,9 @@ export function Timeline({ model }: { model: TimelineModel }) {
     >
       <Toolbar
         colW={colW}
-        onZoom={(w) => zoomTo(w)}
-        onToday={() => vp.scrollToDay(todayDay - 2, 0, true)}
-        onPage={(dir) => vp.scroller?.scrollBy({ left: dir * vp.viewWidth * 0.8, behavior: 'smooth' })}
+        onZoom={zoomTo}
+        onToday={goToday}
+        onPage={page}
         model={model}
         query={query}
         onQuery={setQuery}
@@ -519,7 +527,7 @@ export function Timeline({ model }: { model: TimelineModel }) {
         onNextMatch={jumpToMatch}
         onFocusPerson={focusPerson}
         onClearFocus={clearFocus}
-        onImport={() => setImporting({ file: null })}
+        onImport={openImport}
       />
       <div className="scroller" ref={scrollerRef}>
         <div

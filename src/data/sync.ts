@@ -1,4 +1,4 @@
-import { createIndexedDbPersister } from 'tinybase/persisters/persister-indexed-db';
+import { startLocalDb } from './localdb.ts';
 import { createBroadcastChannelSynchronizer } from 'tinybase/synchronizers/synchronizer-broadcast-channel';
 import { createWsSynchronizer } from 'tinybase/synchronizers/synchronizer-ws-client';
 import ReconnectingWebSocket from 'reconnecting-websocket';
@@ -65,12 +65,15 @@ export const startSync = async (sheetId: string) => {
   // wss://host/sync → https://host (files are served next to the sync route).
   serverHttp = server ? server.replace(/^ws/, 'http').replace(/\/sync\/?$/, '') : null;
 
-  const persister = createIndexedDbPersister(store, `prepweek:${sheetId}`);
-  await persister.load();
+  // Incremental IndexedDB persistence (see localdb.ts); migrates sheets
+  // saved by the previous full-content persister.
+  const local = await startLocalDb(store, `prepweek2:${sheetId}`, `prepweek:${sheetId}`);
   // Demo data only for purely local sheets; a synced sheet gets its content
   // from the server (seeding both sides would merge two sets of people).
-  if (!server && store.getRowCount('users') === 0) seed();
-  await persister.startAutoSave();
+  if (!server && local.empty) {
+    seed();
+    local.compactSoon();
+  }
 
   const tabs = createBroadcastChannelSynchronizer(store, `prepweek:${sheetId}`);
   await tabs.startSync();

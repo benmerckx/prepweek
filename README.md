@@ -156,17 +156,21 @@ of the CRDT:
 - if the sheet syncs to the worker and an R2 bucket is bound as `FILES`, they
   are also uploaded to `/files/<sheet>/<id>`, so collaborators can open them.
 
-To enable R2: run `wrangler r2 bucket create prepweek-files` and uncomment the
-`[[r2_buckets]]` block in `wrangler.toml`. Without it, files stay on the
-device that attached them, and the app says so when someone else tries to open
-one. Files are limited to 25 MB.
+`wrangler.toml` binds the bucket `prepweek-files`. Create it once with
+`wrangler r2 bucket create prepweek-files` before the first deploy. Files are
+limited to 25 MB.
 
 ## Storage, sync, realtime
 
 Each sheet is one TinyBase **MergeableStore**, a CRDT with hybrid logical
 clocks per cell, so all replicas merge deterministically:
 
-1. **IndexedDB**: local-first. The sheet opens instantly and works offline.
+1. **IndexedDB**: local-first, and the sheet works offline. Persistence is
+   incremental (`src/data/localdb.ts`). Each edit appends only its own
+   changes, with their sync stamps, to a log, and the log is folded into a
+   snapshot when the browser is idle. TinyBase's stock persister rewrote the
+   whole sheet, about 1.5 MB, on every edit, which cost 200+ ms per change on
+   a phone. Sheets saved by the old persister migrate automatically.
 2. **BroadcastChannel**: other tabs see edits in realtime.
 3. **Cloudflare** (`worker/`): one **Durable Object per sheet**, persisted to
    that object's own SQLite database (`createDurableObjectSqlStoragePersister`).

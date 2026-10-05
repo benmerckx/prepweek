@@ -46,7 +46,7 @@ interface Geo {
 export function Minimap({ model, vp, today }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
-  const state = useRef({ hoverX: -1, dragging: false, grabDx: 0, raf: 0, colors: {} as Record<string, string> });
+  const state = useRef({ hoverX: -1, dragging: false, grabDx: 0, raf: 0, rebuild: 0, colors: {} as Record<string, string> });
 
   useEffect(() => {
     const canvas = canvasRef.current!;
@@ -196,16 +196,27 @@ export function Minimap({ model, vp, today }: Props) {
       const g = geo();
       const c = st.colors;
       const mmEnd = g.mmStart + W / g.scale;
-      if (
-        cache.version !== model.version ||
+      const mustRebuild =
+        cache.version === -1 ||
         cache.scale !== g.scale ||
         cache.H !== H ||
         cache.dpr !== dpr ||
         cache.theme !== themeGen ||
         g.mmStart < cache.start ||
-        mmEnd > cache.start + cache.days
-      ) {
+        mmEnd > cache.start + cache.days;
+      if (mustRebuild) {
+        clearTimeout(st.rebuild);
+        st.rebuild = 0;
         renderCache(g, dpr);
+      } else if (cache.version !== model.version && !st.rebuild) {
+        // Data changed but the view didn't: keep showing the current image
+        // and rebuild once edits settle (a drag or a burst of syncs would
+        // otherwise rebuild the whole heatmap on every change).
+        st.rebuild = setTimeout(() => {
+          st.rebuild = 0;
+          cache.version = -1;
+          schedule();
+        }, 300) as unknown as number;
       }
       const sx = Math.round((g.mmStart - cache.start) * g.scale * dpr);
       ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -310,7 +321,9 @@ export function Minimap({ model, vp, today }: Props) {
     schedule();
     return () => {
       cancelAnimationFrame(st.raf);
+      clearTimeout(st.rebuild);
       st.raf = 0;
+      st.rebuild = 0;
       canvas.removeEventListener('pointerdown', down);
       canvas.removeEventListener('pointermove', move);
       canvas.removeEventListener('pointerup', up);

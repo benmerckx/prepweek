@@ -4,13 +4,106 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
     <title>prepweek</title>
-    <meta name="theme-color" content="#f7f8fa" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#1a1d23" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#111318" media="(prefers-color-scheme: dark)" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
+    <!-- Boot screen: inline so it paints before the bundle and data load. -->
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #fff;
+      }
+      .boot {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        font: 500 13px/1.4 ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        color: #646b7a;
+      }
+      .boot-inner {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 18px;
+      }
+      .boot-mark {
+        width: 44px;
+        height: 44px;
+        animation: boot-pulse 1.4s ease-in-out infinite;
+      }
+      .boot-bars {
+        display: grid;
+        gap: 7px;
+        width: 180px;
+      }
+      .boot-bars i {
+        display: block;
+        height: 8px;
+        border-radius: 4px;
+        background: linear-gradient(90deg, #eef0f4 0%, #e1e4ea 50%, #eef0f4 100%);
+        background-size: 200% 100%;
+        animation: boot-shimmer 1.2s linear infinite;
+      }
+      .boot-bars i:nth-child(1) {
+        width: 70%;
+      }
+      .boot-bars i:nth-child(2) {
+        width: 82%;
+        margin-left: 18%;
+      }
+      .boot-bars i:nth-child(3) {
+        width: 46%;
+      }
+      @keyframes boot-shimmer {
+        to {
+          background-position: -200% 0;
+        }
+      }
+      @keyframes boot-pulse {
+        50% {
+          transform: scale(0.94);
+          opacity: 0.85;
+        }
+      }
+      @media (prefers-color-scheme: dark) {
+        html,
+        body {
+          background: #111318;
+        }
+        .boot {
+          color: #959cab;
+        }
+        .boot-bars i {
+          background-image: linear-gradient(90deg, #1c2028 0%, #262b35 50%, #1c2028 100%);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .boot-mark,
+        .boot-bars i {
+          animation: none;
+        }
+      }
+    </style>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="boot" role="status" aria-live="polite">
+        <div class="boot-inner">
+          <svg class="boot-mark" viewBox="0 0 24 24" aria-hidden="true">
+            <rect width="24" height="24" rx="6.5" fill="#4f5bd5" />
+            <rect x="5" y="6.5" width="9" height="3.2" rx="1.6" fill="#fff" />
+            <rect x="9" y="10.8" width="10" height="3.2" rx="1.6" fill="#fff" opacity=".8" />
+            <rect x="5" y="15.1" width="6.5" height="3.2" rx="1.6" fill="#fff" opacity=".6" />
+          </svg>
+          <div class="boot-bars" aria-hidden="true"><i></i><i></i><i></i></div>
+          <span>Opening your sheet…</span>
+        </div>
+      </div>
+    </div>
     <script type="module" src="./main.tsx"></script>
   </body>
 </html>
