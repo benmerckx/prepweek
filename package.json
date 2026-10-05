@@ -4,12 +4,12 @@
   "type": "module",
   "scripts": {
     "dev": "bun --hot server.ts",
-    "build": "bun build ./src/index.html --outdir dist --production --sourcemap=linked --public-path=/",
+    "build": "rm -rf dist && bun build ./src/index.html --outdir dist --production --sourcemap=linked --public-path=/",
     "start": "NODE_ENV=production bun server.ts",
     "typecheck": "tsc --noEmit -p . && tsc --noEmit -p worker",
     "test": "bun test",
-    "worker:dev": "wrangler dev --config worker/wrangler.toml",
-    "worker:deploy": "wrangler deploy --config worker/wrangler.toml"
+    "worker:dev": "wrangler dev",
+    "deploy": "wrangler deploy"
   },
   "dependencies": {
     "react": "^19.3.0",

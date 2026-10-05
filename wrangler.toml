@@ -1,14 +1,20 @@
 name = "prepweek"
-main = "index.ts"
+main = "worker/index.ts"
 compatibility_date = "2026-09-01"
 
-# The Bun-built app (bun run build). SPA fallback so /s/<sheet> works.
+# `wrangler deploy` / `wrangler dev` build the app first.
+[build]
+command = "bun run build"
+watch_dir = "src"
+
+# The Bun-built app. SPA fallback so /s/<sheet> works.
 [assets]
-directory = "../dist"
+directory = "./dist"
 binding = "ASSETS"
 not_found_handling = "single-page-application"
 run_worker_first = ["/sync/*"]
 
+# One SQLite-backed Durable Object per sheet (storage + realtime room).
 [[durable_objects.bindings]]
 name = "SHEETS"
 class_name = "SheetDurableObject"

@@ -10,6 +10,7 @@ bun test             # lane-packing tests
 bun run typecheck    # TypeScript 7 (tsgo), app + worker
 bun run build        # production bundle → dist/
 bun run worker:dev   # app + realtime backend on http://localhost:8787 (wrangler)
+bun run deploy       # build + deploy to Cloudflare
 ```
 
 Open `/s/<anything>` for a separate sheet. The default sheet seeds demo data;
@@ -104,9 +105,18 @@ the box. D1 remains a good place for cross-sheet data: accounts, the sheet
 index, permissions, and reporting exports.
 
 Sync is enabled automatically when the app is served by the worker. Locally,
-run `bun run build && bun run worker:dev` and open
+run `bun run worker:dev` and open
 `http://localhost:8787/s/team?sync=ws://localhost:8787/sync` in two browsers.
 `?sync=off` turns it off again. The worker has no authentication yet; there
 is a TODO at the upgrade point in `worker/index.ts`.
 
-Deploy with `bun run build && bun run worker:deploy`.
+### Deploying
+
+`wrangler.toml` lives at the repo root and builds the app before every
+deploy (`[build] command = "bun run build"`), so either of these works:
+
+- **From your machine:** `bun run deploy` (runs `wrangler login` the first time).
+- **Cloudflare Git integration** (Workers & Pages → Create → Import a
+  repository): pick this repo and branch `main`. Leave the build command empty
+  and keep the deploy command `npx wrangler deploy`; Wrangler runs the Bun
+  build itself. Durable Objects need the Workers Paid plan.
