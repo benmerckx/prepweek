@@ -155,3 +155,36 @@ export const External = ({ size = 16 }: { size?: number }) => (
     <path d="M11.5 9.5v2.75c0 .7-.55 1.25-1.25 1.25h-6.5c-.7 0-1.25-.55-1.25-1.25v-6.5c0-.7.55-1.25 1.25-1.25H6.5" />
   </Svg>
 );
+export const FilterIcon = ({ size = 16 }: { size?: number }) => (
+  <Svg size={size}>
+    <path d="M2.5 3.25h11L9.25 8.5v4l-2.5 1.25V8.5Z" />
+  </Svg>
+);
+export const Layers = ({ size = 16 }: { size?: number }) => (
+  <Svg size={size}>
+    <path d="M8 2.25 14 5.5 8 8.75 2 5.5Z" />
+    <path d="m2 8.25 6 3.25 6-3.25" />
+    <path d="m2 11 6 3.25L14 11" opacity=".55" />
+  </Svg>
+);
+export const Folder = ({ size = 16 }: { size?: number }) => (
+  <Svg size={size}>
+    <path d="M2.25 4.5c0-.7.55-1.25 1.25-1.25h2.6l1.5 1.5h4.9c.7 0 1.25.55 1.25 1.25v5.75c0 .7-.55 1.25-1.25 1.25h-9c-.7 0-1.25-.55-1.25-1.25Z" />
+  </Svg>
+);
+export const Tag = ({ size = 16 }: { size?: number }) => (
+  <Svg size={size}>
+    <path d="M2.25 2.25h5.2l6.3 6.3-5.2 5.2-6.3-6.3Z" />
+    <circle cx="5.25" cy="5.25" r="1" fill="currentColor" stroke="none" />
+  </Svg>
+);
+export const ChevronDown = ({ size = 16 }: { size?: number }) => (
+  <Svg size={size}>
+    <path d="M4 6.25 8 10l4-3.75" />
+  </Svg>
+);
+export const Pencil = ({ size = 16 }: { size?: number }) => (
+  <Svg size={size}>
+    <path d="M10.5 2.75 13.25 5.5 5.75 13H3v-2.75Z" />
+  </Svg>
+);

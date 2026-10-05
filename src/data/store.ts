@@ -19,6 +19,10 @@ export type TaskRow = {
   /** Preferred lane inside the user's row; -1 = no preference. */
   lane: number;
   notes: string;
+  /** Project row id, or '' for none. */
+  projectId?: string;
+  /** Comma-separated labels, e.g. "Design,Urgent". */
+  tags?: string;
 };
 
 export const store = createMergeableStore();
@@ -38,6 +42,22 @@ store.setTablesSchema({
     color: { type: 'string', default: PALETTE[0] },
     lane: { type: 'number', default: -1 },
     notes: { type: 'string', default: '' },
+    projectId: { type: 'string', default: '' },
+    tags: { type: 'string', default: '' },
+  },
+  // Projects group tasks across people; a client groups projects.
+  projects: {
+    name: { type: 'string', default: '' },
+    client: { type: 'string', default: '' },
+    color: { type: 'string', default: PALETTE[0] },
+    archived: { type: 'boolean', default: false },
+  },
+  // Saved views, shared with everyone on the sheet. `config` is JSON (see
+  // ViewConfig), so new view options don't need a schema change.
+  views: {
+    name: { type: 'string', default: '' },
+    order: { type: 'number', default: 0 },
+    config: { type: 'string', default: '{}' },
   },
   // Sheet-wide dated markers (launches, deadlines, holidays).
   milestones: {
@@ -57,6 +77,36 @@ store.setTablesSchema({
     created: { type: 'number', default: 0 },
   },
 });
+
+export type ProjectRow = { name: string; client: string; color: string; archived: boolean };
+export type ViewRow = { name: string; order: number; config: string };
+
+/** What a saved view restores. Missing fields leave that setting alone. */
+export interface ViewConfig {
+  focus?: string[];
+  query?: string;
+  projects?: string[];
+  tags?: string[];
+  hideWeekends?: boolean;
+  dense?: boolean;
+  colW?: number;
+}
+
+/** Tags are stored comma-joined; this is the one place that parses them. */
+export const parseTags = (s: string | undefined): string[] =>
+  s ? s.split(',').map((t) => t.trim()).filter(Boolean) : [];
+export const joinTags = (tags: string[]): string => {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const t of tags) {
+    const v = t.replace(/,/g, ' ').trim();
+    if (v && !seen.has(v.toLowerCase())) {
+      seen.add(v.toLowerCase());
+      out.push(v);
+    }
+  }
+  return out.join(',');
+};
 
 export type MilestoneRow = { day: number; title: string; color: string };
 export type AttachmentRow = {
@@ -93,7 +143,7 @@ export const getUser = (id: string): UserRow | undefined =>
 // changes that arrived from other collaborators. Instead each local command
 // records the cells it changed, and undo only restores those cells.
 
-type TableId = 'users' | 'tasks' | 'milestones' | 'attachments';
+type TableId = 'users' | 'tasks' | 'milestones' | 'attachments' | 'projects' | 'views';
 type Snap = { table: TableId; id: string; row: Row | null };
 type Entry = { label: string; before: Snap[]; after: Snap[] };
 
@@ -201,6 +251,60 @@ export const updateMilestone = (id: string, patch: Partial<MilestoneRow>, label 
   });
 export const deleteMilestone = (id: string) => commit('Delete milestone', [['milestones', id]], () => store.delRow('milestones', id));
 
+// --- Projects ---
+
+export const getProject = (id: string): ProjectRow | undefined =>
+  id && store.hasRow('projects', id) ? (store.getRow('projects', id) as ProjectRow) : undefined;
+
+export const createProject = (p: Partial<ProjectRow> & { name: string }): string => {
+  const id = newId();
+  const color = p.color ?? PALETTE[store.getRowCount('projects') % PALETTE.length]!;
+  commit('Add project', [['projects', id]], () => store.setRow('projects', id, { client: '', archived: false, ...p, color }));
+  return id;
+};
+export const updateProject = (id: string, patch: Partial<ProjectRow>, label = 'Edit project') =>
+  commit(label, [['projects', id]], () => {
+    for (const [k, v] of Object.entries(patch)) store.setCell('projects', id, k, v as string | number | boolean);
+  });
+/** Deleting a project keeps its tasks, just without a project. */
+export const deleteProject = (id: string) => {
+  const tasks = store.getRowIds('tasks').filter((t) => store.getCell('tasks', t, 'projectId') === id);
+  commit('Delete project', [['projects', id], ...tasks.map((t) => ['tasks', t] as [TableId, string])], () => {
+    store.delRow('projects', id);
+    for (const t of tasks) store.setCell('tasks', t, 'projectId', '');
+  });
+};
+/** Recolor a project and every task in it, in one step. */
+export const recolorProject = (id: string, color: string) => {
+  const tasks = store.getRowIds('tasks').filter((t) => store.getCell('tasks', t, 'projectId') === id);
+  commit('Recolor project', [['projects', id], ...tasks.map((t) => ['tasks', t] as [TableId, string])], () => {
+    store.setCell('projects', id, 'color', color);
+    for (const t of tasks) store.setCell('tasks', t, 'color', color);
+  });
+};
+
+// --- Saved views ---
+
+export const createView = (name: string, config: ViewConfig): string => {
+  const id = newId();
+  const order = Math.max(-1, ...store.getRowIds('views').map((v) => store.getCell('views', v, 'order') as number)) + 1;
+  commit('Save view', [['views', id]], () => store.setRow('views', id, { name, order, config: JSON.stringify(config) }));
+  return id;
+};
+export const updateView = (id: string, patch: { name?: string; config?: ViewConfig }) =>
+  commit('Edit view', [['views', id]], () => {
+    if (patch.name !== undefined) store.setCell('views', id, 'name', patch.name);
+    if (patch.config) store.setCell('views', id, 'config', JSON.stringify(patch.config));
+  });
+export const deleteView = (id: string) => commit('Delete view', [['views', id]], () => store.delRow('views', id));
+export const readView = (id: string): ViewConfig => {
+  try {
+    return JSON.parse(store.getCell('views', id, 'config') as string) as ViewConfig;
+  } catch {
+    return {};
+  }
+};
+
 // --- Attachments ---
 
 export const addAttachment = (a: Omit<AttachmentRow, 'created'>, id = newId()): string => {
@@ -229,7 +333,7 @@ export type ImportMode = 'add' | 'replace';
 export const applyImport = (
   plan: {
     people: { key: string; name: string; email: string; existingId?: string }[];
-    tasks: { id: string; personKey: string; start: number; end: number; title: string; color: string; notes: string }[];
+    tasks: { id: string; personKey: string; start: number; end: number; title: string; color: string; notes: string; project?: string; tags?: string }[];
   },
   mode: ImportMode = 'add',
 ) => {
@@ -242,6 +346,18 @@ export const applyImport = (
         ...store.getRowIds('attachments').map((id) => ['attachments', id] as [TableId, string]),
       ]
     : [];
+  // Projects are matched by name (case-insensitive) and created if missing.
+  // They are never removed by 'replace', like milestones.
+  const projectIds = new Map<string, string>();
+  for (const id of store.getRowIds('projects')) projectIds.set((store.getCell('projects', id, 'name') as string).toLowerCase(), id);
+  const newProjects: { id: string; name: string; color: string }[] = [];
+  for (const t of plan.tasks) {
+    const name = t.project?.trim();
+    if (!name || projectIds.has(name.toLowerCase())) continue;
+    const id = newId();
+    projectIds.set(name.toLowerCase(), id);
+    newProjects.push({ id, name, color: t.color });
+  }
   let order = replace ? 0 : Math.max(-1, ...store.getRowIds('users').map((u) => getUser(u)!.order)) + 1;
   const touches: [TableId, string][] = [...removed];
   for (const p of plan.people) {
@@ -250,8 +366,10 @@ export const applyImport = (
     touches.push(['users', id]);
   }
   for (const t of plan.tasks) touches.push(['tasks', t.id]);
+  for (const p of newProjects) touches.push(['projects', p.id]);
   commit(`${replace ? 'Replace with' : 'Import'} ${plan.tasks.length} tasks`, touches, () => {
     for (const [table, id] of removed) store.delRow(table, id);
+    for (const p of newProjects) store.setRow('projects', p.id, { name: p.name, color: p.color, client: '', archived: false });
     for (const p of plan.people) {
       const id = ids.get(p.key)!;
       if (p.existingId) {
@@ -270,6 +388,8 @@ export const applyImport = (
         color: t.color,
         notes: t.notes,
         lane: -1,
+        projectId: t.project ? (projectIds.get(t.project.trim().toLowerCase()) ?? '') : '',
+        tags: joinTags(parseTags(t.tags)),
       });
     }
   });

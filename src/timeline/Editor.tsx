@@ -2,11 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import { Attachments, attachFiles } from './Attachments.tsx';
 import { PALETTE, deleteTask, updateTask } from '../data/store.ts';
 import { formatRange, workdays } from '../lib/dates.ts';
-import type { TaskView } from './model.ts';
+import type { TaskView, TimelineModel } from './model.ts';
+import { ProjectField, TagField } from './Projects.tsx';
 import { Calendar, Check, Trash } from '../ui/icons.tsx';
 
 interface Props {
   task: TaskView;
+  model: TimelineModel;
   x: number;
   y: number;
   /** Render as a bottom sheet (phones). */
@@ -14,7 +16,7 @@ interface Props {
   onClose(): void;
 }
 
-export function Editor({ task, x, y, sheet, onClose }: Props) {
+export function Editor({ task, model, x, y, sheet, onClose }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
   /** The text field that last had focus, so picking a color can keep it. */
@@ -126,6 +128,10 @@ export function Editor({ task, x, y, sheet, onClose }: Props) {
         <span className="editor-days">
           {workdays(task.start, task.end)} workday{workdays(task.start, task.end) === 1 ? '' : 's'}
         </span>
+      </div>
+      <div className="editor-fields">
+        <ProjectField task={task} model={model} />
+        <TagField task={task} model={model} />
       </div>
       <div className="swatches">
         {PALETTE.map((c) => (

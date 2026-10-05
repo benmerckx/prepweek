@@ -1,6 +1,6 @@
 import type { MergeableStore } from 'tinybase';
 import { packLanes, type Cluster, type PackItem } from '../lib/layout.ts';
-import type { TaskRow, UserRow } from '../data/store.ts';
+import { parseTags, type ProjectRow, type TaskRow, type UserRow } from '../data/store.ts';
 
 // The TimelineModel is a derived, render-ready index over the TinyBase store:
 // users in order, each with its tasks sorted by start and packed into lanes,
@@ -33,6 +33,14 @@ export interface TaskView {
   lane: number;
   /** Number of attachments (files + links). */
   files: number;
+  projectId: string;
+  /** Project name ('' when none), shown on the block. */
+  project: string;
+  tags: string[];
+}
+
+export interface Project extends ProjectRow {
+  id: string;
 }
 
 export interface Milestone {
@@ -122,6 +130,7 @@ export class TimelineModel {
     // Attachments first, so tasks are created with their badge counts.
     for (const id of store.getRowIds('attachments')) this.ingestAttachment(id);
     this.readMilestones();
+    this.readProjects();
     for (const id of store.getRowIds('tasks')) this.ingestTask(id);
     this.flush();
     store.addDidFinishTransactionListener(() => {
@@ -130,11 +139,17 @@ export class TimelineModel {
       const touched = new Set(tasks ? Object.keys(tasks) : []);
       // Attachment changes re-ingest their task so the block's badge updates.
       if (tables.attachments) for (const id of Object.keys(tables.attachments)) for (const t of this.ingestAttachment(id)) touched.add(t);
+      // A renamed project relabels its blocks.
+      if (tables.projects) {
+        this.readProjects();
+        const changed = new Set(Object.keys(tables.projects));
+        for (const [id, u] of this.taskUser) if (changed.has(this.byUser.get(u)?.get(id)?.projectId ?? '')) touched.add(id);
+      }
       for (const id of touched) this.ingestTask(id);
       if (tables.users) this.usersDirty = true;
       if (tables.milestones) this.readMilestones();
       if (touched.size || tables.users) this.flush();
-      else if (tables.milestones) this.finish();
+      else if (tables.milestones || tables.projects || tables.views) this.finish();
     });
   }
 
@@ -234,6 +249,40 @@ export class TimelineModel {
   private attachmentTask = new Map<string, string>();
   private fileCount = new Map<string, number>();
 
+  /** Projects sorted by client, then name (archived included). */
+  projects: Project[] = [];
+  private projectById = new Map<string, Project>();
+  getProject = (id: string) => this.projectById.get(id);
+
+  private readProjects() {
+    this.projects = this.store
+      .getRowIds('projects')
+      .map((id) => ({ id, ...(this.store.getRow('projects', id) as ProjectRow) }))
+      .sort((a, b) => a.client.localeCompare(b.client) || a.name.localeCompare(b.name));
+    this.projectById = new Map(this.projects.map((p) => [p.id, p]));
+  }
+
+  /** Every tag in use, most used first. */
+  allTags(): string[] {
+    const n = new Map<string, { label: string; n: number }>();
+    for (const m of this.byUser.values())
+      for (const t of m.values())
+        for (const tag of t.tags) {
+          const k = tag.toLowerCase();
+          const e = n.get(k);
+          if (e) e.n++;
+          else n.set(k, { label: tag, n: 1 });
+        }
+    return [...n.values()].sort((a, b) => b.n - a.n || a.label.localeCompare(b.label)).map((e) => e.label);
+  }
+
+  /** Tasks per project id ('' = no project). */
+  projectCounts(): Map<string, number> {
+    const out = new Map<string, number>();
+    for (const m of this.byUser.values()) for (const t of m.values()) out.set(t.projectId, (out.get(t.projectId) ?? 0) + 1);
+    return out;
+  }
+
   private readMilestones() {
     this.milestones = this.store
       .getRowIds('milestones')
@@ -282,6 +331,9 @@ export class TimelineModel {
       notes: r.notes,
       lane: -1,
       files: this.fileCount.get(id) ?? 0,
+      projectId: r.projectId ?? '',
+      project: (r.projectId && this.projectById.get(r.projectId)?.name) || '',
+      tags: parseTags(r.tags),
     };
     // A changed stored lane hint (local drop or remote collaborator) wins
     // over the previous layout.
@@ -315,6 +367,9 @@ export class TimelineModel {
         notes: base?.notes ?? '',
         lane: -1,
         files: base?.files ?? 0,
+        projectId: base?.projectId ?? '',
+        project: base?.project ?? '',
+        tags: base?.tags ?? [],
       };
       views.push(v);
       items.push({ id: v.id, start: v.start, end: v.end, lane: p.lane ?? this.prevLane.get(p.id) });

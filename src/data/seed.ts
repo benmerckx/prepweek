@@ -1,4 +1,4 @@
-import { store, PALETTE, newId } from './store.ts';
+import { store, PALETTE, newId, joinTags } from './store.ts';
 import { today, startOfWeek, isWeekend } from '../lib/dates.ts';
 
 const FIRST = ['Ava', 'Noah', 'Mila', 'Lucas', 'Emma', 'Liam', 'Nora', 'Arthur', 'Lena', 'Jules', 'Olivia', 'Finn',
@@ -10,6 +10,14 @@ const PROJECTS = [
   'Design system', 'Q-planning', 'Client workshop', 'Billing revamp', 'Search', 'Support rotation',
   'Customer interviews', 'Security audit', 'Marketing site', 'Analytics', 'Holiday', 'Conference',
 ];
+
+/** Demo clients; titles not listed are internal projects (or none). */
+const CLIENTS: Record<string, string> = {
+  'Website relaunch': 'Acme', 'Mobile app': 'Acme', 'Brand refresh': 'Globex', 'Marketing site': 'Globex',
+  'API v3': 'Initech', 'Data migration': 'Initech', 'Billing revamp': 'Initech', 'Client workshop': 'Globex',
+};
+const NO_PROJECT = new Set(['Holiday', 'Conference']);
+const TAGS = ['billable', 'onsite', 'remote', 'urgent', 'review'];
 
 /** Small deterministic PRNG so the demo looks the same everywhere. */
 const mulberry32 = (seed: number) => () => {
@@ -41,6 +49,17 @@ export const seed = (people = 24, density = 1, seedValue = 7) => {
       [t0 + 80, 'Year-end freeze', '#4f5bd5'],
     ];
     for (const [day, title, color] of ms) store.setRow('milestones', newId(), { day, title, color });
+    const projectId = new Map<string, string>();
+    PROJECTS.forEach((name, i) => {
+      if (NO_PROJECT.has(name)) return;
+      const id = newId();
+      projectId.set(name, id);
+      store.setRow('projects', id, { name, client: CLIENTS[name] ?? '', color: PALETTE[i % PALETTE.length]!, archived: false });
+    });
+    const extra = (title: string) => ({
+      projectId: projectId.get(title) ?? '',
+      tags: rnd() < 0.22 ? joinTags(rnd() < 0.2 ? [pick(TAGS), pick(TAGS)] : [pick(TAGS)]) : '',
+    });
     for (let u = 0; u < people; u++) {
       const userId = newId();
       store.setRow('users', userId, {
@@ -58,14 +77,14 @@ export const seed = (people = 24, density = 1, seedValue = 7) => {
         const end = start + len - 1;
         const title = rnd() < 0.7 ? pick(mains) : pick(PROJECTS);
         const color = PALETTE[PROJECTS.indexOf(title) % PALETTE.length]!;
-        store.setRow('tasks', newId(), { userId, start, end, title, color, lane: -1, notes: '' });
+        store.setRow('tasks', newId(), { userId, start, end, title, color, lane: -1, notes: '', ...extra(title) });
         // Occasionally stack a parallel task to exercise the lane packer.
         if (rnd() < 0.35 * density) {
           const s2 = start + Math.floor(rnd() * len);
           const t2 = pick(PROJECTS);
           store.setRow('tasks', newId(), {
             userId, start: s2, end: s2 + Math.floor(rnd() * 6), title: t2,
-            color: PALETTE[PROJECTS.indexOf(t2) % PALETTE.length]!, lane: -1, notes: '',
+            color: PALETTE[PROJECTS.indexOf(t2) % PALETTE.length]!, lane: -1, notes: '', ...extra(t2),
           });
         }
         day = end + 1 + Math.floor((rnd() * 4) / density);

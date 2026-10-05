@@ -5,7 +5,9 @@ import { getSyncStatus, onSyncStatus } from '../data/sync.ts';
 import { seed } from '../data/seed.ts';
 import { ZOOM_MAX, ZOOM_MIN } from './viewport.ts';
 import type { TimelineModel } from './model.ts';
-import { Check, ChevronLeft, ChevronRight, Close, Logo, Minus, More, People, Plus, Redo, Search as SearchIc, Undo, Upload } from '../ui/icons.tsx';
+import { FilterMenu, ViewsMenu, type FilterState } from './Filters.tsx';
+import type { ViewConfig } from '../data/store.ts';
+import { Check, ChevronLeft, ChevronRight, Close, Folder, Logo, Minus, More, People, Plus, Redo, Search as SearchIc, Undo, Upload } from '../ui/icons.tsx';
 
 interface Props {
   colW: number;
@@ -24,6 +26,11 @@ interface Props {
   onToggleWeekends(): void;
   dense: boolean;
   onToggleDense(): void;
+  filter: FilterState;
+  onFilter(f: FilterState): void;
+  onManageProjects(): void;
+  view: ViewConfig;
+  onApplyView(c: ViewConfig): void;
 }
 
 
@@ -64,14 +71,15 @@ export const Toolbar = memo(function Toolbar(props: Props) {
         <Logo />
         <span className="brand-name">prepweek</span>
       </div>
+      <ViewsMenu current={props.view} onApply={props.onApplyView} />
       <div className="seg">
-        <button className="btn icon" onClick={() => onPage(-1)} aria-label="Earlier" title="Earlier">
+        <button className="btn icon tb-page" onClick={() => onPage(-1)} aria-label="Earlier" title="Earlier">
           <ChevronLeft />
         </button>
         <button className="btn" onClick={onToday} title="Today (T)">
           Today
         </button>
-        <button className="btn icon" onClick={() => onPage(1)} aria-label="Later" title="Later">
+        <button className="btn icon tb-page" onClick={() => onPage(1)} aria-label="Later" title="Later">
           <ChevronRight />
         </button>
       </div>
@@ -103,6 +111,7 @@ export const Toolbar = memo(function Toolbar(props: Props) {
       <div className="tb-spacer" />
       <Search {...props} open={searchOpen} setOpen={setSearchOpen} />
       <PeopleMenu {...props} />
+      <FilterMenu model={model} filter={props.filter} onFilter={props.onFilter} onManageProjects={props.onManageProjects} />
       <div className={`sync sync-${sync}`} title={SYNC_HELP[sync]}>
         <span className="dot" />
         <span className="sync-label">{sync === 'local' ? 'Local' : sync}</span>
@@ -126,6 +135,10 @@ export const Toolbar = memo(function Toolbar(props: Props) {
           <button className="menu-item" onClick={props.onImport}>
             <Upload />
             Import from Teamweek…
+          </button>
+          <button className="menu-item" onClick={props.onManageProjects}>
+            <Folder />
+            Projects…
           </button>
           <div className="menu-sep" />
           <div className="menu-label">View</div>

@@ -32,7 +32,7 @@ export const TaskBlock = memo(function TaskBlock({ task, scale, dims, selected, 
       ref={ref}
       className={cls}
       data-task={task.id}
-      title={`${task.title || 'Untitled'} · ${formatRange(task.start, task.end)}`}
+      title={[task.title || 'Untitled', task.project, formatRange(task.start, task.end), task.tags.map((t) => `#${t}`).join(' ')].filter(Boolean).join(' · ')}
       style={{
         transform: `translate(${left}px, ${dims.pad + task.lane * dims.laneH}px)`,
         width,
@@ -44,7 +44,12 @@ export const TaskBlock = memo(function TaskBlock({ task, scale, dims, selected, 
       <div className="task-clip">
         <div className="task-label">
           <span className="task-title">{task.title || 'Untitled'}</span>
-          {width > 120 && <span className="task-meta">{days}d</span>}
+          {width > 120 && (
+            <span className="task-meta">
+              {task.project && task.project !== task.title && width > 190 ? `${task.project} · ` : ''}
+              {days}d
+            </span>
+          )}
           {width > 90 && (task.files > 0 || task.notes) && (
             <span className="task-badges">
               {task.notes && <Notes size={12} />}
@@ -64,7 +69,13 @@ export const TaskBlock = memo(function TaskBlock({ task, scale, dims, selected, 
 });
 
 export const matches = (t: TaskView, q: string) =>
-  t.title.toLowerCase().includes(q) || t.notes.toLowerCase().includes(q);
+  t.title.toLowerCase().includes(q) ||
+  t.notes.toLowerCase().includes(q) ||
+  t.project.toLowerCase().includes(q) ||
+  t.tags.some((g) => g.toLowerCase().includes(q));
+
+/** Search + filter as one predicate; null when nothing is filtered. */
+export type TaskFilter = ((t: TaskView) => boolean) | null;
 
 interface RowProps {
   row: RowLayout;
@@ -76,15 +87,15 @@ interface RowProps {
   d1: number;
   selectedId: string | null;
   dragId: string | null;
-  /** Lower-cased search; blocks that don't match are faded. */
-  query: string;
+  /** Blocks that don't pass are faded. */
+  filter: TaskFilter;
 }
 
-export const RowView = memo(function RowView({ row, top, scale, dims, d0, d1, selectedId, dragId, query }: RowProps) {
+export const RowView = memo(function RowView({ row, top, scale, dims, d0, d1, selectedId, dragId, filter }: RowProps) {
   const tiles = [];
   for (let c = d0; c <= d1; c += CHUNK) {
     tiles.push(
-      <RowTile key={c} row={row} c0={c} first={c === d0} scale={scale} dims={dims} selectedId={selectedId} dragId={dragId} query={query} />,
+      <RowTile key={c} row={row} c0={c} first={c === d0} scale={scale} dims={dims} selectedId={selectedId} dragId={dragId} filter={filter} />,
     );
   }
   return (
@@ -103,11 +114,11 @@ interface TileProps {
   dims: Dims;
   selectedId: string | null;
   dragId: string | null;
-  query: string;
+  filter: TaskFilter;
 }
 
 /** The blocks of one row that start inside one CHUNK of days. */
-const RowTile = memo(function RowTile({ row, c0, first, scale, dims, selectedId, dragId, query }: TileProps) {
+const RowTile = memo(function RowTile({ row, c0, first, scale, dims, selectedId, dragId, filter }: TileProps) {
   const c1 = c0 + CHUNK - 1;
   const tasks = visibleTasks(row, c0, c1).filter((t) => t.start >= c0 || first);
   return (
@@ -120,7 +131,7 @@ const RowTile = memo(function RowTile({ row, c0, first, scale, dims, selectedId,
           dims={dims}
           selected={t.id === selectedId}
           dragging={t.id === dragId}
-          dimmed={query !== '' && !matches(t, query)}
+          dimmed={filter !== null && !filter(t)}
         />
       ))}
     </>

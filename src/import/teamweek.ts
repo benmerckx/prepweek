@@ -155,6 +155,9 @@ export interface PlannedTask {
   title: string;
   color: string;
   notes: string;
+  project: string;
+  /** Comma-separated. */
+  tags: string;
 }
 
 export interface ImportPlan {
@@ -257,12 +260,14 @@ export const buildPlan = (rows: string[][], opts: ImportOptions, existing: Exist
     const title = cell(row, 'title') || project || 'Untitled';
     const rawColor = cell(row, 'color');
     const color = HEX.test(rawColor) ? (rawColor.startsWith('#') ? rawColor : `#${rawColor}`) : colorFor(project || title);
-    const tags = cell(row, 'tags');
+    const tags = cell(row, 'tags')
+      .split(/[,;|]/)
+      .map((t) => t.trim())
+      .filter(Boolean)
+      .join(',');
     const est = cell(row, 'estimate');
     const notes = [
       cell(row, 'notes'),
-      project && title !== project ? `Project: ${project}` : '',
-      tags ? `Tags: ${tags}` : '',
       est && Number(est) > 0 ? `Estimate: ${est}` : '',
     ]
       .filter(Boolean)
@@ -273,7 +278,7 @@ export const buildPlan = (rows: string[][], opts: ImportOptions, existing: Exist
       // on this sheet), so importing the same export again updates in place.
       const id = `tw${hash(`${who.get(p)}|${title}|${project}|${start}|${end}`)}`;
       if (!tasks.has(id)) p.tasks++;
-      tasks.set(id, { id, personKey: p.key, start, end, title, color, notes });
+      tasks.set(id, { id, personKey: p.key, start, end, title, color, notes, project, tags });
       if (start < min) min = start;
       if (end > max) max = end;
     }

@@ -63,8 +63,8 @@ describe('teamweek import', () => {
     const relaunch = plan.tasks.find((t) => t.title === 'Website relaunch, phase 2')!;
     expect(relaunch.start).toBe(dayFromYMD(2026, 9, 5));
     expect(relaunch.end).toBe(dayFromYMD(2026, 9, 9));
-    expect(relaunch.notes).toContain('Project: Acme');
-    expect(relaunch.notes).toContain('Tags: ux, web');
+    expect(relaunch.project).toBe('Acme');
+    expect(relaunch.tags).toBe('ux,web');
   });
 
   test('ids are deterministic so re-importing updates instead of duplicating', () => {

@@ -5,7 +5,9 @@ import { Scale } from './scale.ts';
 import { COMPACT_QUERY, HEADER_H, SIDEBAR_W, SIDEBAR_W_COMPACT, Viewport, ZOOM_MAX, ZOOM_MIN } from './viewport.ts';
 import { DragController, type DragKind } from './drag.ts';
 import { Header } from './Header.tsx';
-import { GridBackground, RowView, Sidebar, matches } from './Rows.tsx';
+import { GridBackground, RowView, Sidebar, matches, type TaskFilter } from './Rows.tsx';
+import { NO_FILTER, type FilterState } from './Filters.tsx';
+import { ProjectsDialog } from './Projects.tsx';
 import { Minimap } from './Minimap.tsx';
 import { Editor } from './Editor.tsx';
 import { Toolbar } from './Toolbar.tsx';
@@ -14,7 +16,7 @@ import { ImportDialog } from '../import/ImportDialog.tsx';
 import { MilestoneBand, MilestoneEditor, MilestoneLines, type MsDrag } from './Milestones.tsx';
 import { Flag, Plus } from '../ui/icons.tsx';
 import { useBackToClose } from '../lib/useBackToClose.ts';
-import { createMilestone, createTask, createUser, deleteTask, getTask, MILESTONE_COLORS, redo, store, undo, updateTask } from '../data/store.ts';
+import { createMilestone, createTask, createUser, deleteTask, getTask, MILESTONE_COLORS, redo, store, undo, updateTask, type ViewConfig } from '../data/store.ts';
 import { dayFromYMD, formatRange, startOfWeek, startOfYear, today as getToday, ymd } from '../lib/dates.ts';
 
 interface Win {
@@ -40,7 +42,7 @@ const writeFlag = (key: string, on: boolean) => {
     localStorage.setItem(key, on ? '1' : '0');
   } catch {}
 };
-const EDITOR_H = 300;
+const EDITOR_H = 380;
 
 const isCompact = () => matchMedia(COMPACT_QUERY).matches;
 
@@ -122,6 +124,17 @@ export function Timeline({ model }: { model: TimelineModel }) {
   const [query, setQuery] = useState('');
   const q = query.trim().toLowerCase();
   const focus = model.getFocus();
+  const [filterState, setFilterState] = useState<FilterState>(NO_FILTER);
+  const [managingProjects, setManagingProjects] = useState(false);
+  const manageProjects = useCallback(() => setManagingProjects(true), []);
+  /** Search and filters as one predicate; non-matching blocks are faded. */
+  const filter: TaskFilter = useMemo(() => {
+    const ps = new Set(filterState.projects);
+    const ts = new Set(filterState.tags);
+    if (!q && !ps.size && !ts.size) return null;
+    return (t) =>
+      (!q || matches(t, q)) && (!ps.size || ps.has(t.projectId)) && (!ts.size || t.tags.some((g) => ts.has(g.toLowerCase())));
+  }, [q, filterState]);
 
   /** Toggle focus on a person; additive keeps the others already focused. */
   const focusPerson = useCallback(
@@ -144,11 +157,11 @@ export function Timeline({ model }: { model: TimelineModel }) {
 
   // Search matches (in the people currently shown), in time order.
   const found = useMemo(() => {
-    if (!q) return [];
+    if (!q || !filter) return [];
     const out: { id: string; start: number; userId: string }[] = [];
-    for (const r of model.rows) for (const t of r.tasks) if (matches(t, q)) out.push(t);
+    for (const r of model.rows) for (const t of r.tasks) if (filter(t)) out.push(t);
     return out.sort((a, b) => a.start - b.start);
-  }, [q, model.version]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [q, filter, model.version]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** Scroll to the next (or previous) match after the middle of the view. */
   const jumpToMatch = useCallback(
@@ -293,6 +306,35 @@ export function Timeline({ model }: { model: TimelineModel }) {
     model.setDims(next ? COMPACT : COMFORTABLE);
     setDense(next);
   }, [model]);
+  // --- Saved views ---
+  const viewConfig: ViewConfig = useMemo(
+    () => ({
+      focus: focus ? [...focus] : [],
+      query: query.trim(),
+      projects: filterState.projects,
+      tags: filterState.tags,
+      hideWeekends,
+      dense,
+      colW,
+    }),
+    [focus, query, filterState, hideWeekends, dense, colW],
+  );
+  const applyView = useCallback(
+    (c: ViewConfig) => {
+      if (c.focus) {
+        const known = c.focus.filter((id) => store.hasRow('users', id));
+        model.setFocus(known.length ? known : null);
+      }
+      if (c.query !== undefined) setQuery(c.query);
+      if (c.projects || c.tags) setFilterState({ projects: c.projects ?? [], tags: c.tags ?? [] });
+      if (c.hideWeekends !== undefined && c.hideWeekends !== (vp.scale.hideWeekends)) toggleWeekends();
+      if (c.dense !== undefined && c.dense !== (model.dims === COMPACT)) toggleDense();
+      if (c.colW) zoomTo(c.colW);
+      if (vp.scroller) vp.scroller.scrollTop = 0;
+    },
+    [model, vp, toggleWeekends, toggleDense, zoomTo],
+  );
+
   // Row heights changed: re-window the rows.
   useEffect(() => {
     winRef.current = { ...winRef.current, r0: -1, r1: -1 };
@@ -531,7 +573,7 @@ export function Timeline({ model }: { model: TimelineModel }) {
         d1={win.d1}
         selectedId={r.userId === selUser || r.userId === dragUser ? selected : null}
         dragId={r.userId === dragUser ? (drag?.id ?? null) : null}
-        query={q}
+        filter={filter}
       />,
     );
   }
@@ -550,11 +592,12 @@ export function Timeline({ model }: { model: TimelineModel }) {
     const top = below + EDITOR_H > viewBottom && blockTop - EDITOR_H - 6 > 0 ? blockTop - EDITOR_H - 6 : below;
     editor = compact ? (
       // A bottom sheet on phones, outside the scroller so it stays put.
-      createPortal(<Editor key={editTask.id} task={editTask} x={0} y={0} sheet onClose={closeEditor} />, document.body)
+      createPortal(<Editor key={editTask.id} task={editTask} model={model} x={0} y={0} sheet onClose={closeEditor} />, document.body)
     ) : (
       <Editor
         key={editTask.id}
         task={editTask}
+        model={model}
         x={Math.max(0, scale.x(editTask.start))}
         y={top}
         onClose={closeEditor}
@@ -585,6 +628,11 @@ export function Timeline({ model }: { model: TimelineModel }) {
         onToggleWeekends={toggleWeekends}
         dense={dense}
         onToggleDense={toggleDense}
+        filter={filterState}
+        onFilter={setFilterState}
+        onManageProjects={manageProjects}
+        view={viewConfig}
+        onApplyView={applyView}
       />
       <div className="scroller" ref={scrollerRef}>
         <div
@@ -675,6 +723,7 @@ export function Timeline({ model }: { model: TimelineModel }) {
         <Minimap model={model} vp={vp} today={todayDay} />
       </div>
       {msEdit && <MilestoneEditor key={msEdit.id} id={msEdit.id} anchor={msEdit.anchor} fresh={msEdit.fresh} sheet={compact} onClose={() => setMsEdit(null)} />}
+      {managingProjects && <ProjectsDialog model={model} onClose={() => setManagingProjects(false)} />}
       {importing && (
         <ImportDialog
           initialFile={importing.file}
