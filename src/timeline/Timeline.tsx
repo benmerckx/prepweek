@@ -11,6 +11,8 @@ import { NO_FILTER, type FilterState } from './Filters.tsx';
 import { ProjectsDialog } from './Projects.tsx';
 import { ActivityPanel } from './Discussion.tsx';
 import { watchDesktopNotifications } from '../data/notify.ts';
+import { publish, startPresence, type Peer } from '../data/presence.ts';
+import { PresenceLayer } from './Presence.tsx';
 import { Minimap } from './Minimap.tsx';
 import { Editor } from './Editor.tsx';
 import { Toolbar } from './Toolbar.tsx';
@@ -199,13 +201,11 @@ export function Timeline({ model }: { model: TimelineModel }) {
       }
       setSelected(next.id);
       setEditing(null);
-      vp.scrollToDay(next.start, 0.3, true);
       const ri = model.indexOfUser(next.userId);
       const top = model.rowTops[ri] ?? 0;
       const s = vp.scroller;
-      if (top < s.scrollTop || top + (model.rows[ri]?.height ?? 0) > s.scrollTop + vp.viewHeight) {
-        s.scrollTo({ top: Math.max(0, top - 24), behavior: 'smooth' });
-      }
+      const offscreen = top < s.scrollTop || top + (model.rows[ri]?.height ?? 0) > s.scrollTop + vp.viewHeight;
+      vp.scrollToDay(next.start, 0.3, true, offscreen ? top - 24 : undefined);
     },
     [found, model, vp],
   );
@@ -343,11 +343,9 @@ export function Timeline({ model }: { model: TimelineModel }) {
       if (model.isCollapsed(team)) toggleTeam(team);
       setSelected(id);
       setEditing(null);
-      vp.scrollToDay(t.start, 0.3, true);
+      // After the focus/collapse change has laid out the rows.
       requestAnimationFrame(() => {
-        const ri = model.indexOfUser(t.userId);
-        const top = model.rowTops[ri] ?? 0;
-        vp.scroller?.scrollTo({ top: Math.max(0, top - 60), behavior: 'smooth' });
+        vp.scrollToDay(t.start, 0.3, true, (model.rowTops[model.indexOfUser(t.userId)] ?? 0) - 60);
         // Open the editor once the scroll has settled.
         setTimeout(() => setEditing(id), 450);
       });
@@ -355,6 +353,35 @@ export function Timeline({ model }: { model: TimelineModel }) {
     [model, vp, toggleTeam],
   );
   useEffect(() => watchDesktopNotifications(revealTask), [revealTask]);
+
+  // --- Presence: share what I look at, select and point at. ---
+  useEffect(() => {
+    startPresence();
+    const share = () => {
+      if (!vp.scroller) return;
+      const a = vp.firstVisibleDay;
+      publish({ view: [a, a + vp.visibleDays] });
+    };
+    share();
+    return vp.onChange(share);
+  }, [vp]);
+  useEffect(() => publish({ sel: selected }), [selected]);
+  const followPeer = useCallback(
+    (p: Peer) => {
+      if (p.sel && model.findTask(p.sel)) {
+        const t = model.findTask(p.sel)!;
+        vp.scrollToDay(t.start, 0.3, true, (model.rowTops[model.indexOfUser(t.userId)] ?? 0) - 60);
+      } else if (p.view) vp.scrollToDay((p.view[0] + p.view[1]) / 2, 0.5, true);
+    },
+    [model, vp],
+  );
+  const onBodyPointerMove = (e: React.PointerEvent) => {
+    if (e.pointerType !== 'mouse') return;
+    const y = vp.yAt(e.clientY);
+    const i = model.rowAt(y);
+    const row = model.rows[i];
+    if (row) publish({ cur: { day: vp.dayAt(e.clientX), user: row.userId, dy: y - model.rowTops[i]! } });
+  };
 
   // --- Saved views ---
   const viewConfig: ViewConfig = useMemo(
@@ -693,6 +720,7 @@ export function Timeline({ model }: { model: TimelineModel }) {
         onApplyView={applyView}
         onOpenTask={revealTask}
         onOpenActivity={openActivity}
+        onFollow={followPeer}
       />
       <div className="scroller" ref={scrollerRef}>
         <div
@@ -765,7 +793,13 @@ export function Timeline({ model }: { model: TimelineModel }) {
             </button>
             )}
           </div>
-          <div className="body" onPointerDown={(e) => dragCtl.pointerDown(e.nativeEvent)} onDoubleClick={onDoubleClick}>
+          <div
+            className="body"
+            onPointerDown={(e) => dragCtl.pointerDown(e.nativeEvent)}
+            onPointerMove={onBodyPointerMove}
+            onPointerLeave={() => publish({ cur: null })}
+            onDoubleClick={onDoubleClick}
+          >
             <GridBackground d0={win.d0} d1={win.d1} scale={scale} height={bodyH} today={todayDay} />
             <MilestoneLines milestones={model.milestones} d0={win.d0} d1={win.d1} scale={scale} height={bodyH} drag={msDrag} />
             {rendered}
@@ -774,6 +808,7 @@ export function Timeline({ model }: { model: TimelineModel }) {
                 No people on this sheet yet. Add someone on the left, then drag across their row to plan work.
               </div>
             )}
+            <PresenceLayer model={model} scale={scale} version={model.version} />
             {editor}
           </div>
         </div>

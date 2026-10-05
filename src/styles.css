@@ -3458,3 +3458,94 @@ button.tag-chip {
   text-align: left;
   cursor: text;
 }
+
+/* =============================================================================
+   Live presence
+   ========================================================================== */
+
+.presence {
+  display: flex;
+  align-items: center;
+  flex: none;
+  padding-left: 6px;
+}
+.presence-face {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin-left: -6px;
+  padding: 0;
+  border: 2px solid var(--bg);
+  border-radius: 50%;
+  background: var(--c);
+  color: #fff;
+  font: inherit;
+  font-size: 10.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 120ms;
+  animation: pop-in 200ms cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+.presence-face:hover {
+  z-index: 1;
+  transform: translateY(-1px) scale(1.06);
+}
+.presence-more {
+  margin-left: 4px;
+  color: var(--text-dim);
+  font-size: 12px;
+  font-weight: 600;
+}
+.peer-sel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 3;
+  border: 2px solid var(--c);
+  border-radius: 7px;
+  pointer-events: none;
+  transition:
+    transform 160ms cubic-bezier(0.2, 0.7, 0.3, 1),
+    width 160ms;
+}
+.peer-tag,
+.peer-name {
+  position: absolute;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--c);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 15px;
+  white-space: nowrap;
+}
+.peer-tag {
+  top: -17px;
+  left: -2px;
+  border-radius: 4px 4px 4px 0;
+}
+.peer-cursor {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 6;
+  pointer-events: none;
+  transition: transform 90ms linear;
+}
+.peer-cursor svg {
+  display: block;
+  filter: drop-shadow(0 1px 1.5px rgb(0 0 0 / 0.25));
+}
+.peer-name {
+  top: 15px;
+  left: 10px;
+}
+[data-zooming] .peer-cursor,
+[data-zooming] .peer-sel {
+  transition: none;
+}
+.app.compact .presence-face:nth-child(n + 3) {
+  display: none;
+}

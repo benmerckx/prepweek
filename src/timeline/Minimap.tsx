@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import type { TimelineModel } from './model.ts';
 import type { Cluster } from '../lib/layout.ts';
 import type { Viewport } from './viewport.ts';
+import { getPeers, onPeers } from '../data/presence.ts';
 import { addMonths, formatDay, isWeekend, monthShort, startOfMonth, startOfWeek, ymd } from '../lib/dates.ts';
 
 // A VS Code–style scrubber for the time axis. The canvas shows ~18 months at
@@ -237,6 +238,20 @@ export function Minimap({ model, vp, today }: Props) {
       ctx.lineWidth = st.dragging ? 2 : 1.5;
       ctx.strokeRect(g.sliderX + 0.75, 0.75, g.sliderW - 1.5, H - 1.5);
 
+      // Where everyone else is looking: a thin bracket in their color.
+      for (const p of getPeers()) {
+        if (!p.view) continue;
+        const x0 = (p.view[0] - g.mmStart) * g.scale;
+        const w = Math.max(4, (p.view[1] - p.view[0]) * g.scale);
+        if (x0 + w < 0 || x0 > W) continue;
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = 0.9;
+        ctx.fillRect(x0, H - 4, w, 3);
+        ctx.fillRect(x0, H - 9, 2, 8);
+        ctx.fillRect(x0 + w - 2, H - 9, 2, 8);
+        ctx.globalAlpha = 1;
+      }
+
       // Hover readout.
       if (st.hoverX >= 0 && !st.dragging) {
         const day = Math.floor(g.mmStart + st.hoverX / g.scale);
@@ -309,6 +324,7 @@ export function Minimap({ model, vp, today }: Props) {
     canvas.addEventListener('wheel', wheel, { passive: false });
     const offVp = vp.onChange(schedule);
     const offModel = model.subscribe(schedule);
+    const offPeers = onPeers(schedule);
     const ro = new ResizeObserver(schedule);
     ro.observe(canvas);
     const mq = matchMedia('(prefers-color-scheme: dark)');
@@ -320,6 +336,7 @@ export function Minimap({ model, vp, today }: Props) {
     mq.addEventListener('change', theme);
     schedule();
     return () => {
+      offPeers();
       cancelAnimationFrame(st.raf);
       clearTimeout(st.rebuild);
       st.raf = 0;

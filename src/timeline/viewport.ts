@@ -87,11 +87,12 @@ export class Viewport {
   }
 
   /** Scroll so `day` (fractional) sits at `frac` of the visible width. */
-  scrollToDay(day: number, frac = 0.5, smooth = false) {
+  scrollToDay(day: number, frac = 0.5, smooth = false, top?: number) {
     const s = this.scroller;
     if (!s) return;
     const left = this.scale.xF(day) - this.viewWidth * frac;
-    s.scrollTo({ left, behavior: smooth ? 'smooth' : 'instant' });
+    // One call for both axes: a second smooth scroll would cancel the first.
+    s.scrollTo({ left, ...(top !== undefined ? { top: Math.max(0, top) } : {}), behavior: smooth ? 'smooth' : 'instant' });
   }
 
   maxScrollLeft() {

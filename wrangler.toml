@@ -12,12 +12,17 @@ watch_dir = "src"
 directory = "./dist"
 binding = "ASSETS"
 not_found_handling = "single-page-application"
-run_worker_first = ["/sync/*", "/files/*"]
+run_worker_first = ["/sync/*", "/files/*", "/presence/*"]
 
 # One SQLite-backed Durable Object per sheet (storage + realtime room).
 [[durable_objects.bindings]]
 name = "SHEETS"
 class_name = "SheetDurableObject"
+
+# Live presence per sheet: a relay, stores nothing.
+[[durable_objects.bindings]]
+name = "PRESENCE"
+class_name = "PresenceDurableObject"
 
 # Attachment storage (served by the worker at /files/<sheet>/<id>).
 # Create the bucket once: `wrangler r2 bucket create prepweek-files`.
@@ -28,3 +33,7 @@ bucket_name = "prepweek-files"
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["SheetDurableObject"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["PresenceDurableObject"]

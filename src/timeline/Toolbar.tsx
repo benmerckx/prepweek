@@ -7,6 +7,8 @@ import { ZOOM_MAX, ZOOM_MIN } from './viewport.ts';
 import type { TimelineModel } from './model.ts';
 import { FilterMenu, ViewsMenu, type FilterState } from './Filters.tsx';
 import { NotificationsMenu } from './Discussion.tsx';
+import { PresenceAvatars } from './Presence.tsx';
+import type { Peer } from '../data/presence.ts';
 import type { ViewConfig } from '../data/store.ts';
 import { Check, ChevronLeft, ChevronRight, Close, Folder, History, Logo, Minus, More, People, Plus, Redo, Search as SearchIc, Undo, Upload } from '../ui/icons.tsx';
 
@@ -34,6 +36,8 @@ interface Props {
   onApplyView(c: ViewConfig): void;
   onOpenTask(id: string): void;
   onOpenActivity(): void;
+  /** Jump to where another person on the sheet is. */
+  onFollow(p: Peer): void;
 }
 
 
@@ -115,6 +119,7 @@ export const Toolbar = memo(function Toolbar(props: Props) {
       <Search {...props} open={searchOpen} setOpen={setSearchOpen} />
       <PeopleMenu {...props} />
       <FilterMenu model={model} filter={props.filter} onFilter={props.onFilter} onManageProjects={props.onManageProjects} />
+      <PresenceAvatars onFollow={props.onFollow} />
       <NotificationsMenu onOpenTask={props.onOpenTask} />
       <div className={`sync sync-${sync}`} title={SYNC_HELP[sync]}>
         <span className="dot" />
