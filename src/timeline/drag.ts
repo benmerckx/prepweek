@@ -284,7 +284,17 @@ export class DragController {
       const orig = this.model.findTask(s.taskId);
       const changed = !orig || orig.userId !== p.userId || orig.start !== p.start || orig.end !== p.end || this.model.laneOf(s.taskId) !== orig.lane;
       if (s.duplicate && orig) {
-        const id = createTask({ userId: p.userId, start: p.start, end: p.end, title: orig.title, color: orig.color, lane, notes: orig.notes });
+        const id = createTask({
+          userId: p.userId,
+          start: p.start,
+          end: p.end,
+          title: orig.title,
+          color: orig.color,
+          lane,
+          notes: orig.notes,
+          projectId: orig.projectId,
+          tags: orig.tags.join(','),
+        });
         this.model.rememberLane(id, lane);
         this.end();
         this.cb.onSelect(id);
@@ -292,7 +302,14 @@ export class DragController {
       }
       if (changed) {
         const label = s.kind === 'move' ? 'Move task' : 'Resize task';
-        updateTask(s.taskId, { userId: p.userId, start: p.start, end: p.end, lane }, label);
+        // Moving one occurrence of a series detaches it under a new id.
+        const id = updateTask(s.taskId, { userId: p.userId, start: p.start, end: p.end, lane }, label);
+        if (id !== s.taskId) {
+          this.model.rememberLane(id, lane);
+          this.end();
+          this.cb.onSelect(id);
+          return;
+        }
       }
     }
     this.end();

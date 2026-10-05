@@ -1,4 +1,6 @@
 import type { MergeableStore } from 'tinybase';
+import { HORIZON_DAYS, isRule, occurrenceId, occurrences, parseSkip } from '../lib/recur.ts';
+import { today } from '../lib/dates.ts';
 import { packLanes, type Cluster, type PackItem } from '../lib/layout.ts';
 import { parseTags, type ProjectRow, type TaskRow, type UserRow } from '../data/store.ts';
 
@@ -43,6 +45,10 @@ export interface TaskView {
   /** Project name ('' when none), shown on the block. */
   project: string;
   tags: string[];
+  /** Recurrence rule of the series this belongs to ('' = one-off). */
+  repeat: string;
+  /** The stored task id (differs from `id` for occurrences n > 0). */
+  series: string;
 }
 
 export interface Project extends ProjectRow {
@@ -317,7 +323,7 @@ export class TimelineModel {
     const n = new Map<string, { label: string; n: number }>();
     for (const m of this.byUser.values())
       for (const t of m.values())
-        for (const tag of t.tags) {
+        for (const tag of t.id === t.series ? t.tags : []) {
           const k = tag.toLowerCase();
           const e = n.get(k);
           if (e) e.n++;
@@ -329,7 +335,7 @@ export class TimelineModel {
   /** Tasks per project id ('' = no project). */
   projectCounts(): Map<string, number> {
     const out = new Map<string, number>();
-    for (const m of this.byUser.values()) for (const t of m.values()) out.set(t.projectId, (out.get(t.projectId) ?? 0) + 1);
+    for (const m of this.byUser.values()) for (const t of m.values()) if (t.id === t.series) out.set(t.projectId, (out.get(t.projectId) ?? 0) + 1);
     return out;
   }
 
@@ -358,24 +364,39 @@ export class TimelineModel {
     return affected;
   }
 
-  private ingestTask(id: string) {
-    const oldUser = this.taskUser.get(id);
-    if (oldUser) {
-      this.byUser.get(oldUser)?.delete(id);
-      this.dirtyUsers.add(oldUser);
+  /** Derived occurrence ids per recurring task. */
+  private occIds = new Map<string, string[]>();
+  private horizon = today() + HORIZON_DAYS;
+
+  private dropView(id: string) {
+    const u = this.taskUser.get(id);
+    if (u) {
+      this.byUser.get(u)?.delete(id);
+      this.dirtyUsers.add(u);
     }
+    this.taskUser.delete(id);
+  }
+
+  private ingestTask(id: string) {
+    this.dropView(id);
+    for (const o of this.occIds.get(id) ?? []) {
+      this.dropView(o);
+      this.prevLane.delete(o);
+    }
+    this.occIds.delete(id);
     if (!this.store.hasRow('tasks', id)) {
-      this.taskUser.delete(id);
       this.prevLane.delete(id);
       this.storedLane.delete(id);
       return;
     }
     const r = this.store.getRow('tasks', id) as TaskRow;
+    const start = Math.min(r.start, r.end);
+    const end = Math.max(r.start, r.end);
     const view: TaskView = {
       id,
       userId: r.userId,
-      start: Math.min(r.start, r.end),
-      end: Math.max(r.start, r.end),
+      start,
+      end,
       title: r.title,
       color: r.color,
       notes: r.notes,
@@ -384,16 +405,38 @@ export class TimelineModel {
       projectId: r.projectId ?? '',
       project: (r.projectId && this.projectById.get(r.projectId)?.name) || '',
       tags: parseTags(r.tags),
+      repeat: isRule(r.repeat) ? r.repeat : '',
+      series: id,
     };
+    let m = this.byUser.get(r.userId);
+    if (!m) this.byUser.set(r.userId, (m = new Map()));
+    this.dirtyUsers.add(r.userId);
+    if (isRule(r.repeat)) {
+      const ids: string[] = [];
+      let first = false;
+      for (const o of occurrences(start, end, r.repeat, r.repeatUntil ?? 0, parseSkip(r.skip), Math.max(this.horizon, start + HORIZON_DAYS))) {
+        if (o.n === 0) {
+          first = true;
+          continue;
+        }
+        const oid = occurrenceId(id, o.n);
+        ids.push(oid);
+        this.taskUser.set(oid, r.userId);
+        m.set(oid, { ...view, id: oid, start: o.start, end: o.end });
+      }
+      this.occIds.set(id, ids);
+      // The first occurrence was deleted: the stored task itself is hidden.
+      if (!first) {
+        this.storedLane.set(id, r.lane);
+        return;
+      }
+    }
     // A changed stored lane hint (local drop or remote collaborator) wins
     // over the previous layout.
     if (r.lane >= 0 && this.storedLane.get(id) !== r.lane) this.prevLane.set(id, r.lane);
     this.storedLane.set(id, r.lane);
     this.taskUser.set(id, r.userId);
-    let m = this.byUser.get(r.userId);
-    if (!m) this.byUser.set(r.userId, (m = new Map()));
     m.set(id, view);
-    this.dirtyUsers.add(r.userId);
   }
 
   private layoutRow(userId: string, user: UserRow): RowLayout {
@@ -420,6 +463,8 @@ export class TimelineModel {
         projectId: base?.projectId ?? '',
         project: base?.project ?? '',
         tags: base?.tags ?? [],
+        repeat: base?.repeat ?? '',
+        series: base?.series ?? p.id,
       };
       views.push(v);
       items.push({ id: v.id, start: v.start, end: v.end, lane: p.lane ?? this.prevLane.get(p.id) });

@@ -188,3 +188,9 @@ export const Pencil = ({ size = 16 }: { size?: number }) => (
     <path d="M10.5 2.75 13.25 5.5 5.75 13H3v-2.75Z" />
   </Svg>
 );
+export const Repeat = ({ size = 16 }: { size?: number }) => (
+  <Svg size={size}>
+    <path d="M2.75 7.25V6.5A2.25 2.25 0 0 1 5 4.25h8.25M11 2l2.25 2.25L11 6.5" />
+    <path d="M13.25 8.75v.75A2.25 2.25 0 0 1 11 11.75H2.75M5 14l-2.25-2.25L5 9.5" />
+  </Svg>
+);

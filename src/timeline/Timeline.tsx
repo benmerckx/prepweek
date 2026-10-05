@@ -498,7 +498,7 @@ export function Timeline({ model }: { model: TimelineModel }) {
       } else if (mod && e.key.toLowerCase() === 'd') {
         e.preventDefault();
         const span = t.end - t.start + 1;
-        setSelected(createTask({ ...t, start: t.start + span, end: t.end + span, lane: -1 }));
+        setSelected(createTask({ ...t, start: t.start + span, end: t.end + span, lane: -1, repeat: '', repeatUntil: 0, skip: '' }));
       } else if (e.key === 'Enter') {
         e.preventDefault();
         setEditing(sel);
@@ -510,18 +510,23 @@ export function Timeline({ model }: { model: TimelineModel }) {
         // Step by visible columns, so hidden weekends are skipped.
         const sc = vp.scale;
         const step = (day: number) => sc.dayOfCol(sc.col(day) + (e.key === 'ArrowLeft' ? -1 : 1));
-        if (e.shiftKey) updateTask(sel, { end: Math.max(t.start, step(t.end)) }, 'Resize task');
+        let id: string;
+        if (e.shiftKey) id = updateTask(sel, { end: Math.max(t.start, step(t.end)) }, 'Resize task');
         else {
           const start = step(t.start);
-          updateTask(sel, { start, end: sc.hideWeekends ? sc.dayOfCol(sc.col(start) + sc.cols(t.start, t.end) - 1) : t.end + start - t.start }, 'Move task');
+          id = updateTask(sel, { start, end: sc.hideWeekends ? sc.dayOfCol(sc.col(start) + sc.cols(t.start, t.end) - 1) : t.end + start - t.start }, 'Move task');
         }
+        if (id !== sel) setSelected(id);
       } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
         e.preventDefault();
         const dir = e.key === 'ArrowUp' ? -1 : 1;
         let i = model.indexOfUser(t.userId) + dir;
         while (model.rows[i]?.kind === 'team') i += dir;
         const row = model.rows[i];
-        if (row) updateTask(sel, { userId: row.userId, lane: -1 }, 'Move task');
+        if (row) {
+          const id = updateTask(sel, { userId: row.userId, lane: -1 }, 'Move task');
+          if (id !== sel) setSelected(id);
+        }
       }
     };
     window.addEventListener('keydown', onKey);

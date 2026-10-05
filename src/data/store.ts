@@ -1,4 +1,5 @@
 import { createMergeableStore, type Row } from 'tinybase';
+import { isRule, occurrenceStart, parseSkip, splitOccurrence } from '../lib/recur.ts';
 
 // One MergeableStore per "sheet". It is a CRDT (hybrid logical clocks per
 // cell), so local edits, other tabs and a Cloudflare Durable Object can all
@@ -23,6 +24,12 @@ export type TaskRow = {
   projectId?: string;
   /** Comma-separated labels, e.g. "Design,Urgent". */
   tags?: string;
+  /** Recurrence rule ('' = none), see lib/recur.ts. */
+  repeat?: string;
+  /** Last day an occurrence may start on (0 = open-ended). */
+  repeatUntil?: number;
+  /** Comma-separated occurrence numbers that were deleted or detached. */
+  skip?: string;
 };
 
 export const store = createMergeableStore();
@@ -45,6 +52,9 @@ store.setTablesSchema({
     notes: { type: 'string', default: '' },
     projectId: { type: 'string', default: '' },
     tags: { type: 'string', default: '' },
+    repeat: { type: 'string', default: '' },
+    repeatUntil: { type: 'number', default: 0 },
+    skip: { type: 'string', default: '' },
   },
   // Projects group tasks across people; a client groups projects.
   projects: {
@@ -132,8 +142,24 @@ export const newId = (): string => {
   return id;
 };
 
-export const getTask = (id: string): TaskRow | undefined =>
-  store.hasRow('tasks', id) ? (store.getRow('tasks', id) as TaskRow) : undefined;
+const NOT_RECURRING = { repeat: '', repeatUntil: 0, skip: '' };
+
+/**
+ * A task by id. For an occurrence of a recurring task (`id~n`) this is the
+ * series' content on that occurrence's dates, as a one-off task.
+ */
+export const getTask = (id: string): TaskRow | undefined => {
+  const { base, n } = splitOccurrence(id);
+  if (!store.hasRow('tasks', base)) return undefined;
+  const row = store.getRow('tasks', base) as TaskRow;
+  if (n === 0) return row;
+  if (!isRule(row.repeat)) return undefined;
+  const start = occurrenceStart(row.start, row.repeat, n);
+  return { ...row, ...NOT_RECURRING, start, end: start + (row.end - row.start) };
+};
+
+/** True for an occurrence id (`id~n`, n > 0). */
+export const isOccurrence = (id: string) => splitOccurrence(id).n > 0;
 
 export const getUser = (id: string): UserRow | undefined =>
   store.hasRow('users', id) ? (store.getRow('users', id) as UserRow) : undefined;
@@ -217,10 +243,37 @@ export const redo = () => {
 
 // --- Commands ---------------------------------------------------------------
 
-export const updateTask = (id: string, patch: Partial<TaskRow>, label = 'Edit task') =>
+const PLACEMENT = ['start', 'end', 'userId', 'lane'] as const;
+
+/**
+ * Edit a task; returns the id the edited task has afterwards.
+ *
+ * On an occurrence of a series, content edits (title, color, project…)
+ * apply to the whole series, while moving or resizing it detaches it: it
+ * becomes a task of its own and the series skips that date.
+ */
+export const updateTask = (id: string, patch: Partial<TaskRow>, label = 'Edit task'): string => {
+  const { base, n } = splitOccurrence(id);
+  if (n > 0) {
+    if (!PLACEMENT.some((k) => k in patch)) return updateTask(base, patch, label), id;
+    const occ = getTask(id);
+    if (!occ) return id;
+    const nid = newId();
+    const placed: Partial<TaskRow> = {};
+    for (const k of PLACEMENT) if (k in patch) (placed as Record<string, unknown>)[k] = patch[k];
+    commit(label, [['tasks', base], ['tasks', nid]], () => {
+      const skip = parseSkip(store.getCell('tasks', base, 'skip') as string);
+      skip.add(n);
+      store.setCell('tasks', base, 'skip', [...skip].sort((a, b) => a - b).join(','));
+      store.setRow('tasks', nid, { ...occ, ...patch, ...placed, ...NOT_RECURRING } as Row);
+    });
+    return nid;
+  }
   commit(label, [['tasks', id]], () => {
     for (const [k, v] of Object.entries(patch)) store.setCell('tasks', id, k, v as string | number);
   });
+  return id;
+};
 
 export const createTask = (task: TaskRow, id = newId()): string => {
   commit('Create task', [['tasks', id]], () => store.setRow('tasks', id, task));
@@ -230,8 +283,23 @@ export const createTask = (task: TaskRow, id = newId()): string => {
 export const attachmentsOf = (taskId: string): string[] =>
   store.getRowIds('attachments').filter((a) => store.getCell('attachments', a, 'taskId') === taskId);
 
-/** Deleting a task also removes its attachments (one undo step). */
-export const deleteTask = (id: string) => {
+/**
+ * Deleting a task also removes its attachments (one undo step). For a
+ * recurring task, 'one' removes just this occurrence (the series skips it)
+ * and 'series' removes them all.
+ */
+export const deleteTask = (id: string, scope: 'one' | 'series' = 'one') => {
+  const { base, n } = splitOccurrence(id);
+  const row = store.hasRow('tasks', base) ? (store.getRow('tasks', base) as TaskRow) : undefined;
+  if (row && isRule(row.repeat) && scope === 'one') {
+    const skip = parseSkip(row.skip);
+    skip.add(n);
+    commit('Delete occurrence', [['tasks', base]], () =>
+      store.setCell('tasks', base, 'skip', [...skip].sort((a, b) => a - b).join(',')),
+    );
+    return;
+  }
+  id = base;
   const atts = attachmentsOf(id);
   commit('Delete task', [['tasks', id], ...atts.map((a) => ['attachments', a] as [TableId, string])], () => {
     store.delRow('tasks', id);

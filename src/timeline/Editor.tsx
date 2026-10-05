@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { Attachments, attachFiles } from './Attachments.tsx';
-import { PALETTE, deleteTask, updateTask } from '../data/store.ts';
-import { formatRange, workdays } from '../lib/dates.ts';
+import { PALETTE, deleteTask, getTask, updateTask } from '../data/store.ts';
+import { RULES, RULE_LABELS } from '../lib/recur.ts';
+import { dayFromYMD, formatDay, formatRange, workdays, ymd } from '../lib/dates.ts';
 import type { TaskView, TimelineModel } from './model.ts';
 import { ProjectField, TagField } from './Projects.tsx';
-import { Calendar, Check, Trash } from '../ui/icons.tsx';
+import { Calendar, Check, Repeat, Trash } from '../ui/icons.tsx';
 
 interface Props {
   task: TaskView;
@@ -132,6 +133,7 @@ export function Editor({ task, model, x, y, sheet, onClose }: Props) {
       <div className="editor-fields">
         <ProjectField task={task} model={model} />
         <TagField task={task} model={model} />
+        <RepeatField task={task} />
       </div>
       <div className="swatches">
         {PALETTE.map((c) => (
@@ -162,19 +164,32 @@ export function Editor({ task, model, x, y, sheet, onClose }: Props) {
         onFocus={(e) => (lastField.current = e.currentTarget)}
         onBlur={(e) => e.currentTarget.value !== task.notes && updateTask(task.id, { notes: e.currentTarget.value }, 'Edit notes')}
       />
-      <Attachments taskId={task.id} onError={setError} />
+      <Attachments taskId={task.series} onError={setError} />
       {error && <p className="editor-error">{error}</p>}
       <div className="editor-actions">
         <button
           className="btn danger"
+          title={task.repeat ? 'Delete only this occurrence' : 'Delete task'}
           onClick={() => {
             deleteTask(task.id);
             onClose();
           }}
         >
           <Trash />
-          Delete
+          {task.repeat ? 'Delete this' : 'Delete'}
         </button>
+        {task.repeat && (
+          <button
+            className="btn danger ghost"
+            title="Delete every occurrence"
+            onClick={() => {
+              deleteTask(task.id, 'series');
+              onClose();
+            }}
+          >
+            Delete all
+          </button>
+        )}
         <button
           className="btn primary"
           onClick={() => {
@@ -185,6 +200,49 @@ export function Editor({ task, model, x, y, sheet, onClose }: Props) {
           Done
         </button>
       </div>
+    </div>
+  );
+}
+
+const isoOf = (day: number) => {
+  const { y, m, d } = ymd(day);
+  return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+};
+
+/** Repeat rule + optional end date; edits always apply to the whole series. */
+function RepeatField({ task }: { task: TaskView }) {
+  const series = getTask(task.series);
+  const until = series?.repeatUntil ?? 0;
+  const set = (patch: { repeat?: string; repeatUntil?: number }, label: string) => updateTask(task.series, patch, label);
+  return (
+    <div className={'repeat-field' + (task.repeat ? ' on' : '')}>
+      <Repeat size={14} />
+      <select
+        aria-label="Repeat"
+        value={task.repeat}
+        onChange={(e) => set({ repeat: e.currentTarget.value, ...(e.currentTarget.value ? {} : { repeatUntil: 0 }) }, e.currentTarget.value ? 'Repeat task' : 'Stop repeating')}
+      >
+        <option value="">Doesn’t repeat</option>
+        {RULES.map((r) => (
+          <option key={r} value={r}>
+            {RULE_LABELS[r]}
+          </option>
+        ))}
+      </select>
+      {task.repeat && (
+        <label className="repeat-until" title={until ? `Last one starts on or before ${formatDay(until)}` : 'Repeats for the next two years'}>
+          <span>until</span>
+          <input
+            type="date"
+            value={until ? isoOf(until) : ''}
+            onChange={(e) => {
+              const v = e.currentTarget.value;
+              const [y, m, d] = v.split('-').map(Number);
+              set({ repeatUntil: v ? dayFromYMD(y!, m! - 1, d!) : 0 }, 'Set repeat end');
+            }}
+          />
+        </label>
+      )}
     </div>
   );
 }

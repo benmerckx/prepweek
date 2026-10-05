@@ -1,6 +1,6 @@
 import { memo, useLayoutEffect, useRef } from 'react';
 import { labelPinner } from './pin.ts';
-import { Notes, Paperclip } from '../ui/icons.tsx';
+import { Notes, Paperclip, Repeat } from '../ui/icons.tsx';
 import { CHUNK, visibleTasks, type Dims, type RowLayout, type TaskView } from './model.ts';
 import type { Scale } from './scale.ts';
 import { formatRange, workdays } from '../lib/dates.ts';
@@ -49,8 +49,9 @@ export const TaskBlock = memo(function TaskBlock({ task, scale, dims, selected, 
               {days}d
             </span>
           )}
-          {width > 90 && (task.files > 0 || task.notes) && (
+          {width > 90 && (task.files > 0 || task.notes || task.repeat) && (
             <span className="task-badges">
+              {task.repeat && <Repeat size={12} />}
               {task.notes && <Notes size={12} />}
               {task.files > 0 && (
                 <>
