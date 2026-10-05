@@ -10,10 +10,15 @@ import type { TaskRow, UserRow } from '../data/store.ts';
 // and each RowLayout is an immutable object, so React.memo'd rows re-render
 // only when their own content changed.
 
-export const LANE_H = 30; // block height + gap
-export const BLOCK_H = 26;
-export const ROW_PAD = 6;
-export const MIN_LANES = 2;
+/** Row geometry; 'compact' fits about a third more people on screen. */
+export interface Dims {
+  laneH: number; // block height + gap
+  blockH: number;
+  pad: number;
+  minLanes: number;
+}
+export const COMFORTABLE: Dims = { laneH: 30, blockH: 26, pad: 6, minLanes: 2 };
+export const COMPACT: Dims = { laneH: 22, blockH: 19, pad: 4, minLanes: 1 };
 /** Days per render tile. A multiple of 7, so tiles start on Mondays. */
 export const CHUNK = 28;
 
@@ -63,7 +68,7 @@ export interface Preview {
   color?: string;
 }
 
-export const rowHeight = (lanes: number) => ROW_PAD * 2 + Math.max(lanes, MIN_LANES) * LANE_H;
+export const rowHeight = (lanes: number, d: Dims) => d.pad * 2 + Math.max(lanes, d.minLanes) * d.laneH;
 
 /** Max lanes among clusters intersecting [d0, d1]. */
 export const lanesIn = (clusters: Cluster[], d0: number, d1: number): number => {
@@ -98,6 +103,15 @@ export class TimelineModel {
    * week two years ago would make a row tall everywhere.
    */
   private heightWindow: [number, number] = [-Infinity, Infinity];
+  dims: Dims = COMFORTABLE;
+
+  setDims(d: Dims) {
+    if (d === this.dims) return;
+    this.dims = d;
+    const [a, b] = this.heightWindow;
+    this.heightWindow = [NaN, NaN]; // force setHeightWindow to recompute
+    this.setHeightWindow(a, b);
+  }
   /** Focus mode: only these people are shown (null = everyone). */
   private focus: ReadonlySet<string> | null = null;
   private dirtyUsers = new Set<string>();
@@ -317,7 +331,7 @@ export class TimelineModel {
     // Keep the canonical view objects in sync so findTask() reports lanes.
     const m = this.byUser.get(userId);
     if (m) for (const t of tasks) if (m.has(t.id) && !(p && p.id === t.id)) m.set(t.id, t);
-    const height = rowHeight(lanesIn(clusters, this.heightWindow[0], this.heightWindow[1]));
+    const height = rowHeight(lanesIn(clusters, this.heightWindow[0], this.heightWindow[1]), this.dims);
     return { userId, name: user.name, color: user.color, tasks, maxSpan, laneCount, clusters, height };
   }
 
@@ -327,7 +341,7 @@ export class TimelineModel {
     this.heightWindow = [d0, d1];
     let changed = false;
     this.rows = this.rows.map((r) => {
-      const height = rowHeight(lanesIn(r.clusters, d0, d1));
+      const height = rowHeight(lanesIn(r.clusters, d0, d1), this.dims);
       if (height === r.height) return r;
       changed = true;
       return { ...r, height };

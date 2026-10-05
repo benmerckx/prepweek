@@ -1,4 +1,4 @@
-import { LANE_H, ROW_PAD, type TimelineModel } from './model.ts';
+import type { TimelineModel } from './model.ts';
 import { HEADER_H, type Viewport } from './viewport.ts';
 import { createTask, getUser, updateTask } from '../data/store.ts';
 
@@ -32,7 +32,7 @@ interface Session {
   userId: string;
   start: number;
   end: number;
-  /** Pointer day (fractional) minus the dragged edge's day at pointerdown. */
+  /** Pointer column (fractional) minus the dragged edge's column at pointerdown. */
   grab: number;
   /** For create: the day under the pointer at pointerdown. */
   anchor: number;
@@ -84,7 +84,10 @@ export class DragController {
     const target = e.target as HTMLElement;
     if (target.closest('[data-no-drag]')) return;
     const block = target.closest<HTMLElement>('[data-task]');
-    const day = this.vp.dayAt(e.clientX);
+    // Everything is computed in columns, so with weekends hidden a block can
+    // never snap onto a (zero-width) Saturday or Sunday.
+    const sc = this.vp.scale;
+    const col = this.vp.colAt(e.clientX);
     const base = {
       pointerId: e.pointerId,
       downX: e.clientX,
@@ -105,12 +108,12 @@ export class DragController {
       const kind: DragKind = handle === 'start' ? 'resize-start' : handle === 'end' ? 'resize-end' : 'move';
       // Grab offset from the edge being dragged, so the edge doesn't jump to
       // the pointer (matters for the offset touch knobs).
-      const grab = kind === 'resize-end' ? day - (task.end + 1) : day - task.start;
+      const grab = kind === 'resize-end' ? col - sc.col(task.end + 1) : col - sc.col(task.start);
       this.s = { ...base, kind, taskId: task.id, userId: task.userId, start: task.start, end: task.end, grab, anchor: 0 };
     } else {
       const row = this.model.rows[this.model.rowAt(this.vp.yAt(e.clientY))];
       if (!row) return;
-      const d = Math.floor(day);
+      const d = sc.dayOfCol(Math.floor(col));
       this.s = { ...base, kind: 'create', taskId: NEW_TASK_ID, userId: row.userId, start: d, end: d, grab: 0, anchor: d };
     }
     const s = this.s;
@@ -178,8 +181,10 @@ export class DragController {
   private update() {
     const s = this.s!;
     const vp = this.vp;
-    const day = vp.dayAt(s.lastX);
+    const sc = vp.scale;
+    const col = vp.colAt(s.lastX);
     const y = vp.yAt(s.lastY);
+    const { pad, laneH } = this.model.dims;
     let { userId, start, end } = s;
     let lane: number | undefined;
     const ri = this.model.rowAt(y);
@@ -187,27 +192,28 @@ export class DragController {
 
     switch (s.kind) {
       case 'move': {
-        const span = s.end - s.start;
-        start = Math.round(day - s.grab);
-        end = start + span;
+        const startCol = Math.round(col - s.grab);
+        start = sc.dayOfCol(startCol);
+        // Keep the length in visible columns (workdays when weekends are hidden).
+        end = sc.hideWeekends ? sc.dayOfCol(startCol + Math.max(1, sc.cols(s.start, s.end)) - 1) : start + (s.end - s.start);
         if (row) {
           userId = row.userId;
-          lane = Math.max(0, Math.floor((y - this.model.rowTops[ri]! - ROW_PAD) / LANE_H));
+          lane = Math.max(0, Math.floor((y - this.model.rowTops[ri]! - pad) / laneH));
         }
         break;
       }
       case 'resize-start':
-        start = Math.min(s.end, Math.round(day - s.grab));
+        start = Math.min(s.end, sc.dayOfCol(Math.min(sc.col(s.end), Math.round(col - s.grab))));
         break;
       case 'resize-end':
-        end = Math.max(s.start, Math.round(day - s.grab) - 1);
+        end = Math.max(s.start, sc.dayOfCol(Math.max(sc.col(s.start), Math.round(col - s.grab) - 1)));
         break;
       case 'create': {
-        const d = Math.floor(day);
+        const d = sc.dayOfCol(Math.floor(col));
         start = Math.min(s.anchor, d);
         end = Math.max(s.anchor, d);
         const top = this.model.rowTops[this.model.indexOfUser(userId)] ?? 0;
-        lane = Math.max(0, Math.floor((y - top - ROW_PAD) / LANE_H));
+        lane = Math.max(0, Math.floor((y - top - pad) / laneH));
         break;
       }
     }

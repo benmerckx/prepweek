@@ -2,6 +2,7 @@ import { memo, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Milestone } from './model.ts';
 import type { Viewport } from './viewport.ts';
+import type { Scale } from './scale.ts';
 import { createMilestone, deleteMilestone, MILESTONE_COLORS, store, updateMilestone } from '../data/store.ts';
 import { formatDay } from '../lib/dates.ts';
 import { useBackToClose } from '../lib/useBackToClose.ts';
@@ -23,15 +24,15 @@ interface BandProps {
   milestones: Milestone[];
   d0: number;
   d1: number;
-  origin: number;
-  colW: number;
+  scale: Scale;
   vp: Viewport;
   drag: MsDrag | null;
   onDrag(d: MsDrag | null): void;
   onEdit(id: string, anchor: DOMRect, fresh?: boolean): void;
 }
 
-export const MilestoneBand = memo(function MilestoneBand({ milestones, d0, d1, origin, colW, vp, drag, onDrag, onEdit }: BandProps) {
+export const MilestoneBand = memo(function MilestoneBand({ milestones, d0, d1, scale, vp, drag, onDrag, onEdit }: BandProps) {
+  const colW = scale.colW;
   const [hoverDay, setHoverDay] = useState<number | null>(null);
   const press = useRef<{ id: string; el: HTMLElement; pointerId: number; x: number; day: number; moved: boolean } | null>(null);
   // A pill press ends with a click on the lane (pointer capture); ignore it.
@@ -45,10 +46,11 @@ export const MilestoneBand = memo(function MilestoneBand({ milestones, d0, d1, o
       onPointerMove={(e) => {
         const p = press.current;
         if (p && e.pointerId === p.pointerId) {
-          const delta = Math.round((e.clientX - p.x) / colW);
           if (!p.moved && Math.abs(e.clientX - p.x) < 4) return;
           p.moved = true;
-          onDrag({ id: p.id, day: p.day + delta });
+          // Move in columns so a hidden weekend is skipped, not landed on.
+          const delta = Math.round((e.clientX - p.x) / colW);
+          onDrag({ id: p.id, day: scale.dayOfCol(scale.col(p.day) + delta) });
           return;
         }
         if (e.pointerType === 'mouse') setHoverDay(Math.floor(vp.dayAt(e.clientX)));
@@ -79,11 +81,11 @@ export const MilestoneBand = memo(function MilestoneBand({ milestones, d0, d1, o
         const id = createMilestone({ day, title: '', color: MILESTONE_COLORS[0] });
         // The lane spans the body, so its left edge is day `origin`.
         const lane = e.currentTarget.getBoundingClientRect();
-        onEdit(id, new DOMRect(lane.left + (day - origin) * colW, lane.top, colW, lane.height), true);
+        onEdit(id, new DOMRect(lane.left + scale.x(day), lane.top, colW, lane.height), true);
       }}
     >
       {hoverDay !== null && !occupied.has(hoverDay) && !press.current && (
-        <div className="ms-ghost" style={{ transform: `translateX(${(hoverDay - origin) * colW}px)`, width: colW }}>
+        <div className="ms-ghost" style={{ transform: `translateX(${scale.x(hoverDay)}px)`, width: colW }}>
           <Plus />
         </div>
       )}
@@ -94,7 +96,7 @@ export const MilestoneBand = memo(function MilestoneBand({ milestones, d0, d1, o
             key={m.id}
             data-ms={m.id}
             className={'ms-pill' + (drag?.id === m.id ? ' dragging' : '') + (m.title ? '' : ' untitled')}
-            style={{ transform: `translateX(${(day - origin) * colW}px)`, ['--c' as string]: m.color }}
+            style={{ transform: `translateX(${scale.x(day)}px)`, ['--c' as string]: m.color }}
             title={`${m.title || 'Untitled milestone'} · ${formatDay(day)}`}
             onPointerDown={(e) => {
               if (e.button !== 0) return;
@@ -117,14 +119,13 @@ interface LinesProps {
   milestones: Milestone[];
   d0: number;
   d1: number;
-  origin: number;
-  colW: number;
+  scale: Scale;
   height: number;
   drag: MsDrag | null;
 }
 
 /** A tinted day column with a colored edge for each milestone. */
-export const MilestoneLines = memo(function MilestoneLines({ milestones, d0, d1, origin, colW, height, drag }: LinesProps) {
+export const MilestoneLines = memo(function MilestoneLines({ milestones, d0, d1, scale, height, drag }: LinesProps) {
   return (
     <>
       {milestones
@@ -137,8 +138,8 @@ export const MilestoneLines = memo(function MilestoneLines({ milestones, d0, d1,
             key={m.id}
             className="ms-col"
             style={{
-              transform: `translateX(${((drag?.id === m.id ? drag.day : m.day) - origin) * colW}px)`,
-              width: colW,
+              transform: `translateX(${scale.x(drag?.id === m.id ? drag.day : m.day)}px)`,
+              width: Math.max(2, scale.w(drag?.id === m.id ? drag.day : m.day, drag?.id === m.id ? drag.day : m.day)),
               height,
               ['--c' as string]: m.color,
             }}

@@ -1,23 +1,24 @@
 import { memo, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { labelPinner } from './pin.ts';
 import { Notes, Paperclip } from '../ui/icons.tsx';
-import { BLOCK_H, CHUNK, LANE_H, ROW_PAD, visibleTasks, type RowLayout, type TaskView } from './model.ts';
+import { CHUNK, visibleTasks, type Dims, type RowLayout, type TaskView } from './model.ts';
+import type { Scale } from './scale.ts';
 import { renameUser } from '../data/store.ts';
 import { formatRange, isWeekend, workdays } from '../lib/dates.ts';
 
 interface BlockProps {
   task: TaskView;
-  origin: number;
-  colW: number;
+  scale: Scale;
+  dims: Dims;
   selected: boolean;
   dragging: boolean;
   dimmed: boolean;
 }
 
-export const TaskBlock = memo(function TaskBlock({ task, origin, colW, selected, dragging, dimmed }: BlockProps) {
-  const span = task.end - task.start + 1;
-  const width = span * colW - 3;
-  const left = (task.start - origin) * colW + 1;
+export const TaskBlock = memo(function TaskBlock({ task, scale, dims, selected, dragging, dimmed }: BlockProps) {
+  // A weekend-only task with weekends hidden still gets a sliver to grab.
+  const width = Math.max(6, scale.w(task.start, task.end) - 3);
+  const left = scale.x(task.start) + 1;
   const ref = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     const el = ref.current!;
@@ -33,9 +34,9 @@ export const TaskBlock = memo(function TaskBlock({ task, origin, colW, selected,
       data-task={task.id}
       title={`${task.title || 'Untitled'} · ${formatRange(task.start, task.end)}`}
       style={{
-        transform: `translate(${left}px, ${ROW_PAD + task.lane * LANE_H}px)`,
+        transform: `translate(${left}px, ${dims.pad + task.lane * dims.laneH}px)`,
         width,
-        height: BLOCK_H,
+        height: dims.blockH,
         ['--c' as string]: task.color,
       }}
     >
@@ -68,8 +69,8 @@ export const matches = (t: TaskView, q: string) =>
 interface RowProps {
   row: RowLayout;
   top: number;
-  origin: number;
-  colW: number;
+  scale: Scale;
+  dims: Dims;
   /** Window, aligned to CHUNK boundaries relative to origin. */
   d0: number;
   d1: number;
@@ -79,11 +80,11 @@ interface RowProps {
   query: string;
 }
 
-export const RowView = memo(function RowView({ row, top, origin, colW, d0, d1, selectedId, dragId, query }: RowProps) {
+export const RowView = memo(function RowView({ row, top, scale, dims, d0, d1, selectedId, dragId, query }: RowProps) {
   const tiles = [];
   for (let c = d0; c <= d1; c += CHUNK) {
     tiles.push(
-      <RowTile key={c} row={row} c0={c} first={c === d0} origin={origin} colW={colW} selectedId={selectedId} dragId={dragId} query={query} />,
+      <RowTile key={c} row={row} c0={c} first={c === d0} scale={scale} dims={dims} selectedId={selectedId} dragId={dragId} query={query} />,
     );
   }
   return (
@@ -98,21 +99,26 @@ interface TileProps {
   c0: number;
   /** The first tile also renders blocks that started before the window. */
   first: boolean;
-  origin: number;
-  colW: number;
+  scale: Scale;
+  dims: Dims;
   selectedId: string | null;
   dragId: string | null;
   query: string;
 }
 
 /** The blocks of one row that start inside one CHUNK of days. */
-const RowTile = memo(function RowTile({ row, c0, first, origin, colW, selectedId, dragId, query }: TileProps) {
+const RowTile = memo(function RowTile({ row, c0, first, scale, dims, selectedId, dragId, query }: TileProps) {
   const c1 = c0 + CHUNK - 1;
   const tasks = visibleTasks(row, c0, c1).filter((t) => t.start >= c0 || first);
   return (
     <>
       {tasks.map((t) => (
-        <TaskBlock key={t.id} task={t} origin={origin} colW={colW} selected={t.id === selectedId}
+        <TaskBlock
+          key={t.id}
+          task={t}
+          scale={scale}
+          dims={dims}
+          selected={t.id === selectedId}
           dragging={t.id === dragId}
           dimmed={query !== '' && !matches(t, query)}
         />
@@ -124,35 +130,36 @@ const RowTile = memo(function RowTile({ row, c0, first, origin, colW, selectedId
 interface GridProps {
   d0: number;
   d1: number;
-  origin: number;
-  colW: number;
+  scale: Scale;
   height: number;
   today: number;
 }
 
 /** Day/weekend grid as CSS gradients over the rendered window only. */
-export const GridBackground = memo(function GridBackground({ d0, d1, origin, colW, height, today }: GridProps) {
-  // d0 is always a Monday, so the weekend stripe sits at columns 5–6.
-  const week = 7 * colW;
+export const GridBackground = memo(function GridBackground({ d0, d1, scale, height, today }: GridProps) {
+  // d0 is always a Monday, so the weekend stripe sits at columns 5–6, and
+  // with weekends hidden a week is simply five columns.
+  const colW = scale.colW;
+  const week = scale.perWeek * colW;
   const dayLines = colW >= 12;
   return (
     <>
       <div
         className="gridbg"
         style={{
-          transform: `translateX(${(d0 - origin) * colW}px)`,
-          width: (d1 - d0 + 1) * colW,
+          transform: `translateX(${scale.x(d0)}px)`,
+          width: scale.w(d0, d1),
           height,
           backgroundImage: [
             `linear-gradient(to right, var(--grid-week) 1px, transparent 1px)`,
             dayLines ? `linear-gradient(to right, var(--grid-day) 1px, transparent 1px)` : 'none',
-            `linear-gradient(to right, transparent ${5 * colW}px, var(--weekend) ${5 * colW}px)`,
+            scale.hideWeekends ? 'none' : `linear-gradient(to right, transparent ${5 * colW}px, var(--weekend) ${5 * colW}px)`,
           ].join(','),
           backgroundSize: `${week}px 100%, ${colW}px 100%, ${week}px 100%`,
         }}
       />
-      {today >= d0 && today <= d1 && (
-        <div className="today-col" style={{ transform: `translateX(${(today - origin) * colW}px)`, width: colW, height }} />
+      {today >= d0 && today <= d1 && !scale.isHidden(today) && (
+        <div className="today-col" style={{ transform: `translateX(${scale.x(today)}px)`, width: colW, height }} />
       )}
     </>
   );

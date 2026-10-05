@@ -20,6 +20,10 @@ interface Props {
   onFocusPerson(id: string, additive?: boolean): void;
   onClearFocus(): void;
   onImport(): void;
+  hideWeekends: boolean;
+  onToggleWeekends(): void;
+  dense: boolean;
+  onToggleDense(): void;
 }
 
 
@@ -124,6 +128,10 @@ export const Toolbar = memo(function Toolbar(props: Props) {
             Import from Teamweek…
           </button>
           <div className="menu-sep" />
+          <div className="menu-label">View</div>
+          <Toggle label="Hide weekends" on={props.hideWeekends} onToggle={props.onToggleWeekends} />
+          <Toggle label="Compact rows" on={props.dense} onToggle={props.onToggleDense} />
+          <div className="menu-sep" />
           <button className="menu-item" onClick={() => confirm('Replace everything with fresh demo data?') && seed()}>
             Reset demo data
           </button>
@@ -139,6 +147,24 @@ export const Toolbar = memo(function Toolbar(props: Props) {
     </header>
   );
 });
+
+/** A switch-style menu row; the menu stays open so the change is visible. */
+function Toggle({ label, on, onToggle }: { label: string; on: boolean; onToggle(): void }) {
+  return (
+    <button
+      className="menu-item menu-toggle"
+      role="menuitemcheckbox"
+      aria-checked={on}
+      onClick={(e) => {
+        e.stopPropagation();
+        onToggle();
+      }}
+    >
+      {label}
+      <span className={'switch' + (on ? ' on' : '')} aria-hidden />
+    </button>
+  );
+}
 
 function Search({ query, onQuery, matchCount, onNextMatch, open, setOpen }: Props & { open: boolean; setOpen(o: boolean): void }) {
   const input = useRef<HTMLInputElement>(null);

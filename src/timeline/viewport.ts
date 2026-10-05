@@ -3,6 +3,8 @@
 // (compositor-thread fast), and we only listen to decide when the rendered
 // window of days/rows needs to move.
 
+import { Scale } from './scale.ts';
+
 export const SIDEBAR_W = 220;
 /** Narrow screens: avatar-only people column. */
 export const SIDEBAR_W_COMPACT = 64;
@@ -15,12 +17,19 @@ export const ZOOM_MAX = 160;
 
 export class Viewport {
   scroller: HTMLDivElement | null = null;
-  colW = 40;
+  /** The time axis (origin, column width, hidden weekends). */
+  scale = new Scale(0, 40, false);
   sidebarW = SIDEBAR_W;
-  /** Day number at x = 0 of the body. */
-  origin = 0;
   rangeDays = 0;
   private listeners = new Set<() => void>();
+
+  get colW() {
+    return this.scale.colW;
+  }
+  /** Day number at x = 0 of the body (a Monday). */
+  get origin() {
+    return this.scale.origin;
+  }
 
   onChange(fn: () => void) {
     this.listeners.add(fn);
@@ -31,7 +40,7 @@ export class Viewport {
   }
 
   get bodyWidth() {
-    return this.rangeDays * this.colW;
+    return this.scale.x(this.origin + this.rangeDays);
   }
 
   /** Width of the visible body area (excluding the sidebar). */
@@ -46,17 +55,26 @@ export class Viewport {
 
   /** Fractional day at the left edge of the visible body. */
   get firstVisibleDay() {
-    return this.origin + (this.scroller?.scrollLeft ?? 0) / this.colW;
+    return this.scale.dayAt(this.scroller?.scrollLeft ?? 0);
   }
+  /** Calendar days spanned by the visible body (incl. hidden weekends). */
   get visibleDays() {
-    return this.viewWidth / this.colW;
+    const left = this.scroller?.scrollLeft ?? 0;
+    return this.scale.dayAt(left + this.viewWidth) - this.scale.dayAt(left);
   }
 
+  /** Body x coordinate under a client x coordinate. */
+  bodyX(clientX: number) {
+    const s = this.scroller!;
+    return clientX - s.getBoundingClientRect().left - this.sidebarW + s.scrollLeft;
+  }
+  /** Fractional column under a client x coordinate. */
+  colAt(clientX: number) {
+    return this.bodyX(clientX) / this.colW;
+  }
   /** Fractional day number under a client x coordinate. */
   dayAt(clientX: number) {
-    const s = this.scroller!;
-    const x = clientX - s.getBoundingClientRect().left - this.sidebarW + s.scrollLeft;
-    return this.origin + x / this.colW;
+    return this.scale.dayAt(this.bodyX(clientX));
   }
   /** Body y coordinate under a client y coordinate. */
   yAt(clientY: number) {
@@ -65,14 +83,14 @@ export class Viewport {
   }
 
   x(day: number) {
-    return (day - this.origin) * this.colW;
+    return this.scale.x(day);
   }
 
   /** Scroll so `day` (fractional) sits at `frac` of the visible width. */
   scrollToDay(day: number, frac = 0.5, smooth = false) {
     const s = this.scroller;
     if (!s) return;
-    const left = this.x(day) - this.viewWidth * frac;
+    const left = this.scale.xF(day) - this.viewWidth * frac;
     s.scrollTo({ left, behavior: smooth ? 'smooth' : 'instant' });
   }
 

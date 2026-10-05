@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
-import { BLOCK_H, CHUNK, LANE_H, ROW_PAD, type TimelineModel } from './model.ts';
+import { CHUNK, COMFORTABLE, COMPACT, type TimelineModel } from './model.ts';
+import { Scale } from './scale.ts';
 import { COMPACT_QUERY, HEADER_H, SIDEBAR_W, SIDEBAR_W_COMPACT, Viewport, ZOOM_MAX, ZOOM_MIN } from './viewport.ts';
 import { DragController, type DragKind } from './drag.ts';
 import { Header } from './Header.tsx';
@@ -24,6 +25,21 @@ interface Win {
 }
 
 const ZOOM_KEY = 'prepweek:zoom';
+const WEEKENDS_KEY = 'prepweek:hideWeekends';
+const DENSITY_KEY = 'prepweek:density';
+
+const readFlag = (key: string) => {
+  try {
+    return localStorage.getItem(key) === '1';
+  } catch {
+    return false;
+  }
+};
+const writeFlag = (key: string, on: boolean) => {
+  try {
+    localStorage.setItem(key, on ? '1' : '0');
+  } catch {}
+};
 const EDITOR_H = 300;
 
 const isCompact = () => matchMedia(COMPACT_QUERY).matches;
@@ -73,8 +89,16 @@ export function Timeline({ model }: { model: TimelineModel }) {
     return { origin: a, days: b - a + 1 };
   }, [model, todayDay]);
 
-  vp.colW = colW;
-  vp.origin = range.origin;
+  // View options: both are per-device preferences.
+  const [hideWeekends, setHideWeekends] = useState(() => readFlag(WEEKENDS_KEY));
+  const [dense, setDense] = useState(() => {
+    const d = readFlag(DENSITY_KEY);
+    model.setDims(d ? COMPACT : COMFORTABLE);
+    return d;
+  });
+
+  const scale = useMemo(() => new Scale(range.origin, colW, hideWeekends), [range.origin, colW, hideWeekends]);
+  vp.scale = scale;
   vp.rangeDays = range.days;
 
   const [win, setWin] = useState<Win>({ d0: range.origin, d1: range.origin + CHUNK - 1, r0: 0, r1: 30 });
@@ -91,7 +115,7 @@ export function Timeline({ model }: { model: TimelineModel }) {
     const day = Math.floor(vp.firstVisibleDay + vp.visibleDays / 2);
     const id = createMilestone({ day, title: '', color: MILESTONE_COLORS[0] });
     const lane = document.querySelector('.hd-ms')!.getBoundingClientRect();
-    setMsEdit({ id, anchor: new DOMRect(lane.left + (day - vp.origin) * vp.colW, lane.top, vp.colW, lane.height), fresh: true });
+    setMsEdit({ id, anchor: new DOMRect(lane.left + vp.x(day), lane.top, vp.colW, lane.height), fresh: true });
   };
   const selectedRef = useRef(selected);
   selectedRef.current = selected;
@@ -231,7 +255,7 @@ export function Timeline({ model }: { model: TimelineModel }) {
       zoomEnd.current = setTimeout(() => appRef.current && delete appRef.current.dataset.zooming, 250);
       const rect = vp.scroller.getBoundingClientRect();
       const px = clientX !== undefined ? clientX - rect.left - vp.sidebarW : vp.viewWidth / 2;
-      anchor.current = { day: vp.firstVisibleDay + px / colWRef.current, px };
+      anchor.current = { day: vp.scale.dayAt(vp.scroller.scrollLeft + px), px };
       colWRef.current = w;
       setColW(w);
     },
@@ -240,7 +264,7 @@ export function Timeline({ model }: { model: TimelineModel }) {
   useLayoutEffect(() => {
     const a = anchor.current;
     if (a && vp.scroller) {
-      vp.scroller.scrollLeft = (a.day - vp.origin) * colW - a.px;
+      vp.scroller.scrollLeft = scale.xF(a.day) - a.px;
       anchor.current = null;
     }
     if (vp.scroller) labelPinner.update(vp.scroller.scrollLeft + 4);
@@ -250,7 +274,30 @@ export function Timeline({ model }: { model: TimelineModel }) {
     try {
       localStorage.setItem(ZOOM_KEY, String(colW));
     } catch {}
-  }, [colW, vp, refreshWindow]);
+  }, [scale, colW, vp, refreshWindow]);
+
+  /** Toggle weekends, keeping the day in the middle of the view in place. */
+  const toggleWeekends = useCallback(() => {
+    if (vp.scroller) {
+      const px = vp.viewWidth / 2;
+      anchor.current = { day: vp.scale.dayAt(vp.scroller.scrollLeft + px), px };
+    }
+    setHideWeekends((h) => {
+      writeFlag(WEEKENDS_KEY, !h);
+      return !h;
+    });
+  }, [vp]);
+  const toggleDense = useCallback(() => {
+    const next = model.dims !== COMPACT;
+    writeFlag(DENSITY_KEY, next);
+    model.setDims(next ? COMPACT : COMFORTABLE);
+    setDense(next);
+  }, [model]);
+  // Row heights changed: re-window the rows.
+  useEffect(() => {
+    winRef.current = { ...winRef.current, r0: -1, r1: -1 };
+    refreshWindow();
+  }, [dense, refreshWindow]);
 
   // Wheel: pinch / ctrl+wheel zooms; plain vertical wheel pans time when
   // all people fit on screen (nothing to scroll vertically).
@@ -397,9 +444,14 @@ export function Timeline({ model }: { model: TimelineModel }) {
         setEditing(null);
       } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
         e.preventDefault();
-        const d = e.key === 'ArrowLeft' ? -1 : 1;
-        if (e.shiftKey) updateTask(sel, { end: Math.max(t.start, t.end + d) }, 'Resize task');
-        else updateTask(sel, { start: t.start + d, end: t.end + d }, 'Move task');
+        // Step by visible columns, so hidden weekends are skipped.
+        const sc = vp.scale;
+        const step = (day: number) => sc.dayOfCol(sc.col(day) + (e.key === 'ArrowLeft' ? -1 : 1));
+        if (e.shiftKey) updateTask(sel, { end: Math.max(t.start, step(t.end)) }, 'Resize task');
+        else {
+          const start = step(t.start);
+          updateTask(sel, { start, end: sc.hideWeekends ? sc.dayOfCol(sc.col(start) + sc.cols(t.start, t.end) - 1) : t.end + start - t.start }, 'Move task');
+        }
       } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
         e.preventDefault();
         const i = model.indexOfUser(t.userId) + (e.key === 'ArrowUp' ? -1 : 1);
@@ -458,7 +510,7 @@ export function Timeline({ model }: { model: TimelineModel }) {
   };
 
   // --- Render ---
-  const bodyW = range.days * colW;
+  const bodyW = scale.x(range.origin + range.days);
   const bodyH = Math.max(model.totalHeight + 64, vp.viewHeight);
   const rows = model.rows;
   // Only the rows holding the selected / dragged block get those ids, so a
@@ -473,8 +525,8 @@ export function Timeline({ model }: { model: TimelineModel }) {
         key={r.userId}
         row={r}
         top={model.rowTops[i]!}
-        origin={range.origin}
-        colW={colW}
+        scale={scale}
+        dims={model.dims}
         d0={win.d0}
         d1={win.d1}
         selectedId={r.userId === selUser || r.userId === dragUser ? selected : null}
@@ -490,9 +542,10 @@ export function Timeline({ model }: { model: TimelineModel }) {
   let editor = null;
   if (editTask) {
     const i = model.indexOfUser(editTask.userId);
-    const blockTop = (model.rowTops[i] ?? 0) + ROW_PAD + editTask.lane * LANE_H;
+    const { pad, laneH, blockH } = model.dims;
+    const blockTop = (model.rowTops[i] ?? 0) + pad + editTask.lane * laneH;
     // Open below the block, or above it when that would leave the viewport.
-    const below = blockTop + BLOCK_H + 6;
+    const below = blockTop + blockH + 6;
     const viewBottom = (vp.scroller?.scrollTop ?? 0) + vp.viewHeight;
     const top = below + EDITOR_H > viewBottom && blockTop - EDITOR_H - 6 > 0 ? blockTop - EDITOR_H - 6 : below;
     editor = compact ? (
@@ -502,7 +555,7 @@ export function Timeline({ model }: { model: TimelineModel }) {
       <Editor
         key={editTask.id}
         task={editTask}
-        x={Math.max(0, (editTask.start - range.origin) * colW)}
+        x={Math.max(0, scale.x(editTask.start))}
         y={top}
         onClose={closeEditor}
       />
@@ -512,7 +565,7 @@ export function Timeline({ model }: { model: TimelineModel }) {
   return (
     <div
       ref={appRef}
-      className={'app' + (drag ? ` is-${drag.kind}` : '') + (compact ? ' compact' : '')}
+      className={'app' + (drag ? ` is-${drag.kind}` : '') + (compact ? ' compact' : '') + (dense ? ' dense' : '')}
       style={{ ['--sidebar-w' as string]: `${sidebarW}px` }}
     >
       <Toolbar
@@ -528,6 +581,10 @@ export function Timeline({ model }: { model: TimelineModel }) {
         onFocusPerson={focusPerson}
         onClearFocus={clearFocus}
         onImport={openImport}
+        hideWeekends={hideWeekends}
+        onToggleWeekends={toggleWeekends}
+        dense={dense}
+        onToggleDense={toggleDense}
       />
       <div className="scroller" ref={scrollerRef}>
         <div
@@ -565,13 +622,12 @@ export function Timeline({ model }: { model: TimelineModel }) {
             </div>
           </div>
           <div className="header">
-            <Header d0={win.d0} d1={win.d1} origin={range.origin} colW={colW} today={todayDay} />
+            <Header d0={win.d0} d1={win.d1} scale={scale} today={todayDay} />
             <MilestoneBand
               milestones={model.milestones}
               d0={win.d0}
               d1={win.d1}
-              origin={range.origin}
-              colW={colW}
+              scale={scale}
               vp={vp}
               drag={msDrag}
               onDrag={setMsDrag}
@@ -599,8 +655,8 @@ export function Timeline({ model }: { model: TimelineModel }) {
             )}
           </div>
           <div className="body" onPointerDown={(e) => dragCtl.pointerDown(e.nativeEvent)} onDoubleClick={onDoubleClick}>
-            <GridBackground d0={win.d0} d1={win.d1} origin={range.origin} colW={colW} height={bodyH} today={todayDay} />
-            <MilestoneLines milestones={model.milestones} d0={win.d0} d1={win.d1} origin={range.origin} colW={colW} height={bodyH} drag={msDrag} />
+            <GridBackground d0={win.d0} d1={win.d1} scale={scale} height={bodyH} today={todayDay} />
+            <MilestoneLines milestones={model.milestones} d0={win.d0} d1={win.d1} scale={scale} height={bodyH} drag={msDrag} />
             {rendered}
             {rows.length === 0 && (
               <div className="empty" style={{ transform: `translateX(${(vp.scroller?.scrollLeft ?? 0) + 32}px)` }}>
