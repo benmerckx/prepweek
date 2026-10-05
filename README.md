@@ -45,6 +45,8 @@ Open `/s/<anything>` for a separate sheet. The default sheet seeds demo data;
 | Notifications | the bell: mentions, comments on your tasks and changes others make to your work |
 | See who's here | faces in the toolbar (click one to jump to them), their pointers and selections in their color, their view on the minimap |
 | Share | **Share**: private edit and view-only links |
+| Command palette | <kbd>⌘K</kbd> / <kbd>Ctrl K</kbd>: run any command, focus a person, filter a project, apply a view or jump to a task |
+| Install | **⋯ → Install app** (or the browser's install button); the app then opens offline too |
 | Milestones | click the milestone lane under the dates (or **+** in the corner); drag a flag to move it, click to rename, recolor or delete |
 | Attachments | in a task's editor: **File** / **Link**, drop files on the editor, or paste an image |
 | Import from Teamweek / Toggl Plan | **Import** in the toolbar (or ⋯ menu), or drop the CSV anywhere on the app |
@@ -201,6 +203,11 @@ run `bun run worker:dev` and open
 Presence (faces, pointers, selections) is ephemeral and stays out of the
 CRDT: tabs use a BroadcastChannel, other machines a relay-only
 `PresenceDurableObject` per sheet at `/presence/<sheet>`.
+
+The app is installable (web manifest, icons in `public/icons`) and works
+offline: `public/sw.js` serves the cached app shell when the network is
+gone, and the sheet itself already lives in IndexedDB. Sync, presence,
+files and sharing requests always go to the network.
 
 ### Sharing
 

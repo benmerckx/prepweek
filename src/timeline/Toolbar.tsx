@@ -8,9 +8,10 @@ import type { TimelineModel } from './model.ts';
 import { FilterMenu, ViewsMenu, type FilterState } from './Filters.tsx';
 import { NotificationsMenu } from './Discussion.tsx';
 import { PresenceAvatars } from './Presence.tsx';
+import { canInstall, install, onInstallChange } from '../lib/install.ts';
 import type { Peer } from '../data/presence.ts';
 import type { ViewConfig } from '../data/store.ts';
-import { Check, ChevronLeft, ChevronRight, Close, Eye, Folder, History, LinkIcon, Logo, Minus, More, People, Plus, Redo, Search as SearchIc, Undo, Upload } from '../ui/icons.tsx';
+import { Check, ChevronLeft, ChevronRight, Close, Download, Eye, Folder, History, LinkIcon, Logo, Minus, More, People, Plus, Redo, Search as SearchIc, Undo, Upload } from '../ui/icons.tsx';
 
 interface Props {
   colW: number;
@@ -40,6 +41,7 @@ interface Props {
   onFollow(p: Peer): void;
   readOnly: boolean;
   onShare(): void;
+  onPalette(): void;
 }
 
 
@@ -67,6 +69,7 @@ export const Toolbar = memo(function Toolbar(props: Props) {
     return () => document.removeEventListener('pointerdown', away, true);
   }, []);
   const hist = useSyncExternalStore(onHistoryChange, historySnapshot);
+  const installable = useSyncExternalStore(onInstallChange, canInstall);
   const sync = useSyncExternalStore(onSyncStatus, getSyncStatus);
   // Re-render on edits only when what we show changes (counts, focus), not
   // on every recolor or drag.
@@ -157,6 +160,17 @@ export const Toolbar = memo(function Toolbar(props: Props) {
             <Upload />
             Import from Teamweek…
           </button>
+          <button className="menu-item" onClick={props.onPalette}>
+            <SearchIc />
+            Command palette
+            <kbd className="menu-kbd">⌘K</kbd>
+          </button>
+          {installable && (
+            <button className="menu-item" onClick={() => void install()}>
+              <Download />
+              Install app
+            </button>
+          )}
           <button className="menu-item" onClick={props.onOpenActivity}>
             <History />
             Activity

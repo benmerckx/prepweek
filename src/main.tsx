@@ -5,6 +5,7 @@ import { getServerHttp, startSync } from './data/sync.ts';
 import { seed } from './data/seed.ts';
 import { loadMe } from './data/identity.ts';
 import { initAccess, loadAccess } from './data/access.ts';
+import { setupInstall } from './lib/install.ts';
 import { TimelineModel } from './timeline/model.ts';
 import { Timeline } from './timeline/Timeline.tsx';
 
@@ -13,6 +14,7 @@ import { Timeline } from './timeline/Timeline.tsx';
 const sheetId = location.pathname.match(/^\/s\/([^/]+)/)?.[1] ?? 'demo';
 
 loadFonts();
+setupInstall();
 initAccess(sheetId);
 try {
   await startSync(sheetId);

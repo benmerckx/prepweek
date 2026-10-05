@@ -11,6 +11,10 @@ const server = Bun.serve({
       const file = Bun.file(`public${new URL(req.url).pathname}`);
       return new Response(file, { headers: { 'cache-control': 'public, max-age=31536000, immutable' } });
     },
+    // App manifest, icons and service worker (not registered in dev).
+    '/manifest.webmanifest': () => new Response(Bun.file('public/manifest.webmanifest'), { headers: { 'content-type': 'application/manifest+json' } }),
+    '/sw.js': () => new Response(Bun.file('public/sw.js')),
+    '/icons/*': (req) => new Response(Bun.file(`public${new URL(req.url).pathname}`)),
     '/*': index,
   },
   development: process.env.NODE_ENV !== 'production' && { hmr: true, console: true },

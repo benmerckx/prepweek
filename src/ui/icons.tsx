@@ -229,3 +229,8 @@ export const Eye = ({ size = 16 }: { size?: number }) => (
     <circle cx="8" cy="8" r="1.9" />
   </Svg>
 );
+export const Download = ({ size = 16 }: { size?: number }) => (
+  <Svg size={size}>
+    <path d="M8 2.5v7.5M4.75 7 8 10.25 11.25 7M3 13.25h10" />
+  </Svg>
+);

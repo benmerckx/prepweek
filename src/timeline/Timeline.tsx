@@ -14,6 +14,7 @@ import { watchDesktopNotifications } from '../data/notify.ts';
 import { publish, startPresence, type Peer } from '../data/presence.ts';
 import { PresenceLayer } from './Presence.tsx';
 import { LockScreen, ShareDialog, useAccess } from './Share.tsx';
+import { CommandPalette, type Command } from './Palette.tsx';
 import { Minimap } from './Minimap.tsx';
 import { Editor } from './Editor.tsx';
 import { Toolbar } from './Toolbar.tsx';
@@ -524,6 +525,12 @@ export function Timeline({ model }: { model: TimelineModel }) {
   // --- Keyboard ---
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // ⌘K works from anywhere, even a text field.
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k' && !document.querySelector('.palette')) {
+        e.preventDefault();
+        setPalette(true);
+        return;
+      }
       // Dialogs and drawers handle their own keys.
       if (isTyping(e.target) || importingRef.current || document.querySelector('.modal-backdrop, .drawer-backdrop')) return;
       const mod = e.metaKey || e.ctrlKey;
@@ -600,6 +607,36 @@ export function Timeline({ model }: { model: TimelineModel }) {
   const goToday = useCallback(() => vp.scrollToDay(todayDay - 2, 0, true), [vp, todayDay]);
   const page = useCallback((dir: -1 | 1) => vp.scroller?.scrollBy({ left: dir * vp.viewWidth * 0.8, behavior: 'smooth' }), [vp]);
   const openImport = useCallback(() => setImporting({ file: null }), []);
+
+  // --- Command palette (⌘K) ---
+  const [palette, setPalette] = useState(false);
+  const openPalette = useCallback(() => setPalette(true), []);
+  const paletteCommands = useMemo<Command[]>(() => {
+    const c: Command[] = [
+      { label: 'Go to today', keys: 'T', keywords: 'now jump', run: goToday },
+      { label: 'Zoom in', keys: '⌘+', run: () => zoomTo(colWRef.current * 1.4) },
+      { label: 'Zoom out', keys: '⌘−', run: () => zoomTo(colWRef.current / 1.4) },
+      { label: hideWeekends ? 'Show weekends' : 'Hide weekends', keywords: 'saturday sunday workdays', run: toggleWeekends },
+      { label: dense ? 'Comfortable rows' : 'Compact rows', keywords: 'density dense', run: toggleDense },
+      { label: 'Show everyone', keywords: 'focus clear people all', run: () => model.setFocus(null) },
+      { label: 'Clear filters', keywords: 'project tag search reset', run: () => (setFilterState(NO_FILTER), setQuery('')) },
+      { label: 'Find tasks', keys: '/', keywords: 'search', run: () => document.querySelector<HTMLInputElement>('.tb-search input')?.focus() },
+      { label: 'Activity', keywords: 'history changelog log who changed', run: openActivity },
+      { label: 'Share…', keywords: 'link invite view only private', run: openShare },
+    ];
+    if (!readOnly)
+      c.push(
+        { label: 'Add person', keywords: 'new member user', run: () => createUser('New person') },
+        { label: 'Add milestone', keywords: 'deadline flag launch', run: addMilestoneHere },
+        { label: 'Manage projects…', keywords: 'clients', run: manageProjects },
+        { label: 'Import from Teamweek…', keywords: 'csv toggl plan upload', run: openImport },
+        { label: 'Undo', keys: '⌘Z', run: undo },
+        { label: 'Redo', keys: '⇧⌘Z', run: redo },
+      );
+    return c;
+  }, [goToday, zoomTo, hideWeekends, toggleWeekends, dense, toggleDense, model, openActivity, openShare, readOnly, manageProjects, openImport]); // eslint-disable-line react-hooks/exhaustive-deps
+  const paletteFocus = useCallback((id: string) => focusPerson(id), [focusPerson]);
+  const paletteProject = useCallback((id: string) => setFilterState({ projects: [id], tags: [] }), []);
 
   // --- Import ---
   const [importing, setImporting] = useState<{ file: File | null } | null>(null);
@@ -735,6 +772,7 @@ export function Timeline({ model }: { model: TimelineModel }) {
         onFollow={followPeer}
         readOnly={readOnly}
         onShare={openShare}
+        onPalette={openPalette}
       />
       <div className="scroller" ref={scrollerRef}>
         <div
@@ -836,6 +874,17 @@ export function Timeline({ model }: { model: TimelineModel }) {
       </div>
       {msEdit && <MilestoneEditor key={msEdit.id} id={msEdit.id} anchor={msEdit.anchor} fresh={msEdit.fresh} sheet={compact} onClose={() => setMsEdit(null)} />}
       {sharing && <ShareDialog onClose={() => setSharing(false)} />}
+      {palette && (
+        <CommandPalette
+          model={model}
+          commands={paletteCommands}
+          onFocusPerson={paletteFocus}
+          onFilterProject={paletteProject}
+          onApplyView={applyView}
+          onOpenTask={revealTask}
+          onClose={() => setPalette(false)}
+        />
+      )}
       {access?.role === 'none' && <LockScreen />}
       {activityOpen && (
         <ActivityPanel
