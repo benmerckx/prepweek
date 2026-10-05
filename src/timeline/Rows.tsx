@@ -213,7 +213,7 @@ const SidebarRow = memo(function SidebarRow({ row, top, focused, today, onFocusP
     <div className={'person' + (focused ? ' in-focus' : '')} style={{ transform: `translateY(${top}px)`, height: row.height }}>
       <button
         className="avatar"
-        style={{ background: row.color }}
+        style={{ ['--c' as string]: row.color }}
         title={focused ? 'Show everyone' : `Focus on ${first} (⌘/Shift-click to add)`}
         aria-label={focused ? 'Show everyone' : `Focus on ${row.name}`}
         aria-pressed={focused}

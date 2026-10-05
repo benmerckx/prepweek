@@ -5,6 +5,7 @@ import { getSyncStatus, onSyncStatus } from '../data/sync.ts';
 import { seed } from '../data/seed.ts';
 import { ZOOM_MAX, ZOOM_MIN } from './viewport.ts';
 import type { TimelineModel } from './model.ts';
+import { Check, ChevronLeft, ChevronRight, Close, Logo, Minus, More, People, Plus, Redo, Search as SearchIc, Undo, Upload } from '../ui/icons.tsx';
 
 interface Props {
   colW: number;
@@ -21,20 +22,14 @@ interface Props {
   onImport(): void;
 }
 
-const SearchIcon = () => (
-  <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden>
-    <circle cx="7" cy="7" r="4.75" fill="none" stroke="currentColor" strokeWidth="1.6" />
-    <path d="M10.5 10.5 14 14" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-  </svg>
-);
 
-const PeopleIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden>
-    <circle cx="6" cy="5.5" r="2.6" fill="none" stroke="currentColor" strokeWidth="1.5" />
-    <path d="M1.5 13.5c.6-2.4 2.3-3.6 4.5-3.6s3.9 1.2 4.5 3.6" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    <path d="M11 3.2a2.4 2.4 0 0 1 0 4.6M12.3 9.9c1.1.5 1.9 1.6 2.2 3.6" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-  </svg>
-);
+
+const SYNC_HELP = {
+  local: 'Saved in this browser; edits sync live across tabs',
+  connecting: 'Connecting to the server…',
+  online: 'Live: changes sync to everyone on this sheet',
+  offline: 'Offline: changes are kept and sync when the connection is back',
+} as const;
 
 const historySnapshot = () => (canUndo() ? 1 : 0) | (canRedo() ? 2 : 0);
 
@@ -59,25 +54,23 @@ export function Toolbar(props: Props) {
   return (
     <header className="toolbar">
       <div className="brand">
-        <span className="logo" aria-hidden>
-          ▦
-        </span>
+        <Logo />
         <span className="brand-name">prepweek</span>
       </div>
-      <div className="tb-group">
-        <button className="btn" onClick={() => onPage(-1)} aria-label="Earlier">
-          ‹
+      <div className="seg">
+        <button className="btn icon" onClick={() => onPage(-1)} aria-label="Earlier" title="Earlier">
+          <ChevronLeft />
         </button>
         <button className="btn" onClick={onToday} title="Today (T)">
           Today
         </button>
-        <button className="btn" onClick={() => onPage(1)} aria-label="Later">
-          ›
+        <button className="btn icon" onClick={() => onPage(1)} aria-label="Later" title="Later">
+          <ChevronRight />
         </button>
       </div>
-      <div className="tb-group zoom">
-        <button className="btn" onClick={() => onZoom(colW / 1.25)} title="Zoom out (⌘−, pinch)">
-          −
+      <div className="seg zoom">
+        <button className="btn icon" onClick={() => onZoom(colW / 1.25)} aria-label="Zoom out" title="Zoom out (⌘−, pinch)">
+          <Minus />
         </button>
         <input
           type="range"
@@ -88,51 +81,55 @@ export function Toolbar(props: Props) {
           onChange={(e) => onZoom(Math.exp(Number(e.currentTarget.value)))}
           aria-label="Zoom"
         />
-        <button className="btn" onClick={() => onZoom(colW * 1.25)} title="Zoom in (⌘+, pinch)">
-          +
+        <button className="btn icon" onClick={() => onZoom(colW * 1.25)} aria-label="Zoom in" title="Zoom in (⌘+, pinch)">
+          <Plus />
         </button>
       </div>
-      <div className="tb-group">
-        <button className="btn" disabled={!(hist & 1)} onClick={undo} title="Undo (⌘Z)">
-          ↶
+      <div className="seg">
+        <button className="btn icon" disabled={!(hist & 1)} onClick={undo} aria-label="Undo" title="Undo (⌘Z)">
+          <Undo />
         </button>
-        <button className="btn" disabled={!(hist & 2)} onClick={redo} title="Redo (⇧⌘Z)">
-          ↷
+        <button className="btn icon redo" disabled={!(hist & 2)} onClick={redo} aria-label="Redo" title="Redo (⇧⌘Z)">
+          <Redo />
         </button>
       </div>
       <div className="tb-spacer" />
       <Search {...props} open={searchOpen} setOpen={setSearchOpen} />
       <PeopleMenu {...props} />
-      <div className="tb-stats">
-        {model.rows.length === 1 ? '1 person' : `${model.rows.length} people`} · {taskCount.toLocaleString()} tasks
-      </div>
-      <div className={`sync sync-${sync}`} title="Edits sync live across tabs; add ?sync=wss://… for the Cloudflare backend">
+      <div className={`sync sync-${sync}`} title={SYNC_HELP[sync]}>
         <span className="dot" />
         <span className="sync-label">{sync === 'local' ? 'Local' : sync}</span>
       </div>
-      <button className="btn tb-import" onClick={props.onImport} title="Import a Teamweek / Toggl Plan CSV export">
+      <button className="btn tb-import" onClick={props.onImport} title="Import from Teamweek / Toggl Plan">
+        <Upload />
         Import
       </button>
       <details className="tb-more">
-        <summary className="btn" aria-label="More">
-          ⋯
+        <summary className="btn icon" aria-label="More" title="More">
+          <More />
         </summary>
         <div className="tb-menu" onClick={(e) => (e.currentTarget.parentElement as HTMLDetailsElement).removeAttribute('open')}>
           <div className="tb-menu-stats">
             {model.rows.length === 1 ? '1 person' : `${model.rows.length} people`} · {taskCount.toLocaleString()} tasks
+            <div className={`sync sync-${sync}`}>
+              <span className="dot" />
+              {SYNC_HELP[sync]}
+            </div>
           </div>
-          <button className="btn" onClick={props.onImport}>
+          <button className="menu-item" onClick={props.onImport}>
+            <Upload />
             Import from Teamweek…
           </button>
-          <button className="btn" onClick={() => confirm('Replace everything with fresh demo data?') && seed()}>
-            Reset demo
+          <div className="menu-sep" />
+          <button className="menu-item" onClick={() => confirm('Replace everything with fresh demo data?') && seed()}>
+            Reset demo data
           </button>
           <button
-            className="btn"
+            className="menu-item"
             title="Load 120 people × 2 years (~25k tasks)"
             onClick={() => confirm('Replace everything with a large stress-test dataset?') && seed(120, 1.6, 11)}
           >
-            Stress test
+            Stress test (120 people)
           </button>
         </div>
       </details>
@@ -145,7 +142,7 @@ function Search({ query, onQuery, matchCount, onNextMatch, open, setOpen }: Prop
   return (
     <>
       <button
-        className={'btn tb-search-toggle' + (query ? ' active' : '')}
+        className={'btn icon tb-search-toggle' + (query ? ' active' : '')}
         aria-label="Search tasks"
         onClick={() => {
           // Open and focus in the same tap: iOS only raises the keyboard for
@@ -154,10 +151,10 @@ function Search({ query, onQuery, matchCount, onNextMatch, open, setOpen }: Prop
           input.current?.focus();
         }}
       >
-        <SearchIcon />
+        <SearchIc />
       </button>
-      <div className={'tb-search' + (open ? ' open' : '')}>
-        <SearchIcon />
+      <div className={'tb-search' + (open ? ' open' : '') + (query ? ' has-query' : '')}>
+        <SearchIc />
         <input
           ref={input}
           type="search"
@@ -180,10 +177,10 @@ function Search({ query, onQuery, matchCount, onNextMatch, open, setOpen }: Prop
           <>
             <span className="tb-search-count">{matchCount}</span>
             <button className="tb-search-btn" aria-label="Previous match" disabled={!matchCount} onClick={() => onNextMatch(-1)}>
-              ‹
+              <ChevronLeft />
             </button>
             <button className="tb-search-btn" aria-label="Next match" disabled={!matchCount} onClick={() => onNextMatch(1)}>
-              ›
+              <ChevronRight />
             </button>
           </>
         )}
@@ -195,7 +192,7 @@ function Search({ query, onQuery, matchCount, onNextMatch, open, setOpen }: Prop
             setOpen(false);
           }}
         >
-          ×
+          <Close />
         </button>
       </div>
     </>
@@ -208,8 +205,8 @@ function PeopleMenu({ model, onFocusPerson, onClearFocus }: Props) {
   const ref = useRef<HTMLDetailsElement>(null);
   return (
     <details className="tb-people" ref={ref}>
-      <summary className={'btn' + (focus ? ' active' : '')} aria-label="Focus on people">
-        <PeopleIcon />
+      <summary className={'btn icon' + (focus ? ' active' : '')} aria-label="Focus on people" title="Focus on people">
+        <People />
         {focus && <span className="tb-badge">{focus.size}</span>}
       </summary>
       <div className="tb-menu tb-people-menu">
@@ -227,7 +224,11 @@ function PeopleMenu({ model, onFocusPerson, onClearFocus }: Props) {
             >
               <span className="tb-person-dot" style={{ background: u.color }} />
               {u.name}
-              {focus?.has(u.id) && <span className="tb-check">✓</span>}
+              {focus?.has(u.id) && (
+                <span className="tb-check">
+                  <Check size={14} />
+                </span>
+              )}
             </button>
           ))}
         </div>

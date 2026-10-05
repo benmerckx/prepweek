@@ -1,4 +1,5 @@
 import { createRoot } from 'react-dom/client';
+import { loadFonts } from './fonts.ts';
 import { store } from './data/store.ts';
 import { startSync } from './data/sync.ts';
 import { TimelineModel } from './timeline/model.ts';
@@ -8,6 +9,7 @@ import { Timeline } from './timeline/Timeline.tsx';
 // database, broadcast channel and (server-side) Durable Object.
 const sheetId = location.pathname.match(/^\/s\/([^/]+)/)?.[1] ?? 'demo';
 
+loadFonts();
 await startSync(sheetId);
 const model = new TimelineModel(store);
 createRoot(document.getElementById('root')!).render(<Timeline model={model} />);

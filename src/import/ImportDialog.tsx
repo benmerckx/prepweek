@@ -5,6 +5,7 @@ import { buildPlan, detectDateOrder, FIELD_LABELS, FIELDS, guessMapping, type Da
 import { applyImport, getUser, store } from '../data/store.ts';
 import { formatDay, formatRange } from '../lib/dates.ts';
 import { useBackToClose } from '../lib/useBackToClose.ts';
+import { Calendar, Close, Upload } from '../ui/icons.tsx';
 import { today as getToday } from '../lib/dates.ts';
 import { connectToggl, disconnectToggl, fetchTogglRows, fetchWorkspaces, togglStatus, TOGGL_HEADER, type Workspace } from './toggl.ts';
 
@@ -86,7 +87,7 @@ export function ImportDialog({ initialFile, startWith, oauthError, onClose, onIm
         <header className="modal-head">
           <h2>Import from Teamweek / Toggl Plan</h2>
           <button className="tb-search-btn" aria-label="Close" onClick={onClose}>
-            ×
+            <Close />
           </button>
         </header>
 
@@ -117,7 +118,10 @@ export function ImportDialog({ initialFile, startWith, oauthError, onClose, onIm
                 if (f) void load(f);
               }}
             >
-              <p className="dz-title">Drop your task export here</p>
+              <span className="source-logo csv" aria-hidden>
+              <Upload />
+            </span>
+            <p className="dz-title">Drop a CSV export here</p>
               <button className="btn primary" onClick={() => input.current?.click()}>
                 Choose CSV file
               </button>
@@ -346,7 +350,7 @@ function TogglSource({ autoStart, oauthError, onLoaded }: { autoStart: boolean; 
     <div className="source toggl">
       <div className="source-head">
         <span className="source-logo" aria-hidden>
-          ◐
+          <Calendar />
         </span>
         <div>
           <div className="source-title">Toggl Plan</div>

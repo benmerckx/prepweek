@@ -6,6 +6,11 @@ import index from './src/index.html';
 const server = Bun.serve({
   port: Number(process.env.PORT ?? 3000),
   routes: {
+    // Static files (fonts) are copied as-is next to the bundle.
+    '/fonts/*': (req) => {
+      const file = Bun.file(`public${new URL(req.url).pathname}`);
+      return new Response(file, { headers: { 'cache-control': 'public, max-age=31536000, immutable' } });
+    },
     '/*': index,
   },
   development: process.env.NODE_ENV !== 'production' && { hmr: true, console: true },

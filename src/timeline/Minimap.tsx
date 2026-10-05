@@ -105,7 +105,7 @@ export function Minimap({ model, vp, today }: Props) {
       o.fillRect(0, 0, cw, H);
 
       // Month bands and labels.
-      o.font = '600 10px ui-sans-serif, system-ui, sans-serif';
+      o.font = '600 10px "Inter Variable", ui-sans-serif, system-ui, sans-serif';
       o.textBaseline = 'middle';
       for (let m = startOfMonth(s0); m <= s1; m = addMonths(m, 1)) {
         const x = (m - s0) * g.scale;
@@ -195,7 +195,7 @@ export function Minimap({ model, vp, today }: Props) {
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.drawImage(cache.canvas, sx, 0, canvas.width, canvas.height, 0, 0, canvas.width, canvas.height);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.font = '600 10px ui-sans-serif, system-ui, sans-serif';
+      ctx.font = '600 10px "Inter Variable", ui-sans-serif, system-ui, sans-serif';
       ctx.textBaseline = 'middle';
 
       // Slider: dim everything outside the visible range, frame the inside.

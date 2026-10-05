@@ -44,8 +44,8 @@ const DayTile = memo(function DayTile({ c0, origin, colW, today }: { c0: number;
     for (let d = c0; d < c1; d++) {
       const cls = 'hd-day' + (isWeekend(d) ? ' weekend' : '') + (d === today ? ' today' : '');
       cells.push(
-        <div key={d} className={cls} style={{ left: (d - origin) * colW, width: colW }}>
-          {colW >= 34 && <span className="hd-wd">{weekdayShort(d)}</span>}
+        <div key={d} className={cls + (colW >= 30 ? ' stack' : '')} style={{ left: (d - origin) * colW, width: colW }}>
+          {colW >= 30 && <span className="hd-wd">{weekdayShort(d)}</span>}
           <span className="hd-dn">{ymd(d).d}</span>
         </div>,
       );

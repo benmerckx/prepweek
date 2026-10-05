@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { PALETTE, deleteTask, updateTask } from '../data/store.ts';
 import { formatRange, workdays } from '../lib/dates.ts';
 import type { TaskView } from './model.ts';
+import { Calendar, Check, Trash } from '../ui/icons.tsx';
 
 interface Props {
   task: TaskView;
@@ -90,7 +91,11 @@ export function Editor({ task, x, y, sheet, onClose }: Props) {
         }}
       />
       <div className="editor-meta">
-        {formatRange(task.start, task.end)} · {workdays(task.start, task.end)} workday{workdays(task.start, task.end) === 1 ? '' : 's'}
+        <Calendar />
+        <span>{formatRange(task.start, task.end)}</span>
+        <span className="editor-days">
+          {workdays(task.start, task.end)} workday{workdays(task.start, task.end) === 1 ? '' : 's'}
+        </span>
       </div>
       <div className="swatches">
         {PALETTE.map((c) => (
@@ -98,6 +103,7 @@ export function Editor({ task, x, y, sheet, onClose }: Props) {
             key={c}
             className={'swatch' + (c === task.color ? ' on' : '')}
             style={{ background: c }}
+            aria-pressed={c === task.color}
             aria-label={`Color ${c}`}
             // Don't take focus: the text field keeps it, so on phones the
             // keyboard stays up while you pick a color.
@@ -107,7 +113,9 @@ export function Editor({ task, x, y, sheet, onClose }: Props) {
               const f = lastField.current;
               if (f && document.activeElement !== f) f.focus({ preventScroll: true });
             }}
-          />
+          >
+            {c === task.color && <Check size={13} />}
+          </button>
         ))}
       </div>
       <textarea
@@ -126,9 +134,9 @@ export function Editor({ task, x, y, sheet, onClose }: Props) {
             onClose();
           }}
         >
+          <Trash />
           Delete
         </button>
-        <span className="hint">⌫ delete · ⌘D dup · ←→ move</span>
         <button
           className="btn primary"
           onClick={() => {

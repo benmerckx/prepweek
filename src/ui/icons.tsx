@@ -1,0 +1,115 @@
+// Small stroke icons (16px grid, currentColor) so the UI doesn't depend on
+// font glyphs that render differently per platform.
+
+import type { SVGProps } from 'react';
+
+const Svg = ({ children, size = 16, ...p }: SVGProps<SVGSVGElement> & { size?: number }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={1.6}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden
+    {...p}
+  >
+    {children}
+  </svg>
+);
+
+export const ChevronLeft = () => (
+  <Svg>
+    <path d="M10 3.5 5.5 8l4.5 4.5" />
+  </Svg>
+);
+export const ChevronRight = () => (
+  <Svg>
+    <path d="M6 3.5 10.5 8 6 12.5" />
+  </Svg>
+);
+export const Undo = () => (
+  <Svg>
+    <path d="M5.5 3.5 2.5 6.5l3 3" />
+    <path d="M2.5 6.5h7a3.5 3.5 0 0 1 0 7H7" />
+  </Svg>
+);
+export const Redo = () => (
+  <Svg>
+    <path d="m10.5 3.5 3 3-3 3" />
+    <path d="M13.5 6.5h-7a3.5 3.5 0 0 0 0 7H9" />
+  </Svg>
+);
+export const Minus = () => (
+  <Svg>
+    <path d="M3.5 8h9" />
+  </Svg>
+);
+export const Plus = () => (
+  <Svg>
+    <path d="M8 3.5v9M3.5 8h9" />
+  </Svg>
+);
+export const Search = () => (
+  <Svg>
+    <circle cx="7" cy="7" r="4.5" />
+    <path d="m10.5 10.5 3 3" />
+  </Svg>
+);
+export const People = () => (
+  <Svg>
+    <circle cx="6" cy="5.5" r="2.5" />
+    <path d="M1.75 13.25c.5-2.3 2.1-3.5 4.25-3.5s3.75 1.2 4.25 3.5" />
+    <path d="M10.75 3.1a2.4 2.4 0 0 1 0 4.8M12 9.9c1.2.5 2 1.6 2.25 3.35" />
+  </Svg>
+);
+export const More = () => (
+  <Svg strokeWidth={2.2}>
+    <path d="M3.5 8h.01M8 8h.01M12.5 8h.01" />
+  </Svg>
+);
+export const Upload = () => (
+  <Svg>
+    <path d="M8 10.5V2.75M5 5.5l3-3 3 3" />
+    <path d="M2.75 10v1.75c0 .8.65 1.5 1.5 1.5h7.5c.85 0 1.5-.7 1.5-1.5V10" />
+  </Svg>
+);
+export const Close = () => (
+  <Svg>
+    <path d="m4 4 8 8M12 4l-8 8" />
+  </Svg>
+);
+export const Check = ({ size = 16 }: { size?: number }) => (
+  <Svg size={size} strokeWidth={2.2}>
+    <path d="m3.5 8.5 3 3 6-7" />
+  </Svg>
+);
+export const Calendar = () => (
+  <Svg>
+    <rect x="2.5" y="3.25" width="11" height="10.25" rx="2" />
+    <path d="M2.5 6.5h11M5.5 1.75v2.5M10.5 1.75v2.5" />
+  </Svg>
+);
+export const Trash = () => (
+  <Svg>
+    <path d="M2.75 4.25h10.5M6.25 4.25V2.75h3.5v1.5M4 4.25l.6 8.5c.05.8.7 1.5 1.5 1.5h3.8c.8 0 1.45-.7 1.5-1.5l.6-8.5" />
+  </Svg>
+);
+export const Target = () => (
+  <Svg>
+    <circle cx="8" cy="8" r="5.25" />
+    <circle cx="8" cy="8" r="1.75" />
+  </Svg>
+);
+
+/** The brand mark: a little week of blocks. */
+export const Logo = ({ size = 22 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden>
+    <rect width="24" height="24" rx="6.5" fill="var(--accent)" />
+    <rect x="5" y="6.5" width="9" height="3.2" rx="1.6" fill="#fff" />
+    <rect x="9" y="10.8" width="10" height="3.2" rx="1.6" fill="#fff" opacity=".8" />
+    <rect x="5" y="15.1" width="6.5" height="3.2" rx="1.6" fill="#fff" opacity=".6" />
+  </svg>
+);

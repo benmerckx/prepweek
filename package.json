@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "bun --hot server.ts",
-    "build": "rm -rf dist && bun build ./src/index.html --outdir dist --production --sourcemap=linked --public-path=/",
+    "build": "rm -rf dist && bun build ./src/index.html --outdir dist --production --sourcemap=linked --public-path=/ && cp -r public/. dist/",
     "start": "NODE_ENV=production bun server.ts",
     "typecheck": "tsc --noEmit -p . && tsc --noEmit -p worker",
     "test": "bun test",
