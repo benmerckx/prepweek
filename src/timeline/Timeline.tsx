@@ -4,12 +4,12 @@ import { BLOCK_H, CHUNK, LANE_H, ROW_PAD, type TimelineModel } from './model.ts'
 import { COMPACT_QUERY, HEADER_H, SIDEBAR_W, SIDEBAR_W_COMPACT, Viewport, ZOOM_MAX, ZOOM_MIN } from './viewport.ts';
 import { DragController, type DragKind } from './drag.ts';
 import { Header } from './Header.tsx';
-import { GridBackground, RowView, Sidebar } from './Rows.tsx';
+import { GridBackground, RowView, Sidebar, matches } from './Rows.tsx';
 import { Minimap } from './Minimap.tsx';
 import { Editor } from './Editor.tsx';
 import { Toolbar } from './Toolbar.tsx';
 import { labelPinner } from './pin.ts';
-import { createTask, createUser, deleteTask, getTask, redo, undo, updateTask } from '../data/store.ts';
+import { createTask, createUser, deleteTask, getTask, redo, store, undo, updateTask } from '../data/store.ts';
 import { dayFromYMD, formatRange, startOfWeek, startOfYear, today as getToday, ymd } from '../lib/dates.ts';
 
 interface Win {
@@ -81,6 +81,60 @@ export function Timeline({ model }: { model: TimelineModel }) {
   const [drag, setDrag] = useState<{ kind: DragKind; id: string } | null>(null);
   const selectedRef = useRef(selected);
   selectedRef.current = selected;
+  const [query, setQuery] = useState('');
+  const q = query.trim().toLowerCase();
+  const focus = model.getFocus();
+
+  /** Toggle focus on a person; additive keeps the others already focused. */
+  const focusPerson = useCallback(
+    (id: string, additive = false) => {
+      const cur = model.getFocus();
+      let next: Set<string> | null;
+      if (additive) {
+        next = new Set(cur ?? []);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+      } else {
+        next = cur && cur.size === 1 && cur.has(id) ? null : new Set([id]);
+      }
+      model.setFocus(next);
+      if (vp.scroller) vp.scroller.scrollTop = 0;
+    },
+    [model, vp],
+  );
+  const clearFocus = useCallback(() => model.setFocus(null), [model]);
+
+  // Search matches (in the people currently shown), in time order.
+  const found = useMemo(() => {
+    if (!q) return [];
+    const out: { id: string; start: number; userId: string }[] = [];
+    for (const r of model.rows) for (const t of r.tasks) if (matches(t, q)) out.push(t);
+    return out.sort((a, b) => a.start - b.start);
+  }, [q, model.version]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** Scroll to the next (or previous) match after the middle of the view. */
+  const jumpToMatch = useCallback(
+    (dir: 1 | -1 = 1) => {
+      if (!found.length || !vp.scroller) return;
+      const mid = vp.firstVisibleDay + vp.visibleDays / 2;
+      const cur = selectedRef.current;
+      const i = cur ? found.findIndex((f) => f.id === cur) : -1;
+      let next = i >= 0 ? found[(i + dir + found.length) % found.length]! : undefined;
+      if (!next) {
+        next = dir > 0 ? (found.find((f) => f.start > mid) ?? found[0]!) : ([...found].reverse().find((f) => f.start < mid) ?? found[found.length - 1]!);
+      }
+      setSelected(next.id);
+      setEditing(null);
+      vp.scrollToDay(next.start, 0.3, true);
+      const ri = model.indexOfUser(next.userId);
+      const top = model.rowTops[ri] ?? 0;
+      const s = vp.scroller;
+      if (top < s.scrollTop || top + (model.rows[ri]?.height ?? 0) > s.scrollTop + vp.viewHeight) {
+        s.scrollTo({ top: Math.max(0, top - 24), behavior: 'smooth' });
+      }
+    },
+    [found, model, vp],
+  );
 
   /** Move the rendered window only when the viewport nears its edge. */
   const refreshWindow = useCallback(() => {
@@ -303,8 +357,15 @@ export function Timeline({ model }: { model: TimelineModel }) {
         zoomTo(colWRef.current / 1.25);
       } else if (e.key === 't' && !mod) {
         vp.scrollToDay(todayDay - 2, 0, true);
+      } else if (e.key === '/' && !mod) {
+        e.preventDefault();
+        document.querySelector<HTMLInputElement>('.tb-search input')?.focus();
+      } else if (e.key === 'Escape' && !sel && model.getFocus()) {
+        model.setFocus(null);
       } else if (!sel || !t) {
         return;
+      } else if (e.key === 'f' && !mod) {
+        focusPerson(t.userId);
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault();
         deleteTask(sel);
@@ -334,7 +395,7 @@ export function Timeline({ model }: { model: TimelineModel }) {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [model, vp, zoomTo, todayDay]);
+  }, [model, vp, zoomTo, todayDay, focusPerson]);
 
   const closeEditor = useCallback(() => setEditing(null), []);
 
@@ -372,6 +433,7 @@ export function Timeline({ model }: { model: TimelineModel }) {
         d1={win.d1}
         selectedId={selected}
         dragId={drag?.id ?? null}
+        query={q}
       />,
     );
   }
@@ -411,6 +473,12 @@ export function Timeline({ model }: { model: TimelineModel }) {
         onToday={() => vp.scrollToDay(todayDay - 2, 0, true)}
         onPage={(dir) => vp.scroller?.scrollBy({ left: dir * vp.viewWidth * 0.8, behavior: 'smooth' })}
         model={model}
+        query={query}
+        onQuery={setQuery}
+        matchCount={found.length}
+        onNextMatch={jumpToMatch}
+        onFocusPerson={focusPerson}
+        onClearFocus={clearFocus}
       />
       <div className="scroller" ref={scrollerRef}>
         <div
@@ -422,15 +490,36 @@ export function Timeline({ model }: { model: TimelineModel }) {
             gridTemplateRows: `${HEADER_H}px ${bodyH}px`,
           }}
         >
-          <div className="corner">
-            <span className="corner-label">People</span>
-            <span className="corner-count">{rows.length}</span>
+          <div className={'corner' + (focus ? ' focusing' : '')}>
+            {focus ? (
+              <button className="focus-chip" onClick={clearFocus} title="Show everyone (Esc)">
+                <span className="corner-label">Focus</span>
+                <span className="corner-count">
+                  {rows.length}/{store.getRowCount('users')}
+                </span>
+                <span aria-hidden>×</span>
+              </button>
+            ) : (
+              <>
+                <span className="corner-label">People</span>
+                <span className="corner-count">{rows.length}</span>
+              </>
+            )}
           </div>
           <div className="header">
             <Header d0={win.d0} d1={win.d1} origin={range.origin} colW={colW} today={todayDay} />
           </div>
           <div className="sidebar">
-            <Sidebar rows={rows} tops={model.rowTops} r0={Math.max(0, win.r0)} r1={win.r1} />
+            <Sidebar
+              rows={rows}
+              tops={model.rowTops}
+              r0={Math.max(0, win.r0)}
+              r1={win.r1}
+              focused={focus !== null}
+              today={todayDay}
+              onFocusPerson={focusPerson}
+            />
+            {!focus && (
             <button
               className="add-person"
               style={{ transform: `translateY(${model.totalHeight}px)` }}
@@ -438,6 +527,7 @@ export function Timeline({ model }: { model: TimelineModel }) {
             >
               {compact ? '+' : '+ Add person'}
             </button>
+            )}
           </div>
           <div className="body" onPointerDown={(e) => dragCtl.pointerDown(e.nativeEvent)} onDoubleClick={onDoubleClick}>
             <GridBackground d0={win.d0} d1={win.d1} origin={range.origin} colW={colW} height={bodyH} today={todayDay} />

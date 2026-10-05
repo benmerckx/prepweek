@@ -89,6 +89,8 @@ export class TimelineModel {
    * week two years ago would make a row tall everywhere.
    */
   private heightWindow: [number, number] = [-Infinity, Infinity];
+  /** Focus mode: only these people are shown (null = everyone). */
+  private focus: ReadonlySet<string> | null = null;
   private dirtyUsers = new Set<string>();
   private usersDirty = true;
   private listeners = new Set<() => void>();
@@ -112,6 +114,24 @@ export class TimelineModel {
   getVersion = () => this.version;
 
   getPreview = () => this.preview;
+
+  getFocus = () => this.focus;
+
+  /** Show only these people (in sheet order), or everyone with null/empty. */
+  setFocus(ids: Iterable<string> | null) {
+    const next = ids ? new Set(ids) : null;
+    this.focus = next && next.size ? next : null;
+    this.usersDirty = true;
+    this.flush();
+  }
+
+  /** All people on the sheet in order, regardless of focus. */
+  allUsers(): { id: string; name: string; color: string }[] {
+    return this.store
+      .getRowIds('users')
+      .map((id) => ({ id, ...(this.store.getRow('users', id) as UserRow) }))
+      .sort((a, b) => a.order - b.order || a.name.localeCompare(b.name));
+  }
 
   setPreview(p: Preview | null) {
     const old = this.preview;
@@ -273,6 +293,7 @@ export class TimelineModel {
       const ids = this.store.getRowIds('users');
       const users = ids
         .map((id) => [id, this.store.getRow('users', id) as UserRow] as const)
+        .filter(([id]) => !this.focus || this.focus.has(id))
         .sort((a, b) => a[1].order - b[1].order || a[1].name.localeCompare(b[1].name));
       const old = new Map(this.rows.map((r) => [r.userId, r]));
       this.rows = users.map(([id, u]) => {

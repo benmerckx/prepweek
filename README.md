@@ -31,6 +31,11 @@ Open `/s/<anything>` for a separate sheet. The default sheet seeds demo data;
 | Zoom | pinch, <kbd>⌘</kbd>+wheel, <kbd>⌘±</kbd> or the slider (keeps the day under the cursor fixed) |
 | Scrub through the year(s) | drag or click the strip at the bottom, or wheel over it |
 | Jump to today | <kbd>T</kbd> |
+| Focus on a person | click their avatar (<kbd>⌘</kbd>/<kbd>Shift</kbd>-click adds more), the people menu in the toolbar, or <kbd>F</kbd> on a selected task; <kbd>Esc</kbd> or the chip in the corner shows everyone again |
+| Find tasks | <kbd>/</kbd>, type; non-matching blocks fade, <kbd>Enter</kbd> / <kbd>⇧Enter</kbd> jump to the next/previous match |
+
+Each person also shows how booked they are over the next four weeks; the
+darker part of the bar is parallel work.
 
 Drags autoscroll at the edges. Edits sync live to other tabs.
 

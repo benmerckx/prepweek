@@ -15,6 +15,8 @@ interface Props {
 export function Editor({ task, x, y, sheet, onClose }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
+  /** The text field that last had focus, so picking a color can keep it. */
+  const lastField = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
     // On phones only jump into the keyboard for a new (untitled) task.
@@ -78,6 +80,7 @@ export function Editor({ task, x, y, sheet, onClose }: Props) {
         className="editor-title"
         placeholder="What's the plan?"
         defaultValue={task.title}
+        onFocus={(e) => (lastField.current = e.currentTarget)}
         onBlur={saveTitle}
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
@@ -96,7 +99,14 @@ export function Editor({ task, x, y, sheet, onClose }: Props) {
             className={'swatch' + (c === task.color ? ' on' : '')}
             style={{ background: c }}
             aria-label={`Color ${c}`}
-            onClick={() => updateTask(task.id, { color: c }, 'Recolor task')}
+            // Don't take focus: the text field keeps it, so on phones the
+            // keyboard stays up while you pick a color.
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              updateTask(task.id, { color: c }, 'Recolor task');
+              const f = lastField.current;
+              if (f && document.activeElement !== f) f.focus({ preventScroll: true });
+            }}
           />
         ))}
       </div>
@@ -105,6 +115,7 @@ export function Editor({ task, x, y, sheet, onClose }: Props) {
         placeholder="Notes"
         defaultValue={task.notes}
         rows={2}
+        onFocus={(e) => (lastField.current = e.currentTarget)}
         onBlur={(e) => e.currentTarget.value !== task.notes && updateTask(task.id, { notes: e.currentTarget.value }, 'Edit notes')}
       />
       <div className="editor-actions">
