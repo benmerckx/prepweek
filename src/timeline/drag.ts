@@ -1,5 +1,5 @@
 import { LANE_H, ROW_PAD, type TimelineModel } from './model.ts';
-import { HEADER_H, SIDEBAR_W, type Viewport } from './viewport.ts';
+import { HEADER_H, type Viewport } from './viewport.ts';
 import { createTask, getUser, updateTask } from '../data/store.ts';
 
 // Pointer-driven move / resize / create, written from scratch on Pointer
@@ -16,6 +16,10 @@ import { createTask, getUser, updateTask } from '../data/store.ts';
 //    live); the store is written once on drop, as one undoable command, which
 //    is also exactly one sync message for collaborators.
 //  - Esc cancels; Alt/Option duplicates instead of moving.
+//  - Touch: swipes keep scrolling. A long-press picks a block up (or starts
+//    drawing a new one on empty space); an already-selected block drags
+//    immediately. Tap selects, tapping the selected block edits it. Once a
+//    touch drag is live, touchmove is cancelled so the page doesn't scroll.
 
 export type DragKind = 'move' | 'resize-start' | 'resize-end' | 'create';
 
@@ -28,7 +32,7 @@ interface Session {
   userId: string;
   start: number;
   end: number;
-  /** For move: pointer day (fractional) minus task start at pointerdown. */
+  /** Pointer day (fractional) minus the dragged edge's day at pointerdown. */
   grab: number;
   /** For create: the day under the pointer at pointerdown. */
   anchor: number;
@@ -37,6 +41,10 @@ interface Session {
   lastX: number;
   lastY: number;
   started: boolean;
+  /** Touch: waiting for the long-press before the drag can start. */
+  pending: boolean;
+  touch: boolean;
+  timer: ReturnType<typeof setTimeout> | undefined;
   duplicate: boolean;
   /** Last computed preview, to avoid redundant model updates. */
   key: string;
@@ -46,9 +54,14 @@ export interface DragCallbacks {
   onSelect(id: string | null): void;
   onCreated(id: string): void;
   onDragState(kind: DragKind | null, taskId: string | null): void;
+  /** Touch tap (no drag) on a block, or on empty space (null). */
+  onTap(id: string | null): void;
+  isSelected(id: string): boolean;
 }
 
 const SLOP = 4;
+const TOUCH_SLOP = 10; // movement that turns a pending long-press into a scroll
+const LONG_PRESS = 350;
 const EDGE = 56; // autoscroll zone in px
 const MAX_SPEED = 28; // px per frame at the very edge
 
@@ -79,6 +92,9 @@ export class DragController {
       lastX: e.clientX,
       lastY: e.clientY,
       started: false,
+      pending: false,
+      touch: e.pointerType === 'touch',
+      timer: undefined,
       duplicate: e.altKey,
       key: '',
     };
@@ -87,15 +103,25 @@ export class DragController {
       if (!task) return;
       const handle = target.closest<HTMLElement>('[data-handle]')?.dataset.handle;
       const kind: DragKind = handle === 'start' ? 'resize-start' : handle === 'end' ? 'resize-end' : 'move';
-      this.s = { ...base, kind, taskId: task.id, userId: task.userId, start: task.start, end: task.end, grab: day - task.start, anchor: 0 };
+      // Grab offset from the edge being dragged, so the edge doesn't jump to
+      // the pointer (matters for the offset touch knobs).
+      const grab = kind === 'resize-end' ? day - (task.end + 1) : day - task.start;
+      this.s = { ...base, kind, taskId: task.id, userId: task.userId, start: task.start, end: task.end, grab, anchor: 0 };
     } else {
       const row = this.model.rows[this.model.rowAt(this.vp.yAt(e.clientY))];
       if (!row) return;
       const d = Math.floor(day);
       this.s = { ...base, kind: 'create', taskId: NEW_TASK_ID, userId: row.userId, start: d, end: d, grab: 0, anchor: d };
     }
-    // Prevent text selection / native drag while we own the gesture.
-    e.preventDefault();
+    const s = this.s;
+    if (s.touch && !(s.kind !== 'create' && this.cb.isSelected(s.taskId))) {
+      // Let the browser scroll unless the finger stays put long enough.
+      s.pending = true;
+      s.timer = setTimeout(this.arm, LONG_PRESS);
+    } else {
+      // Prevent text selection / native drag while we own the gesture.
+      e.preventDefault();
+    }
     window.addEventListener('pointermove', this.move);
     window.addEventListener('pointerup', this.up);
     window.addEventListener('pointercancel', this.cancel);
@@ -108,16 +134,45 @@ export class DragController {
     s.lastX = e.clientX;
     s.lastY = e.clientY;
     s.duplicate = e.altKey && s.kind === 'move';
+    if (s.pending) {
+      // Moved before the long-press fired: it's a scroll, not ours.
+      if (Math.hypot(e.clientX - s.downX, e.clientY - s.downY) > TOUCH_SLOP) this.end();
+      return;
+    }
     if (!s.started) {
       if (Math.hypot(e.clientX - s.downX, e.clientY - s.downY) < SLOP) return;
-      s.started = true;
-      document.body.dataset.dragging = s.kind;
-      this.cb.onDragState(s.kind, s.taskId);
-      if (s.kind !== 'create') this.cb.onSelect(s.taskId);
-      this.loop();
+      this.begin();
     }
     this.update();
   };
+
+  private begin() {
+    const s = this.s!;
+    s.started = true;
+    document.body.dataset.dragging = s.kind;
+    this.cb.onDragState(s.kind, s.taskId);
+    if (s.kind !== 'create') this.cb.onSelect(s.taskId);
+    this.loop();
+  }
+
+  private arm = () => {
+    const s = this.s;
+    if (!s?.pending) return;
+    s.pending = false;
+    navigator.vibrate?.(8);
+    this.begin();
+    this.update();
+  };
+
+  /** Called by the timeline's non-passive touchmove listener. */
+  touchMove = (e: TouchEvent) => {
+    if (this.s?.started && this.s.touch && e.cancelable) e.preventDefault();
+  };
+
+  /** A second finger landed: give the gesture to pinch-zoom. */
+  abort() {
+    if (this.s) this.end();
+  }
 
   /** Recompute the preview from the last pointer position. */
   private update() {
@@ -142,10 +197,10 @@ export class DragController {
         break;
       }
       case 'resize-start':
-        start = Math.min(s.end, Math.round(day));
+        start = Math.min(s.end, Math.round(day - s.grab));
         break;
       case 'resize-end':
-        end = Math.max(s.start, Math.round(day) - 1);
+        end = Math.max(s.start, Math.round(day - s.grab) - 1);
         break;
       case 'create': {
         const d = Math.floor(day);
@@ -178,7 +233,7 @@ export class DragController {
       const el = this.vp.scroller;
       if (!s?.started || !el) return;
       const r = el.getBoundingClientRect();
-      const left = r.left + SIDEBAR_W;
+      const left = r.left + this.vp.sidebarW;
       const top = r.top + HEADER_H;
       const right = r.left + el.clientWidth;
       const bottom = r.top + el.clientHeight;
@@ -202,7 +257,9 @@ export class DragController {
     if (!s || e.pointerId !== s.pointerId) return;
     if (!s.started) {
       this.end();
-      this.cb.onSelect(s.kind === 'create' ? null : s.taskId);
+      const id = s.kind === 'create' ? null : s.taskId;
+      if (s.touch) this.cb.onTap(id);
+      else this.cb.onSelect(id);
       return;
     }
     this.update();
@@ -250,6 +307,7 @@ export class DragController {
 
   private end() {
     cancelAnimationFrame(this.raf);
+    clearTimeout(this.s?.timer);
     const had = this.s?.started;
     this.s = null;
     delete document.body.dataset.dragging;

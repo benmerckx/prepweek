@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { createPortal } from 'react-dom';
 import { BLOCK_H, CHUNK, LANE_H, ROW_PAD, type TimelineModel } from './model.ts';
-import { HEADER_H, SIDEBAR_W, Viewport, ZOOM_MAX, ZOOM_MIN } from './viewport.ts';
+import { COMPACT_QUERY, HEADER_H, SIDEBAR_W, SIDEBAR_W_COMPACT, Viewport, ZOOM_MAX, ZOOM_MIN } from './viewport.ts';
 import { DragController, type DragKind } from './drag.ts';
 import { Header } from './Header.tsx';
 import { GridBackground, RowView, Sidebar } from './Rows.tsx';
@@ -21,13 +22,22 @@ interface Win {
 const ZOOM_KEY = 'prepweek:zoom';
 const EDITOR_H = 230;
 
+const isCompact = () => matchMedia(COMPACT_QUERY).matches;
+
 const readZoom = () => {
+  const fallback = isCompact() ? 32 : 40;
   try {
     const v = Number(localStorage.getItem(ZOOM_KEY));
-    return v >= ZOOM_MIN && v <= ZOOM_MAX ? v : 40;
+    return v >= ZOOM_MIN && v <= ZOOM_MAX ? v : fallback;
   } catch {
-    return 40;
+    return fallback;
   }
+};
+
+const subscribeCompact = (fn: () => void) => {
+  const mq = matchMedia(COMPACT_QUERY);
+  mq.addEventListener('change', fn);
+  return () => mq.removeEventListener('change', fn);
 };
 
 const isTyping = (t: EventTarget | null) =>
@@ -38,6 +48,9 @@ export function Timeline({ model }: { model: TimelineModel }) {
   const todayDay = useMemo(getToday, []);
   const vp = useMemo(() => new Viewport(), []);
   const scrollerRef = useRef<HTMLDivElement>(null);
+  const compact = useSyncExternalStore(subscribeCompact, isCompact);
+  const sidebarW = compact ? SIDEBAR_W_COMPACT : SIDEBAR_W;
+  vp.sidebarW = sidebarW;
   const [colW, setColW] = useState(readZoom);
   const colWRef = useRef(colW);
   colWRef.current = colW;
@@ -142,7 +155,7 @@ export function Timeline({ model }: { model: TimelineModel }) {
       const w = Math.round(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, next)));
       if (w === colWRef.current || !vp.scroller) return;
       const rect = vp.scroller.getBoundingClientRect();
-      const px = clientX !== undefined ? clientX - rect.left - SIDEBAR_W : vp.viewWidth / 2;
+      const px = clientX !== undefined ? clientX - rect.left - vp.sidebarW : vp.viewWidth / 2;
       anchor.current = { day: vp.firstVisibleDay + px / colWRef.current, px };
       colWRef.current = w;
       setColW(w);
@@ -203,10 +216,64 @@ export function Timeline({ model }: { model: TimelineModel }) {
           setDrag(kind && id ? { kind, id } : null);
           if (kind) setEditing(null);
         },
+        onTap: (id) => {
+          if (id && id === selectedRef.current) {
+            setEditing(id);
+          } else {
+            setSelected(id);
+            setEditing(null);
+          }
+        },
+        isSelected: (id) => id === selectedRef.current,
       }),
     [model, vp],
   );
   useEffect(() => () => dragCtl.destroy(), [dragCtl]);
+
+  // --- Touch: block scrolling during a touch drag; two-finger pinch zooms. ---
+  useEffect(() => {
+    const s = scrollerRef.current!;
+    let pinch: { dist: number; w: number } | null = null;
+    const span = (t: TouchList) => Math.hypot(t[0]!.clientX - t[1]!.clientX, t[0]!.clientY - t[1]!.clientY);
+    const start = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        dragCtl.abort();
+        pinch = { dist: span(e.touches), w: colWRef.current };
+      }
+    };
+    const move = (e: TouchEvent) => {
+      if (pinch && e.touches.length === 2) {
+        if (e.cancelable) e.preventDefault();
+        const mid = (e.touches[0]!.clientX + e.touches[1]!.clientX) / 2;
+        zoomTo((pinch.w * span(e.touches)) / pinch.dist, mid);
+        return;
+      }
+      dragCtl.touchMove(e);
+    };
+    const end = (e: TouchEvent) => {
+      if (e.touches.length < 2) pinch = null;
+    };
+    // Long-press must not open the context menu / iOS callout.
+    const menu = (e: Event) => {
+      if ((e.target as HTMLElement).closest('.body')) e.preventDefault();
+    };
+    // iOS Safari: stop page-level pinch zoom; we zoom the timeline instead.
+    const gesture = (e: Event) => e.preventDefault();
+    s.addEventListener('touchstart', start, { passive: true });
+    s.addEventListener('touchmove', move, { passive: false });
+    s.addEventListener('touchend', end);
+    s.addEventListener('touchcancel', end);
+    s.addEventListener('contextmenu', menu);
+    document.addEventListener('gesturestart', gesture);
+    return () => {
+      s.removeEventListener('touchstart', start);
+      s.removeEventListener('touchmove', move);
+      s.removeEventListener('touchend', end);
+      s.removeEventListener('touchcancel', end);
+      s.removeEventListener('contextmenu', menu);
+      document.removeEventListener('gesturestart', gesture);
+    };
+  }, [dragCtl, zoomTo]);
 
   // --- Keyboard ---
   useEffect(() => {
@@ -311,7 +378,10 @@ export function Timeline({ model }: { model: TimelineModel }) {
     const below = blockTop + BLOCK_H + 6;
     const viewBottom = (vp.scroller?.scrollTop ?? 0) + vp.viewHeight;
     const top = below + EDITOR_H > viewBottom && blockTop - EDITOR_H - 6 > 0 ? blockTop - EDITOR_H - 6 : below;
-    editor = (
+    editor = compact ? (
+      // A bottom sheet on phones, outside the scroller so it stays put.
+      createPortal(<Editor key={editTask.id} task={editTask} x={0} y={0} sheet onClose={closeEditor} />, document.body)
+    ) : (
       <Editor
         key={editTask.id}
         task={editTask}
@@ -323,7 +393,10 @@ export function Timeline({ model }: { model: TimelineModel }) {
   }
 
   return (
-    <div className={'app' + (drag ? ` is-${drag.kind}` : '')}>
+    <div
+      className={'app' + (drag ? ` is-${drag.kind}` : '') + (compact ? ' compact' : '')}
+      style={{ ['--sidebar-w' as string]: `${sidebarW}px` }}
+    >
       <Toolbar
         colW={colW}
         onZoom={(w) => zoomTo(w)}
@@ -335,14 +408,14 @@ export function Timeline({ model }: { model: TimelineModel }) {
         <div
           className="sheet"
           style={{
-            width: SIDEBAR_W + bodyW,
+            width: sidebarW + bodyW,
             height: HEADER_H + bodyH,
-            gridTemplateColumns: `${SIDEBAR_W}px ${bodyW}px`,
+            gridTemplateColumns: `${sidebarW}px ${bodyW}px`,
             gridTemplateRows: `${HEADER_H}px ${bodyH}px`,
           }}
         >
           <div className="corner">
-            <span>People</span>
+            <span className="corner-label">People</span>
             <span className="corner-count">{rows.length}</span>
           </div>
           <div className="header">
@@ -355,7 +428,7 @@ export function Timeline({ model }: { model: TimelineModel }) {
               style={{ transform: `translateY(${model.totalHeight}px)` }}
               onClick={() => createUser('New person')}
             >
-              + Add person
+              {compact ? '+' : '+ Add person'}
             </button>
           </div>
           <div className="body" onPointerDown={(e) => dragCtl.pointerDown(e.nativeEvent)} onDoubleClick={onDoubleClick}>

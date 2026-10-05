@@ -27,7 +27,7 @@ export function Toolbar({ colW, model, onZoom, onToday, onPage }: Props) {
         <span className="logo" aria-hidden>
           ▦
         </span>
-        prepweek
+        <span className="brand-name">prepweek</span>
       </div>
       <div className="tb-group">
         <button className="btn" onClick={() => onPage(-1)} aria-label="Earlier">
@@ -71,9 +71,25 @@ export function Toolbar({ colW, model, onZoom, onToday, onPage }: Props) {
       </div>
       <div className={`sync sync-${sync}`} title="Edits sync live across tabs; add ?sync=wss://… for the Cloudflare backend">
         <span className="dot" />
-        {sync === 'local' ? 'Local' : sync}
+        <span className="sync-label">{sync === 'local' ? 'Local' : sync}</span>
       </div>
-      <div className="tb-group">
+      <details className="tb-more">
+        <summary className="btn" aria-label="More">
+          ⋯
+        </summary>
+        <div className="tb-menu" onClick={(e) => (e.currentTarget.parentElement as HTMLDetailsElement).removeAttribute('open')}>
+          <div className="tb-menu-stats">
+            {model.rows.length} people · {taskCount.toLocaleString()} tasks
+          </div>
+          <button className="btn" onClick={() => confirm('Replace everything with fresh demo data?') && seed()}>
+            Reset demo
+          </button>
+          <button className="btn" onClick={() => confirm('Replace everything with a large stress-test dataset?') && seed(120, 1.6, 11)}>
+            Stress test
+          </button>
+        </div>
+      </details>
+      <div className="tb-group tb-actions">
         <button className="btn" onClick={() => confirm('Replace everything with fresh demo data?') && seed()}>
           Reset demo
         </button>

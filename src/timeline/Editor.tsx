@@ -7,16 +7,21 @@ interface Props {
   task: TaskView;
   x: number;
   y: number;
+  /** Render as a bottom sheet (phones). */
+  sheet?: boolean;
   onClose(): void;
 }
 
-export function Editor({ task, x, y, onClose }: Props) {
+export function Editor({ task, x, y, sheet, onClose }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    titleRef.current?.focus({ preventScroll: true });
-    titleRef.current?.select();
+    // On phones only jump into the keyboard for a new (untitled) task.
+    if (!sheet || !task.title) {
+      titleRef.current?.focus({ preventScroll: true });
+      titleRef.current?.select();
+    }
     const away = (e: PointerEvent) => {
       if (!ref.current?.contains(e.target as Node)) onClose();
     };
@@ -26,7 +31,7 @@ export function Editor({ task, x, y, onClose }: Props) {
       clearTimeout(t);
       window.removeEventListener('pointerdown', away, true);
     };
-  }, [task.id, onClose]);
+  }, [task.id, onClose]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const saveTitle = () => {
     const v = titleRef.current?.value.trim() ?? '';
@@ -36,9 +41,9 @@ export function Editor({ task, x, y, onClose }: Props) {
   return (
     <div
       ref={ref}
-      className="editor"
+      className={'editor' + (sheet ? ' sheet' : '')}
       data-no-drag
-      style={{ transform: `translate(${x}px, ${y}px)` }}
+      style={sheet ? undefined : { transform: `translate(${x}px, ${y}px)` }}
       onPointerDown={(e) => e.stopPropagation()}
       onKeyDown={(e) => {
         e.stopPropagation();

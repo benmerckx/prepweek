@@ -4,6 +4,9 @@
 // window of days/rows needs to move.
 
 export const SIDEBAR_W = 220;
+/** Narrow screens: avatar-only people column. */
+export const SIDEBAR_W_COMPACT = 64;
+export const COMPACT_QUERY = '(max-width: 640px)';
 export const HEADER_H = 52;
 
 export const ZOOM_MIN = 6;
@@ -12,6 +15,7 @@ export const ZOOM_MAX = 160;
 export class Viewport {
   scroller: HTMLDivElement | null = null;
   colW = 40;
+  sidebarW = SIDEBAR_W;
   /** Day number at x = 0 of the body. */
   origin = 0;
   rangeDays = 0;
@@ -32,7 +36,7 @@ export class Viewport {
   /** Width of the visible body area (excluding the sidebar). */
   get viewWidth() {
     const s = this.scroller;
-    return s ? Math.max(0, s.clientWidth - SIDEBAR_W) : 0;
+    return s ? Math.max(0, s.clientWidth - this.sidebarW) : 0;
   }
   get viewHeight() {
     const s = this.scroller;
@@ -50,7 +54,7 @@ export class Viewport {
   /** Fractional day number under a client x coordinate. */
   dayAt(clientX: number) {
     const s = this.scroller!;
-    const x = clientX - s.getBoundingClientRect().left - SIDEBAR_W + s.scrollLeft;
+    const x = clientX - s.getBoundingClientRect().left - this.sidebarW + s.scrollLeft;
     return this.origin + x / this.colW;
   }
   /** Body y coordinate under a client y coordinate. */

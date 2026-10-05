@@ -84,6 +84,9 @@ body[data-dragging='create'] * {
   display: grid;
   grid-template-rows: auto 1fr auto;
   height: 100%;
+  height: 100dvh;
+  /* We implement pinch-zoom on the timeline ourselves. */
+  touch-action: pan-x pan-y;
 }
 
 /* ---------- Toolbar ---------- */
@@ -260,7 +263,7 @@ body[data-dragging='create'] * {
 }
 .hd-month-label {
   position: sticky;
-  left: 228px;
+  left: calc(var(--sidebar-w) + 8px);
   display: inline-block;
   padding: 4px 8px 0;
   font-weight: 650;
@@ -414,21 +417,25 @@ body[data-dragging='create'] * {
   border-radius: 6px;
   background: var(--c);
   color: white;
-  display: flex;
-  align-items: center;
-  overflow: clip;
   cursor: grab;
   user-select: none;
   -webkit-user-select: none;
-  touch-action: none;
+  -webkit-touch-callout: none;
+  /* Swipes on a block still scroll; a long-press picks it up (see drag.ts). */
+  touch-action: pan-x pan-y;
   transition:
     transform 140ms cubic-bezier(0.2, 0.7, 0.3, 1),
     width 140ms cubic-bezier(0.2, 0.7, 0.3, 1),
     box-shadow 120ms;
   box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.12);
 }
-.task:hover {
-  filter: brightness(1.06);
+@media (hover: hover) {
+  .task:hover {
+    filter: brightness(1.06);
+  }
+  .task:hover .handle::after {
+    opacity: 1;
+  }
 }
 .task.untitled {
   background: color-mix(in srgb, var(--c) 55%, transparent);
@@ -447,6 +454,15 @@ body[data-dragging='create'] * {
   transition:
     transform 70ms ease-out,
     width 70ms ease-out;
+}
+.task-clip {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  overflow: clip;
+  border-radius: inherit;
+  pointer-events: none;
 }
 .task-label {
   display: flex;
@@ -498,9 +514,7 @@ body[data-dragging='create'] * {
 .handle.end::after {
   right: 3px;
 }
-.task:hover .handle::after {
-  opacity: 1;
-}
+
 
 /* Editor popover */
 .editor {
@@ -574,7 +588,8 @@ body[data-dragging='create'] * {
 /* Bottom scrubber */
 .bottombar {
   display: grid;
-  grid-template-columns: 220px 1fr;
+  grid-template-columns: var(--sidebar-w) 1fr;
+  padding-bottom: env(safe-area-inset-bottom);
   height: 92px;
   border-top: 1px solid var(--border);
   background: var(--panel);
@@ -616,4 +631,190 @@ body[data-dragging='create'] * {
   color: var(--text-dim);
   font-size: 14px;
   pointer-events: none;
+}
+
+/* ---------- Toolbar overflow menu ---------- */
+.tb-more {
+  position: relative;
+  display: none;
+  flex: none;
+}
+.tb-more > summary {
+  list-style: none;
+}
+.tb-more > summary::-webkit-details-marker {
+  display: none;
+}
+.tb-menu {
+  position: fixed;
+  right: 8px;
+  top: 48px;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 190px;
+  padding: 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+}
+.tb-menu-stats {
+  color: var(--text-dim);
+  font-size: 12px;
+  padding: 2px 2px 4px;
+}
+
+/* ---------- Touch ---------- */
+.task.selected,
+.task.selected .handle {
+  touch-action: none; /* a selected block drags immediately */
+}
+@media (pointer: coarse) {
+  .handle {
+    display: none;
+  }
+  /* Big grab knobs that sit outside the block, so even 1-day blocks resize. */
+  .task.selected .handle {
+    display: block;
+    width: 32px;
+    z-index: 2;
+  }
+  .task.selected .handle.start {
+    left: -18px;
+  }
+  .task.selected .handle.end {
+    right: -18px;
+  }
+  .task.selected .handle::after {
+    opacity: 1;
+    top: 50%;
+    bottom: auto;
+    width: 12px;
+    height: 12px;
+    margin-top: -6px;
+    border-radius: 50%;
+    background: var(--bg);
+    border: 2.5px solid var(--c);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  }
+  .task.selected .handle.start::after {
+    left: 10px;
+  }
+  .task.selected .handle.end::after {
+    right: 10px;
+  }
+  .editor-title,
+  .editor-notes,
+  .person-input {
+    font-size: 16px; /* < 16px makes iOS zoom the page on focus */
+  }
+  .btn {
+    min-height: 34px;
+  }
+}
+
+/* ---------- Phones ---------- */
+.person-first {
+  display: none;
+}
+.app.compact .toolbar {
+  gap: 6px;
+  padding: 6px 8px;
+  padding-top: max(6px, env(safe-area-inset-top));
+}
+.app.compact .brand {
+  width: auto;
+}
+.app.compact .brand-name,
+.app.compact .zoom input,
+.app.compact .tb-stats,
+.app.compact .sync-label,
+.app.compact .tb-actions,
+.app.compact .corner-label,
+.app.compact .bottombar-left,
+.app.compact .person-sub,
+.app.compact .person-full {
+  display: none;
+}
+.app.compact .tb-more {
+  display: block;
+}
+.app.compact .corner {
+  justify-content: center;
+  padding: 0 0 8px;
+}
+.app.compact .person {
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 4px;
+}
+.app.compact .person-name {
+  width: 100%;
+  text-align: center;
+  font-size: 10.5px;
+  font-weight: 600;
+}
+.app.compact .person-first {
+  display: inline;
+}
+.app.compact .add-person {
+  left: 8px;
+  right: 8px;
+  font-size: 18px;
+  padding: 4px;
+}
+.app.compact .hd-month-label {
+  padding-left: 6px;
+}
+.app.compact .bottombar {
+  grid-template-columns: 1fr;
+  height: calc(64px + env(safe-area-inset-bottom));
+}
+.app.compact .empty {
+  max-width: 240px;
+  font-size: 13px;
+}
+
+/* Editor as a bottom sheet */
+.editor.sheet {
+  position: fixed;
+  top: auto;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: auto;
+  z-index: 50;
+  border-radius: 16px 16px 0 0;
+  border-bottom: none;
+  padding: 18px 16px calc(16px + env(safe-area-inset-bottom));
+  gap: 12px;
+  animation: sheet-in 180ms cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+.editor.sheet::before {
+  content: '';
+  align-self: center;
+  width: 36px;
+  height: 4px;
+  margin: -8px 0 2px;
+  border-radius: 2px;
+  background: var(--border);
+}
+.editor.sheet .swatch {
+  width: 28px;
+  height: 28px;
+}
+.editor.sheet .swatches {
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.editor.sheet .hint {
+  display: none;
+}
+@keyframes sheet-in {
+  from {
+    transform: translateY(100%);
+  }
 }

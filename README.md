@@ -34,6 +34,21 @@ Open `/s/<anything>` for a separate sheet. The default sheet seeds demo data;
 
 Drags autoscroll at the edges. Edits sync live to other tabs.
 
+**On phones and tablets:**
+
+| Action | How |
+| --- | --- |
+| Scroll | swipe anywhere, including over blocks |
+| Select / edit | tap a block, then tap it again to open the editor sheet |
+| Move | long-press a block and drag (a selected block drags right away) |
+| Change dates | drag the round knobs on a selected block |
+| Create | long-press empty space, then drag to set the length |
+| Zoom | pinch on the timeline |
+
+Below 640px wide, the people column shrinks to avatars and first names, the
+editor opens as a bottom sheet, and the less-used actions move into the
+**⋯** menu.
+
 ## How it's built
 
 ```

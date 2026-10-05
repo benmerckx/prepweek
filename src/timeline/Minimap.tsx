@@ -224,6 +224,7 @@ export function Minimap({ model, vp, today }: Props) {
     };
     const up = (e: PointerEvent) => {
       st.dragging = false;
+      if (e.pointerType === 'touch') st.hoverX = -1;
       if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
       schedule();
     };

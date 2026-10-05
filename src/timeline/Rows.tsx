@@ -38,9 +38,11 @@ export const TaskBlock = memo(function TaskBlock({ task, origin, colW, selected,
       }}
     >
       {width >= 18 && <div className="handle start" data-handle="start" />}
-      <div className="task-label">
-        <span className="task-title">{task.title || 'Untitled'}</span>
-        {width > 120 && <span className="task-meta">{days}d</span>}
+      <div className="task-clip">
+        <div className="task-label">
+          <span className="task-title">{task.title || 'Untitled'}</span>
+          {width > 120 && <span className="task-meta">{days}d</span>}
+        </div>
       </div>
       {width >= 18 && <div className="handle end" data-handle="end" />}
     </div>
@@ -181,8 +183,9 @@ const SidebarRow = memo(function SidebarRow({ row, top }: { row: RowLayout; top:
           }}
         />
       ) : (
-        <div className="person-name" onDoubleClick={() => setEditing(true)}>
-          {row.name}
+        <div className="person-name" onDoubleClick={() => setEditing(true)} title={row.name}>
+          <span className="person-full">{row.name}</span>
+          <span className="person-first">{row.name.split(/\s+/)[0]}</span>
           <div className="person-sub">{row.tasks.length} tasks</div>
         </div>
       )}
