@@ -150,10 +150,17 @@ export function Timeline({ model }: { model: TimelineModel }) {
 
   // --- Zoom, anchored at a point so the day under the cursor stays put. ---
   const anchor = useRef<{ day: number; px: number } | null>(null);
+  const appRef = useRef<HTMLDivElement>(null);
+  const zoomEnd = useRef<ReturnType<typeof setTimeout>>(undefined);
   const zoomTo = useCallback(
     (next: number, clientX?: number) => {
       const w = Math.round(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, next)));
       if (w === colWRef.current || !vp.scroller) return;
+      // While zooming, blocks must jump with the scroll position, not ease
+      // from their old spot (that is the flashing during a pinch).
+      if (appRef.current) appRef.current.dataset.zooming = '';
+      clearTimeout(zoomEnd.current);
+      zoomEnd.current = setTimeout(() => appRef.current && delete appRef.current.dataset.zooming, 250);
       const rect = vp.scroller.getBoundingClientRect();
       const px = clientX !== undefined ? clientX - rect.left - vp.sidebarW : vp.viewWidth / 2;
       anchor.current = { day: vp.firstVisibleDay + px / colWRef.current, px };
@@ -394,6 +401,7 @@ export function Timeline({ model }: { model: TimelineModel }) {
 
   return (
     <div
+      ref={appRef}
       className={'app' + (drag ? ` is-${drag.kind}` : '') + (compact ? ' compact' : '')}
       style={{ ['--sidebar-w' as string]: `${sidebarW}px` }}
     >

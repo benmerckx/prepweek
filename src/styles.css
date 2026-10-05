@@ -24,6 +24,7 @@
   --mm-today: #ff5a5f;
   --mm-hover: rgba(28, 34, 48, 0.5);
   --mm-dim: rgba(243, 244, 247, 0.55);
+  --mm-ink: #3f5bd6;
   color-scheme: light dark;
 }
 
@@ -49,6 +50,7 @@
     --mm-slider-border: rgba(140, 165, 255, 0.75);
     --mm-hover: rgba(230, 233, 239, 0.5);
     --mm-dim: rgba(24, 26, 32, 0.6);
+    --mm-ink: #8ea4ff;
   }
 }
 
@@ -61,6 +63,7 @@ body,
   margin: 0;
   height: 100%;
   overflow: hidden;
+  overscroll-behavior: none;
 }
 body {
   font: 13px/1.35 var(--font);
@@ -784,7 +787,9 @@ body[data-dragging='create'] * {
   top: auto;
   left: 0;
   right: 0;
-  bottom: 0;
+  bottom: var(--kb, 0px);
+  max-height: calc(100dvh - var(--kb, 0px) - 8px);
+  overflow-y: auto;
   width: auto;
   z-index: 50;
   border-radius: 16px 16px 0 0;
@@ -817,4 +822,11 @@ body[data-dragging='create'] * {
   from {
     transform: translateY(100%);
   }
+}
+
+/* No reflow animations while the zoom level changes. */
+[data-zooming] .task,
+[data-zooming] .row,
+[data-zooming] .person {
+  transition: none !important;
 }

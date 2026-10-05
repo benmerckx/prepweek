@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
-import { visibleTasks, type TimelineModel } from './model.ts';
+import type { TimelineModel } from './model.ts';
+import type { Cluster } from '../lib/layout.ts';
 import type { Viewport } from './viewport.ts';
-import { addMonths, formatDay, monthShort, startOfMonth, ymd } from '../lib/dates.ts';
+import { addMonths, formatDay, isWeekend, monthShort, startOfMonth, startOfWeek, ymd } from '../lib/dates.ts';
 
 // A VS Code–style scrubber for the time axis. The canvas shows ~18 months at
 // a time (or the whole range if it fits); like VS Code's minimap it scrolls
@@ -11,6 +12,20 @@ import { addMonths, formatDay, monthShort, startOfMonth, ymd } from '../lib/date
 
 const TARGET_DAYS = 548;
 const LABEL_H = 16;
+/** Minimum band height per person (px) before people get grouped. */
+const MIN_BAND = 2.5;
+
+/** Clusters (sorted, non-overlapping) intersecting [d0, d1]. */
+function* clustersIn(cs: Cluster[], d0: number, d1: number) {
+  let lo = 0;
+  let hi = cs.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (cs[mid]!.end < d0) lo = mid + 1;
+    else hi = mid;
+  }
+  for (let i = lo; i < cs.length && cs[i]!.start <= d1; i++) yield cs[i]!;
+}
 
 interface Props {
   model: TimelineModel;
@@ -41,7 +56,7 @@ export function Minimap({ model, vp, today }: Props) {
 
     const readColors = () => {
       const cs = getComputedStyle(wrap);
-      for (const k of ['bg', 'band', 'line', 'text', 'text-strong', 'slider', 'slider-border', 'today', 'hover', 'dim'])
+      for (const k of ['bg', 'band', 'line', 'text', 'text-strong', 'slider', 'slider-border', 'today', 'hover', 'dim', 'ink'])
         st.colors[k] = cs.getPropertyValue(`--mm-${k}`).trim();
     };
     readColors();
@@ -108,23 +123,43 @@ export function Minimap({ model, vp, today }: Props) {
         }
       }
 
-      // Tasks, one band per person.
+      // Workload, not blocks: one band per person, shaded week by week by
+      // booked workdays (parallel tasks count extra). Free weeks fade out,
+      // busy and overbooked weeks get darker, and nothing is drawn per block. With many people, adjacent rows share a band
+      // and are averaged.
       const rows = model.rows;
-      const bandH = (H - LABEL_H - 2) / Math.max(1, rows.length);
-      const showLanes = bandH >= 5;
-      for (let i = 0; i < rows.length; i++) {
-        const row = rows[i]!;
-        const top = LABEL_H + 1 + i * bandH;
-        const lanes = Math.max(1, row.laneCount);
-        const laneH = showLanes ? bandH / lanes : bandH;
-        for (const t of visibleTasks(row, s0, s1)) {
-          const x = (t.start - s0) * g.scale;
-          const w = Math.max(1, (t.end - t.start + 1) * g.scale - (g.scale > 3 ? 1 : 0));
-          o.fillStyle = t.color;
-          const y = showLanes ? top + t.lane * laneH : top;
-          o.fillRect(x, y, w, Math.max(1, laneH - (laneH > 3 ? 1 : 0)));
+      const avail = H - LABEL_H - 3;
+      const perBand = Math.max(1, Math.ceil((MIN_BAND * rows.length) / Math.max(1, avail)));
+      const bands = Math.ceil(rows.length / perBand);
+      const bandH = avail / Math.max(1, bands);
+      const vGap = bandH >= 4 ? 1 : 0;
+      const w0 = startOfWeek(s0);
+      const weeks = Math.ceil((s1 - w0 + 1) / 7);
+      const cellW = 7 * g.scale;
+      const load = new Float32Array(weeks);
+      o.fillStyle = c.ink!;
+      for (let b = 0; b < bands; b++) {
+        load.fill(0);
+        const first = b * perBand;
+        const last = Math.min(rows.length, first + perBand);
+        for (let i = first; i < last; i++) {
+          for (const cl of clustersIn(rows[i]!.clusters, w0, s1)) {
+            for (let d = Math.max(cl.start, w0); d <= Math.min(cl.end, s1); d++) {
+              if (!isWeekend(d)) load[((d - w0) / 7) | 0]! += cl.lanes;
+            }
+          }
+        }
+        const top = LABEL_H + 2 + b * bandH;
+        const n = last - first;
+        for (let k = 0; k < weeks; k++) {
+          const v = load[k]! / (5 * n); // 1 = one task every workday
+          if (v <= 0) continue;
+          // 0 → nothing, fully booked → mid tone, 1.5× (parallel work) → full.
+          o.globalAlpha = 0.08 + 0.72 * Math.min(1, v / 1.5);
+          o.fillRect((w0 + k * 7 - s0) * g.scale, top, cellW + 0.5, bandH - vGap);
         }
       }
+      o.globalAlpha = 1;
 
       // Today.
       o.fillStyle = c.today!;

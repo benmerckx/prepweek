@@ -33,6 +33,29 @@ export function Editor({ task, x, y, sheet, onClose }: Props) {
     };
   }, [task.id, onClose]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Keyboard handling for the bottom sheet. Android (with the viewport's
+  // interactive-widget=resizes-content) shrinks the layout instead of
+  // panning the page, so the sheet simply sits above the keyboard. iOS
+  // ignores that setting and pans the whole page to reveal the input; undo
+  // the pan and lift the sheet by the keyboard height instead, so the
+  // timeline behind it stays exactly where it was.
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!sheet || !vv) return;
+    const update = () => {
+      if (window.scrollY || document.documentElement.scrollTop) window.scrollTo(0, 0);
+      const kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      ref.current?.style.setProperty('--kb', `${Math.round(kb)}px`);
+    };
+    update();
+    vv.addEventListener('resize', update);
+    vv.addEventListener('scroll', update);
+    return () => {
+      vv.removeEventListener('resize', update);
+      vv.removeEventListener('scroll', update);
+    };
+  }, [sheet]);
+
   const saveTitle = () => {
     const v = titleRef.current?.value.trim() ?? '';
     if (v !== task.title) updateTask(task.id, { title: v }, 'Rename task');
@@ -64,7 +87,7 @@ export function Editor({ task, x, y, sheet, onClose }: Props) {
         }}
       />
       <div className="editor-meta">
-        {formatRange(task.start, task.end)} · {workdays(task.start, task.end)} workdays
+        {formatRange(task.start, task.end)} · {workdays(task.start, task.end)} workday{workdays(task.start, task.end) === 1 ? '' : 's'}
       </div>
       <div className="swatches">
         {PALETTE.map((c) => (

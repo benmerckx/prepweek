@@ -60,6 +60,8 @@ export const seed = (people = 24, density = 1, seedValue = 7) => {
           });
         }
         day = end + 1 + Math.floor((rnd() * 4) / density);
+        // Now and then a free stretch (holiday, bench time).
+        if (rnd() < 0.05) day += 5 + Math.floor(rnd() * 12);
       }
     }
   });
