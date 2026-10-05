@@ -402,7 +402,13 @@ export function Timeline({ model }: { model: TimelineModel }) {
   const closeEditor = useCallback(() => setEditing(null), []);
 
   // --- Import ---
-  const [importing, setImporting] = useState<{ file: File | null } | null>(null);
+  const [importing, setImporting] = useState<{ file: File | null; startWith?: 'toggl'; error?: string } | null>(() => {
+    // Coming back from "Connect Toggl Plan": #import=toggl[&error=…]
+    const h = new URLSearchParams(location.hash.slice(1));
+    if (h.get('import') !== 'toggl') return null;
+    history.replaceState(history.state, '', location.pathname + location.search);
+    return { file: null, startWith: 'toggl', error: h.get('error') ?? undefined };
+  });
   const importingRef = useRef(importing);
   importingRef.current = importing;
   // Dropping a CSV anywhere on the app opens the importer with it.
@@ -580,6 +586,8 @@ export function Timeline({ model }: { model: TimelineModel }) {
       {importing && (
         <ImportDialog
           initialFile={importing.file}
+          startWith={importing.startWith}
+          oauthError={importing.error}
           onClose={() => setImporting(null)}
           onImported={(range) => {
             setImporting(null);

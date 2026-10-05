@@ -59,9 +59,33 @@ be told, the dialog asks.
   importing a newer export of the same data updates those tasks instead of
   duplicating them.
 
-The code is in `src/import/` (parser and mapping are pure and unit-tested).
-A live sync with the Toggl Plan API would need an OAuth app and a server-side
-proxy, and is not built.
+#### Connect Toggl Plan (OAuth)
+
+Rather than exporting a CSV, you can click **Connect Toggl Plan** in the
+import dialog. You sign in at Toggl, come back to the same sheet, pick a
+workspace and a date range, and get the same preview as a CSV import.
+
+The worker (`worker/toggl.ts`) runs the OAuth 2 authorization-code flow:
+- The client secret stays on the server.
+- The access token is kept in an HttpOnly cookie, so page scripts can't read
+  it, and is refreshed when it expires.
+- Reads go through a GET-only proxy limited to a short list of endpoints
+  (`me`, members, projects, tasks).
+
+One-time setup:
+
+1. Register an app at <https://developers.plan.toggl.com> with the redirect
+   URI `https://<your-host>/oauth/toggl/callback`.
+2. `wrangler secret put TOGGL_PLAN_CLIENT_ID` and
+   `wrangler secret put TOGGL_PLAN_CLIENT_SECRET`.
+
+Until that's done the dialog says so and offers CSV upload. For local work,
+put the same two values in `.dev.vars` (git-ignored) and use
+`bun run worker:dev`. `TOGGL_PLAN_AUTH_URL` and `TOGGL_PLAN_API_URL` can point
+at a mock server.
+
+The code is in `src/import/`. The CSV parser, column mapping and API→rows
+conversion are pure functions with unit tests.
 
 Each person also shows how booked they are over the next four weeks; the
 darker part of the bar is parallel work.

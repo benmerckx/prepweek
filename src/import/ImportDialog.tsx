@@ -1,14 +1,19 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { parseCsv } from './csv.ts';
 import { buildPlan, detectDateOrder, FIELD_LABELS, FIELDS, guessMapping, type DateOrder, type Field, type Mapping } from './teamweek.ts';
 import { applyImport, getUser, store } from '../data/store.ts';
 import { formatDay, formatRange } from '../lib/dates.ts';
 import { useBackToClose } from '../lib/useBackToClose.ts';
+import { today as getToday } from '../lib/dates.ts';
+import { connectToggl, disconnectToggl, fetchTogglRows, fetchWorkspaces, togglStatus, TOGGL_HEADER, type Workspace } from './toggl.ts';
 
 interface Props {
   /** A file dropped on the app opens the dialog with it preloaded. */
   initialFile?: File | null;
+  /** Back from the Toggl Plan OAuth round trip. */
+  startWith?: 'toggl' | null;
+  oauthError?: string;
   onClose(): void;
   onImported(range: [number, number] | null): void;
 }
@@ -17,11 +22,12 @@ interface Loaded {
   name: string;
   header: string[];
   rows: string[][];
+  source: 'csv' | 'toggl';
 }
 
 const SHOWN_FIELDS: Field[] = ['title', 'assignee', 'email', 'start', 'end', 'project', 'status', 'notes', 'tags', 'color', 'estimate'];
 
-export function ImportDialog({ initialFile, onClose, onImported }: Props) {
+export function ImportDialog({ initialFile, startWith, oauthError, onClose, onImported }: Props) {
   useBackToClose(true, onClose);
   const [file, setFile] = useState<Loaded | null>(null);
   const [error, setError] = useState('');
@@ -46,7 +52,7 @@ export function ImportDialog({ initialFile, onClose, onImported }: Props) {
       }
       const dates = data.slice(0, 500).flatMap((r) => [r[m.start ?? -1] ?? '', r[m.end ?? -1] ?? '']);
       const d = detectDateOrder(dates);
-      setFile({ name: f.name, header: header!, rows: data });
+      setFile({ name: f.name, header: header!, rows: data, source: 'csv' });
       setMapping(m);
       setDateOrder(d.order);
       setAmbiguous(d.ambiguous);
@@ -85,59 +91,74 @@ export function ImportDialog({ initialFile, onClose, onImported }: Props) {
         </header>
 
         {!file ? (
-          <div
-            className={'dropzone' + (dragOver ? ' over' : '')}
-            onDragOver={(e) => {
-              e.preventDefault();
-              setDragOver(true);
-            }}
-            onDragLeave={() => setDragOver(false)}
-            onDrop={(e) => {
-              e.preventDefault();
-              setDragOver(false);
-              const f = e.dataTransfer.files[0];
-              if (f) void load(f);
-            }}
-          >
-            <p className="dz-title">Drop your task export here</p>
-            <button className="btn primary" onClick={() => input.current?.click()}>
-              Choose CSV file
-            </button>
-            <input
-              ref={input}
-              type="file"
-              accept=".csv,text/csv,text/plain"
-              hidden
-              onChange={(e) => {
-                const f = e.currentTarget.files?.[0];
-                if (f) void load(f);
+          <div className="sources">
+            <TogglSource
+              autoStart={startWith === 'toggl'}
+              oauthError={oauthError}
+              onLoaded={(name, rows) => {
+                setFile({ name, header: TOGGL_HEADER, rows, source: 'toggl' });
+                setMapping(guessMapping(TOGGL_HEADER));
+                setDateOrder('dmy');
+                setAmbiguous(false);
               }}
             />
-            {error && <p className="import-error">{error}</p>}
-            <ol className="dz-help">
-              <li>
-                In Toggl Plan (formerly Teamweek), open the <b>Team</b> or <b>Plan</b> view.
-              </li>
-              <li>
-                Use the <b>⋯</b> menu (top right) → <b>Export tasks</b>, pick the workspace, a team or a project, and the dates.
-              </li>
-              <li>Drop the downloaded .csv here. Exporting needs an Owner or Admin account.</li>
-            </ol>
-            <p className="dz-note">
-              Re-importing the same export updates those tasks instead of duplicating them. Everything is one undo step.
-            </p>
+            <div className="source-or">or</div>
+          <div
+              className={'dropzone' + (dragOver ? ' over' : '')}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragOver(true);
+              }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragOver(false);
+                const f = e.dataTransfer.files[0];
+                if (f) void load(f);
+              }}
+            >
+              <p className="dz-title">Drop your task export here</p>
+              <button className="btn primary" onClick={() => input.current?.click()}>
+                Choose CSV file
+              </button>
+              <input
+                ref={input}
+                type="file"
+                accept=".csv,text/csv,text/plain"
+                hidden
+                onChange={(e) => {
+                  const f = e.currentTarget.files?.[0];
+                  if (f) void load(f);
+                }}
+              />
+              {error && <p className="import-error">{error}</p>}
+              <ol className="dz-help">
+                <li>
+                  In Toggl Plan (formerly Teamweek), open the <b>Team</b> or <b>Plan</b> view.
+                </li>
+                <li>
+                  Use the <b>⋯</b> menu (top right) → <b>Export tasks</b>, pick the workspace, a team or a project, and the dates.
+                </li>
+                <li>Drop the downloaded .csv here. Exporting needs an Owner or Admin account.</li>
+              </ol>
+              <p className="dz-note">
+                Re-importing the same export updates those tasks instead of duplicating them. Everything is one undo step.
+              </p>
+            </div>
           </div>
         ) : (
           <div className="import-body">
             <div className="import-file">
-              <b>{file.name}</b> · {file.rows.length.toLocaleString()} rows
+              <b>{file.name}</b> · {file.rows.length.toLocaleString()} {file.source === 'toggl' ? 'tasks' : 'rows'}
               <button className="linkbtn" onClick={() => setFile(null)}>
                 Choose another
               </button>
             </div>
 
-            <section>
-              <h3>Columns</h3>
+            <details className="columns" open={file.source === 'csv'}>
+              <summary>
+                <h3>Columns</h3>
+              </summary>
               <div className="mapping">
                 {SHOWN_FIELDS.map((f) => (
                   <label key={f} className={(f === 'start' || f === 'assignee' || f === 'title') && mapping[f] === undefined ? 'missing' : ''}>
@@ -159,9 +180,10 @@ export function ImportDialog({ initialFile, onClose, onImported }: Props) {
                   </label>
                 ))}
               </div>
-            </section>
+            </details>
 
             <section className="import-options">
+              {file.source === 'csv' && (
               <label className={ambiguous ? 'warn' : ''}>
                 <span>Dates are</span>
                 <select value={dateOrder} onChange={(e) => setDateOrder(e.currentTarget.value as DateOrder)}>
@@ -170,6 +192,7 @@ export function ImportDialog({ initialFile, onClose, onImported }: Props) {
                 </select>
                 {ambiguous && <em>Can’t tell from the file, please check</em>}
               </label>
+              )}
               <label>
                 <input type="checkbox" checked={includeDone} onChange={(e) => setIncludeDone(e.currentTarget.checked)} />
                 Include completed tasks
@@ -254,5 +277,135 @@ export function ImportDialog({ initialFile, onClose, onImported }: Props) {
       </div>
     </div>,
     document.body,
+  );
+}
+
+const isoDay = (d: number) => new Date(d * 86_400_000).toISOString().slice(0, 10);
+const fromIso = (s: string) => Math.floor(Date.parse(`${s}T00:00:00Z`) / 86_400_000);
+
+type TogglState =
+  | { kind: 'checking' }
+  | { kind: 'unconfigured' }
+  | { kind: 'disconnected'; error?: string }
+  | { kind: 'connected'; workspaces: Workspace[] }
+  | { kind: 'loading'; workspaces: Workspace[] };
+
+function TogglSource({ autoStart, oauthError, onLoaded }: { autoStart: boolean; oauthError?: string; onLoaded(name: string, rows: string[][]): void }) {
+  const [st, setSt] = useState<TogglState>({ kind: 'checking' });
+  const [ws, setWs] = useState<number | null>(null);
+  const t = useMemo(getToday, []);
+  const [from, setFrom] = useState(isoDay(t - 90));
+  const [to, setTo] = useState(isoDay(t + 365));
+  const [error, setError] = useState(oauthError ? 'Toggl Plan didn’t finish connecting. Please try again.' : '');
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const s = await togglStatus();
+      if (!alive) return;
+      if (!s.configured) return setSt({ kind: 'unconfigured' });
+      if (!s.connected) return setSt({ kind: 'disconnected' });
+      try {
+        const workspaces = await fetchWorkspaces();
+        if (!alive) return;
+        setSt({ kind: 'connected', workspaces });
+        setWs(workspaces[0]?.id ?? null);
+      } catch {
+        if (alive) setSt({ kind: 'disconnected', error: 'Your Toggl Plan connection expired.' });
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const load = async (workspaces: Workspace[]) => {
+    if (ws == null) return;
+    setError('');
+    setSt({ kind: 'loading', workspaces });
+    try {
+      const rows = await fetchTogglRows(ws, fromIso(from), fromIso(to));
+      const name = workspaces.find((w) => w.id === ws)?.name ?? 'Toggl Plan';
+      if (!rows.length) {
+        setError('No tasks in that range.');
+        setSt({ kind: 'connected', workspaces });
+        return;
+      }
+      onLoaded(`Toggl Plan · ${name}`, rows);
+    } catch (e) {
+      const status = (e as { status?: number }).status;
+      if (status === 401) setSt({ kind: 'disconnected', error: 'Your Toggl Plan connection expired.' });
+      else {
+        setError(`Couldn’t load tasks from Toggl Plan${status ? ` (${status})` : ''}.`);
+        setSt({ kind: 'connected', workspaces });
+      }
+    }
+  };
+
+  return (
+    <div className="source toggl">
+      <div className="source-head">
+        <span className="source-logo" aria-hidden>
+          ◐
+        </span>
+        <div>
+          <div className="source-title">Toggl Plan</div>
+          <div className="source-sub">formerly Teamweek</div>
+        </div>
+      </div>
+      {st.kind === 'checking' && <p className="dim">Checking connection…</p>}
+      {st.kind === 'unconfigured' && (
+        <p className="dim">
+          Not set up on this server yet: it needs a Toggl Plan app (client id and secret). Upload a CSV export instead, or see the README.
+        </p>
+      )}
+      {st.kind === 'disconnected' && (
+        <>
+          <p className="dim">{st.error ?? 'Sign in with Toggl Plan and pick a workspace. People, projects and tasks come over in one go.'}</p>
+          <button className="btn primary big" onClick={connectToggl} autoFocus={autoStart}>
+            Connect Toggl Plan
+          </button>
+        </>
+      )}
+      {(st.kind === 'connected' || st.kind === 'loading') && (
+        <>
+          <div className="toggl-form">
+            <label>
+              <span>Workspace</span>
+              <select value={ws ?? ''} onChange={(e) => setWs(Number(e.currentTarget.value))}>
+                {st.workspaces.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>From</span>
+              <input type="date" value={from} onChange={(e) => setFrom(e.currentTarget.value)} />
+            </label>
+            <label>
+              <span>To</span>
+              <input type="date" value={to} onChange={(e) => setTo(e.currentTarget.value)} />
+            </label>
+          </div>
+          <div className="toggl-actions">
+            <button className="btn primary big" disabled={st.kind === 'loading' || ws == null} onClick={() => load(st.workspaces)}>
+              {st.kind === 'loading' ? 'Loading tasks…' : 'Load tasks'}
+            </button>
+            <button
+              className="linkbtn"
+              onClick={async () => {
+                await disconnectToggl();
+                setSt({ kind: 'disconnected' });
+              }}
+            >
+              Disconnect
+            </button>
+          </div>
+        </>
+      )}
+      {error && <p className="import-error">{error}</p>}
+    </div>
   );
 }

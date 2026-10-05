@@ -14,6 +14,7 @@ import {
   getWsServerDurableObjectFetch,
   WsServerDurableObject,
 } from 'tinybase/synchronizers/synchronizer-ws-server-durable-object';
+import { handleToggl, type TogglEnv } from './toggl.ts';
 
 export class SheetDurableObject extends WsServerDurableObject {
   override createPersister() {
@@ -24,18 +25,20 @@ export class SheetDurableObject extends WsServerDurableObject {
 const sync = getWsServerDurableObjectFetch('SHEETS');
 
 export default {
-  fetch(request: Request, env: Env, ctx: ExecutionContext) {
+  async fetch(request: Request, env: Env) {
     const url = new URL(request.url);
     if (url.pathname.startsWith('/sync/')) {
       // TODO(auth): verify the user may open this sheet before upgrading,
       // e.g. a session cookie / JWT checked here.
       return sync(request, env);
     }
+    const toggl = await handleToggl(request, env);
+    if (toggl) return toggl;
     return env.ASSETS.fetch(request);
   },
 } satisfies ExportedHandler<Env>;
 
-interface Env {
+interface Env extends TogglEnv {
   SHEETS: DurableObjectNamespace<SheetDurableObject>;
   ASSETS: Fetcher;
 }
