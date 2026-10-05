@@ -607,3 +607,13 @@ body[data-dragging='create'] * {
   cursor: pointer;
   touch-action: none;
 }
+
+.empty {
+  position: absolute;
+  top: 32px;
+  left: 0;
+  max-width: 420px;
+  color: var(--text-dim);
+  font-size: 14px;
+  pointer-events: none;
+}

@@ -4,9 +4,9 @@
   "type": "module",
   "scripts": {
     "dev": "bun --hot server.ts",
-    "build": "bun build ./src/index.html --outdir dist --production --sourcemap=linked",
+    "build": "bun build ./src/index.html --outdir dist --production --sourcemap=linked --public-path=/",
     "start": "NODE_ENV=production bun server.ts",
-    "typecheck": "tsc --noEmit -p .",
+    "typecheck": "tsc --noEmit -p . && tsc --noEmit -p worker",
     "test": "bun test",
     "worker:dev": "wrangler dev --config worker/wrangler.toml",
     "worker:deploy": "wrangler deploy --config worker/wrangler.toml"
@@ -18,9 +18,11 @@
     "tinybase": "^10.0.1"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261005.1",
     "@types/bun": "^1.4.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "wrangler": "^4.147.0"
   }
 }

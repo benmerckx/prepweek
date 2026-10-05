@@ -89,7 +89,7 @@ export function Editor({ task, x, y, onClose }: Props) {
         >
           Delete
         </button>
-        <span className="hint">⌫ delete · ⌘D duplicate · ←→ move</span>
+        <span className="hint">⌫ delete · ⌘D dup · ←→ move</span>
         <button
           className="btn primary"
           onClick={() => {

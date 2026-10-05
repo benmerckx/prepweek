@@ -6,8 +6,6 @@
 // scroll only does a numeric pass over the mounted blocks and touches the DOM
 // for the handful that actually cross the left edge.
 
-const MIN_VISIBLE = 64;
-
 interface Item {
   label: HTMLElement;
   left: number;
@@ -27,7 +25,7 @@ export class LabelPinner {
       item.left = left;
       item.width = width;
     } else {
-      this.items.set(el, { label, left, width, off: 0 });
+      this.items.set(el, { label, left, width, off: NaN }); // NaN: always write once
     }
     this.apply(this.items.get(el)!);
   }
@@ -44,7 +42,8 @@ export class LabelPinner {
 
   private apply(item: Item) {
     const raw = this.edge - item.left;
-    const off = raw <= 0 ? 0 : Math.min(raw, Math.max(0, item.width - MIN_VISIBLE));
+    // Past the block's end the label is clipped by the block itself.
+    const off = raw <= 0 ? 0 : Math.min(raw, item.width);
     if (off === item.off) return;
     item.off = off;
     item.label.style.transform = off ? `translateX(${off}px)` : '';

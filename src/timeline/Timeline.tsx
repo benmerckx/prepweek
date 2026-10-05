@@ -361,6 +361,11 @@ export function Timeline({ model }: { model: TimelineModel }) {
           <div className="body" onPointerDown={(e) => dragCtl.pointerDown(e.nativeEvent)} onDoubleClick={onDoubleClick}>
             <GridBackground d0={win.d0} d1={win.d1} origin={range.origin} colW={colW} height={bodyH} today={todayDay} />
             {rendered}
+            {rows.length === 0 && (
+              <div className="empty" style={{ transform: `translateX(${(vp.scroller?.scrollLeft ?? 0) + 32}px)` }}>
+                No people on this sheet yet. Add someone on the left, then drag across their row to plan work.
+              </div>
+            )}
             {editor}
           </div>
         </div>

@@ -20,6 +20,29 @@ export const onSyncStatus = (fn: () => void) => {
 };
 
 /**
+ * Where to sync, in order:
+ *  - `?sync=wss://host/sync` (remembered), `?sync=off` to forget it;
+ *  - same origin `/sync` when the app is served by the worker (not localhost);
+ *  - otherwise local-only (IndexedDB + other tabs).
+ */
+const syncUrl = (): string | null => {
+  const KEY = 'prepweek:sync';
+  const param = new URLSearchParams(location.search).get('sync');
+  try {
+    if (param === 'off') localStorage.removeItem(KEY);
+    else if (param) localStorage.setItem(KEY, param);
+  } catch {}
+  if (param === 'off') return null;
+  let stored: string | null = null;
+  try {
+    stored = localStorage.getItem(KEY);
+  } catch {}
+  if (param || stored) return param ?? stored;
+  const local = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
+  return local ? null : `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/sync`;
+};
+
+/**
  * Storage + realtime for one sheet:
  *
  *  1. IndexedDB: local-first, the sheet opens instantly and works offline.
@@ -31,8 +54,7 @@ export const onSyncStatus = (fn: () => void) => {
  * server is just another replica.
  */
 export const startSync = async (sheetId: string) => {
-  const server =
-    new URLSearchParams(location.search).get('sync') ?? localStorage.getItem('prepweek:sync');
+  const server = syncUrl();
 
   const persister = createIndexedDbPersister(store, `prepweek:${sheetId}`);
   await persister.load();
@@ -44,16 +66,21 @@ export const startSync = async (sheetId: string) => {
   const tabs = createBroadcastChannelSynchronizer(store, `prepweek:${sheetId}`);
   await tabs.startSync();
 
-  if (server) {
-    setStatus('connecting');
-    const ws = new ReconnectingWebSocket(`${server.replace(/\/$/, '')}/${encodeURIComponent(sheetId)}`);
-    const remote = await createWsSynchronizer(store, ws as unknown as WebSocket);
-    await remote.startSync();
-    ws.addEventListener('open', () => {
-      setStatus('online');
-      remote.load().then(() => remote.save());
-    });
-    ws.addEventListener('close', () => setStatus('offline'));
-    if (ws.readyState === ws.OPEN) setStatus('online');
-  }
+  // Never block first paint on the network: the local replica is already
+  // usable, the server merges in when it answers.
+  if (server) void connect(server, sheetId);
+};
+
+const connect = async (server: string, sheetId: string) => {
+  setStatus('connecting');
+  const ws = new ReconnectingWebSocket(`${server.replace(/\/$/, '')}/${encodeURIComponent(sheetId)}`);
+  ws.addEventListener('close', () => setStatus('offline'));
+  const remote = await createWsSynchronizer(store, ws as unknown as WebSocket);
+  // Re-sync after every (re)connect so offline edits propagate.
+  ws.addEventListener('open', () => {
+    setStatus('online');
+    remote.load().then(() => remote.save());
+  });
+  if (ws.readyState === ws.OPEN) setStatus('online');
+  await remote.startSync();
 };
