@@ -39,7 +39,38 @@ store.setTablesSchema({
     lane: { type: 'number', default: -1 },
     notes: { type: 'string', default: '' },
   },
+  // Sheet-wide dated markers (launches, deadlines, holidays).
+  milestones: {
+    day: { type: 'number', default: 0 },
+    title: { type: 'string', default: '' },
+    color: { type: 'string', default: '#8b5cf6' },
+  },
+  // Files and links on a task. File bytes live outside the CRDT (see
+  // data/files.ts); this row is the shared metadata.
+  attachments: {
+    taskId: { type: 'string', default: '' },
+    kind: { type: 'string', default: 'file' }, // 'file' | 'link'
+    name: { type: 'string', default: '' },
+    url: { type: 'string', default: '' },
+    mime: { type: 'string', default: '' },
+    size: { type: 'number', default: 0 },
+    created: { type: 'number', default: 0 },
+  },
 });
+
+export type MilestoneRow = { day: number; title: string; color: string };
+export type AttachmentRow = {
+  taskId: string;
+  kind: 'file' | 'link';
+  name: string;
+  url: string;
+  mime: string;
+  size: number;
+  created: number;
+};
+
+/** First is the default; not red, so milestones don't read as "today". */
+export const MILESTONE_COLORS = ['#8b5cf6', '#4f5bd5', '#06b6d4', '#22a06b', '#f59e0b', '#ef4444', '#ec4899', '#64748b'] as const;
 
 const ALPHABET = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
 /** 16 random base62 chars (~95 bits); works outside secure contexts too. */
@@ -62,7 +93,7 @@ export const getUser = (id: string): UserRow | undefined =>
 // changes that arrived from other collaborators. Instead each local command
 // records the cells it changed, and undo only restores those cells.
 
-type TableId = 'users' | 'tasks';
+type TableId = 'users' | 'tasks' | 'milestones' | 'attachments';
 type Snap = { table: TableId; id: string; row: Row | null };
 type Entry = { label: string; before: Snap[]; after: Snap[] };
 
@@ -145,7 +176,40 @@ export const createTask = (task: TaskRow, id = newId()): string => {
   return id;
 };
 
-export const deleteTask = (id: string) => commit('Delete task', [['tasks', id]], () => store.delRow('tasks', id));
+export const attachmentsOf = (taskId: string): string[] =>
+  store.getRowIds('attachments').filter((a) => store.getCell('attachments', a, 'taskId') === taskId);
+
+/** Deleting a task also removes its attachments (one undo step). */
+export const deleteTask = (id: string) => {
+  const atts = attachmentsOf(id);
+  commit('Delete task', [['tasks', id], ...atts.map((a) => ['attachments', a] as [TableId, string])], () => {
+    store.delRow('tasks', id);
+    for (const a of atts) store.delRow('attachments', a);
+  });
+};
+
+// --- Milestones ---
+
+export const createMilestone = (m: MilestoneRow): string => {
+  const id = newId();
+  commit('Add milestone', [['milestones', id]], () => store.setRow('milestones', id, m));
+  return id;
+};
+export const updateMilestone = (id: string, patch: Partial<MilestoneRow>, label = 'Edit milestone') =>
+  commit(label, [['milestones', id]], () => {
+    for (const [k, v] of Object.entries(patch)) store.setCell('milestones', id, k, v as string | number);
+  });
+export const deleteMilestone = (id: string) => commit('Delete milestone', [['milestones', id]], () => store.delRow('milestones', id));
+
+// --- Attachments ---
+
+export const addAttachment = (a: Omit<AttachmentRow, 'created'>, id = newId()): string => {
+  commit(a.kind === 'link' ? 'Add link' : 'Attach file', [['attachments', id]], () =>
+    store.setRow('attachments', id, { ...a, created: Date.now() }),
+  );
+  return id;
+};
+export const removeAttachment = (id: string) => commit('Remove attachment', [['attachments', id]], () => store.delRow('attachments', id));
 
 export const createUser = (name: string): string => {
   const id = newId();
@@ -156,20 +220,38 @@ export const createUser = (name: string): string => {
 };
 
 /** Apply an import plan as one undoable command. */
-export const applyImport = (plan: {
-  people: { key: string; name: string; email: string; existingId?: string }[];
-  tasks: { id: string; personKey: string; start: number; end: number; title: string; color: string; notes: string }[];
-}) => {
+export type ImportMode = 'add' | 'replace';
+
+/**
+ * Apply an import plan as one undoable command. 'replace' first removes all
+ * people, tasks and their attachments (milestones stay).
+ */
+export const applyImport = (
+  plan: {
+    people: { key: string; name: string; email: string; existingId?: string }[];
+    tasks: { id: string; personKey: string; start: number; end: number; title: string; color: string; notes: string }[];
+  },
+  mode: ImportMode = 'add',
+) => {
   const ids = new Map<string, string>();
-  let order = Math.max(-1, ...store.getRowIds('users').map((u) => getUser(u)!.order)) + 1;
-  const touches: [TableId, string][] = [];
+  const replace = mode === 'replace';
+  const removed: [TableId, string][] = replace
+    ? [
+        ...store.getRowIds('users').map((id) => ['users', id] as [TableId, string]),
+        ...store.getRowIds('tasks').map((id) => ['tasks', id] as [TableId, string]),
+        ...store.getRowIds('attachments').map((id) => ['attachments', id] as [TableId, string]),
+      ]
+    : [];
+  let order = replace ? 0 : Math.max(-1, ...store.getRowIds('users').map((u) => getUser(u)!.order)) + 1;
+  const touches: [TableId, string][] = [...removed];
   for (const p of plan.people) {
     const id = p.existingId ?? newId();
     ids.set(p.key, id);
     touches.push(['users', id]);
   }
   for (const t of plan.tasks) touches.push(['tasks', t.id]);
-  commit(`Import ${plan.tasks.length} tasks`, touches, () => {
+  commit(`${replace ? 'Replace with' : 'Import'} ${plan.tasks.length} tasks`, touches, () => {
+    for (const [table, id] of removed) store.delRow(table, id);
     for (const p of plan.people) {
       const id = ids.get(p.key)!;
       if (p.existingId) {

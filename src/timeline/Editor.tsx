@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { Attachments, attachFiles } from './Attachments.tsx';
 import { PALETTE, deleteTask, updateTask } from '../data/store.ts';
 import { formatRange, workdays } from '../lib/dates.ts';
 import type { TaskView } from './model.ts';
@@ -18,6 +19,12 @@ export function Editor({ task, x, y, sheet, onClose }: Props) {
   const titleRef = useRef<HTMLInputElement>(null);
   /** The text field that last had focus, so picking a color can keep it. */
   const lastField = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
+  const [error, setError] = useState('');
+  const [dropping, setDropping] = useState(false);
+  const attach = async (files: File[]) => {
+    if (!files.length) return;
+    setError((await attachFiles(task.id, files)) ?? '');
+  };
 
   useEffect(() => {
     // On phones only jump into the keyboard for a new (untitled) task.
@@ -67,10 +74,33 @@ export function Editor({ task, x, y, sheet, onClose }: Props) {
   return (
     <div
       ref={ref}
-      className={'editor' + (sheet ? ' sheet' : '')}
+      className={'editor' + (sheet ? ' sheet' : '') + (dropping ? ' dropping' : '')}
       data-no-drag
       style={sheet ? undefined : { transform: `translate(${x}px, ${y}px)` }}
       onPointerDown={(e) => e.stopPropagation()}
+      // Drop or paste files to attach them (and keep the drop away from the
+      // app-wide CSV import handler).
+      onDragOver={(e) => {
+        if (!e.dataTransfer.types.includes('Files')) return;
+        e.preventDefault();
+        setDropping(true);
+      }}
+      onDragLeave={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) setDropping(false);
+      }}
+      onDrop={(e) => {
+        if (!e.dataTransfer.files.length) return;
+        e.preventDefault();
+        e.stopPropagation();
+        setDropping(false);
+        void attach([...e.dataTransfer.files]);
+      }}
+      onPaste={(e) => {
+        const files = [...e.clipboardData.files];
+        if (!files.length) return;
+        e.preventDefault();
+        void attach(files);
+      }}
       onKeyDown={(e) => {
         e.stopPropagation();
         if (e.key === 'Escape') onClose();
@@ -126,6 +156,8 @@ export function Editor({ task, x, y, sheet, onClose }: Props) {
         onFocus={(e) => (lastField.current = e.currentTarget)}
         onBlur={(e) => e.currentTarget.value !== task.notes && updateTask(task.id, { notes: e.currentTarget.value }, 'Edit notes')}
       />
+      <Attachments taskId={task.id} onError={setError} />
+      {error && <p className="editor-error">{error}</p>}
       <div className="editor-actions">
         <button
           className="btn danger"

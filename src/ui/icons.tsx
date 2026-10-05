@@ -76,8 +76,8 @@ export const Upload = () => (
     <path d="M2.75 10v1.75c0 .8.65 1.5 1.5 1.5h7.5c.85 0 1.5-.7 1.5-1.5V10" />
   </Svg>
 );
-export const Close = () => (
-  <Svg>
+export const Close = ({ size = 16 }: { size?: number }) => (
+  <Svg size={size}>
     <path d="m4 4 8 8M12 4l-8 8" />
   </Svg>
 );
@@ -112,4 +112,46 @@ export const Logo = ({ size = 22 }: { size?: number }) => (
     <rect x="9" y="10.8" width="10" height="3.2" rx="1.6" fill="#fff" opacity=".8" />
     <rect x="5" y="15.1" width="6.5" height="3.2" rx="1.6" fill="#fff" opacity=".6" />
   </svg>
+);
+
+export const Paperclip = ({ size = 16 }: { size?: number }) => (
+  <Svg size={size}>
+    <path d="m13 7.25-5.4 5.4a3.25 3.25 0 0 1-4.6-4.6l5.6-5.6a2.15 2.15 0 0 1 3.05 3.05L6.1 11.05a1.07 1.07 0 0 1-1.5-1.5L9.75 4.4" />
+  </Svg>
+);
+export const LinkIcon = ({ size = 16 }: { size?: number }) => (
+  <Svg size={size}>
+    <path d="M6.75 9.25a2.75 2.75 0 0 0 3.9 0l2.1-2.1a2.75 2.75 0 0 0-3.9-3.9l-.6.6" />
+    <path d="M9.25 6.75a2.75 2.75 0 0 0-3.9 0l-2.1 2.1a2.75 2.75 0 0 0 3.9 3.9l.6-.6" />
+  </Svg>
+);
+export const Flag = ({ size = 16 }: { size?: number }) => (
+  <Svg size={size}>
+    <path d="M3.5 14V2.5" />
+    <path d="M3.5 2.75h8.25l-1.75 2.875L11.75 8.5H3.5" fill="currentColor" fillOpacity=".25" />
+  </Svg>
+);
+export const FileIcon = ({ size = 16 }: { size?: number }) => (
+  <Svg size={size}>
+    <path d="M9 1.75H4.75c-.85 0-1.5.65-1.5 1.5v9.5c0 .85.65 1.5 1.5 1.5h6.5c.85 0 1.5-.65 1.5-1.5V5.5Z" />
+    <path d="M9 1.75V5.5h3.75" />
+  </Svg>
+);
+export const ImageIcon = ({ size = 16 }: { size?: number }) => (
+  <Svg size={size}>
+    <rect x="2.25" y="2.75" width="11.5" height="10.5" rx="2" />
+    <circle cx="5.75" cy="6.25" r="1.1" />
+    <path d="m13.5 10.25-3-3-6.75 6" />
+  </Svg>
+);
+export const Notes = ({ size = 16 }: { size?: number }) => (
+  <Svg size={size}>
+    <path d="M3 4h10M3 8h10M3 12h6" />
+  </Svg>
+);
+export const External = ({ size = 16 }: { size?: number }) => (
+  <Svg size={size}>
+    <path d="M9.5 2.5h4v4M13.5 2.5 7.5 8.5" />
+    <path d="M11.5 9.5v2.75c0 .7-.55 1.25-1.25 1.25h-6.5c-.7 0-1.25-.55-1.25-1.25v-6.5c0-.7.55-1.25 1.25-1.25H6.5" />
+  </Svg>
 );

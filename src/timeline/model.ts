@@ -26,6 +26,15 @@ export interface TaskView {
   color: string;
   notes: string;
   lane: number;
+  /** Number of attachments (files + links). */
+  files: number;
+}
+
+export interface Milestone {
+  id: string;
+  day: number;
+  title: string;
+  color: string;
 }
 
 export interface RowLayout {
@@ -96,14 +105,22 @@ export class TimelineModel {
   private listeners = new Set<() => void>();
 
   constructor(private store: MergeableStore) {
+    // Attachments first, so tasks are created with their badge counts.
+    for (const id of store.getRowIds('attachments')) this.ingestAttachment(id);
+    this.readMilestones();
     for (const id of store.getRowIds('tasks')) this.ingestTask(id);
     this.flush();
     store.addDidFinishTransactionListener(() => {
       const [tables] = store.getTransactionChanges();
       const tasks = tables.tasks;
-      if (tasks) for (const id of Object.keys(tasks)) this.ingestTask(id);
+      const touched = new Set(tasks ? Object.keys(tasks) : []);
+      // Attachment changes re-ingest their task so the block's badge updates.
+      if (tables.attachments) for (const id of Object.keys(tables.attachments)) for (const t of this.ingestAttachment(id)) touched.add(t);
+      for (const id of touched) this.ingestTask(id);
       if (tables.users) this.usersDirty = true;
-      if (tasks || tables.users) this.flush();
+      if (tables.milestones) this.readMilestones();
+      if (touched.size || tables.users) this.flush();
+      else if (tables.milestones) this.finish();
     });
   }
 
@@ -198,6 +215,36 @@ export class TimelineModel {
     return min === Infinity ? null : [min, max];
   }
 
+  /** Sheet milestones, sorted by day. */
+  milestones: Milestone[] = [];
+  private attachmentTask = new Map<string, string>();
+  private fileCount = new Map<string, number>();
+
+  private readMilestones() {
+    this.milestones = this.store
+      .getRowIds('milestones')
+      .map((id) => ({ id, ...(this.store.getRow('milestones', id) as Omit<Milestone, 'id'>) }))
+      .sort((a, b) => a.day - b.day || a.title.localeCompare(b.title));
+  }
+
+  /** Track which task an attachment belongs to; returns affected task ids. */
+  private ingestAttachment(id: string): string[] {
+    const affected: string[] = [];
+    const prev = this.attachmentTask.get(id);
+    if (prev) {
+      this.fileCount.set(prev, (this.fileCount.get(prev) ?? 1) - 1);
+      this.attachmentTask.delete(id);
+      affected.push(prev);
+    }
+    if (this.store.hasRow('attachments', id)) {
+      const t = this.store.getCell('attachments', id, 'taskId') as string;
+      this.attachmentTask.set(id, t);
+      this.fileCount.set(t, (this.fileCount.get(t) ?? 0) + 1);
+      affected.push(t);
+    }
+    return affected;
+  }
+
   private ingestTask(id: string) {
     const oldUser = this.taskUser.get(id);
     if (oldUser) {
@@ -220,6 +267,7 @@ export class TimelineModel {
       color: r.color,
       notes: r.notes,
       lane: -1,
+      files: this.fileCount.get(id) ?? 0,
     };
     // A changed stored lane hint (local drop or remote collaborator) wins
     // over the previous layout.
@@ -252,6 +300,7 @@ export class TimelineModel {
         color: p.color ?? base?.color ?? user.color,
         notes: base?.notes ?? '',
         lane: -1,
+        files: base?.files ?? 0,
       };
       views.push(v);
       items.push({ id: v.id, start: v.start, end: v.end, lane: p.lane ?? this.prevLane.get(p.id) });

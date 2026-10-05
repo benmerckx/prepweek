@@ -12,12 +12,18 @@ watch_dir = "src"
 directory = "./dist"
 binding = "ASSETS"
 not_found_handling = "single-page-application"
-run_worker_first = ["/sync/*", "/oauth/*", "/api/*"]
+run_worker_first = ["/sync/*", "/files/*"]
 
 # One SQLite-backed Durable Object per sheet (storage + realtime room).
 [[durable_objects.bindings]]
 name = "SHEETS"
 class_name = "SheetDurableObject"
+
+# Optional: attachment storage. Create the bucket once
+# (`wrangler r2 bucket create prepweek-files`) and uncomment:
+# [[r2_buckets]]
+# binding = "FILES"
+# bucket_name = "prepweek-files"
 
 [[migrations]]
 tag = "v1"

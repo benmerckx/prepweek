@@ -34,6 +34,8 @@ Open `/s/<anything>` for a separate sheet. The default sheet seeds demo data;
 | Focus on a person | click their avatar (<kbd>⌘</kbd>/<kbd>Shift</kbd>-click adds more), the people menu in the toolbar, or <kbd>F</kbd> on a selected task; <kbd>Esc</kbd> or the chip in the corner shows everyone again |
 | Find tasks | <kbd>/</kbd>, type; non-matching blocks fade, <kbd>Enter</kbd> / <kbd>⇧Enter</kbd> jump to the next/previous match |
 
+| Milestones | click the milestone lane under the dates (or **+** in the corner); drag a flag to move it, click to rename, recolor or delete |
+| Attachments | in a task's editor: **File** / **Link**, drop files on the editor, or paste an image |
 | Import from Teamweek / Toggl Plan | **Import** in the toolbar (or ⋯ menu), or drop the CSV anywhere on the app |
 
 The browser/Android back button closes the open editor or dialog instead of
@@ -55,37 +57,15 @@ be told, the dialog asks.
   are always skipped.
 - Project, tags and estimate go into the task notes. Blocks are colored per
   project.
+- Choose **Add to sheet**, which keeps everything and merges, or **Replace
+  sheet**, which removes the current people, tasks and attachments first.
+  Milestones stay either way.
 - The whole import is one undo step. Task ids are derived from the row, so
   importing a newer export of the same data updates those tasks instead of
   duplicating them.
 
-#### Connect Toggl Plan (OAuth)
-
-Rather than exporting a CSV, you can click **Connect Toggl Plan** in the
-import dialog. You sign in at Toggl, come back to the same sheet, pick a
-workspace and a date range, and get the same preview as a CSV import.
-
-The worker (`worker/toggl.ts`) runs the OAuth 2 authorization-code flow:
-- The client secret stays on the server.
-- The access token is kept in an HttpOnly cookie, so page scripts can't read
-  it, and is refreshed when it expires.
-- Reads go through a GET-only proxy limited to a short list of endpoints
-  (`me`, members, projects, tasks).
-
-One-time setup:
-
-1. Register an app at <https://developers.plan.toggl.com> with the redirect
-   URI `https://<your-host>/oauth/toggl/callback`.
-2. `wrangler secret put TOGGL_PLAN_CLIENT_ID` and
-   `wrangler secret put TOGGL_PLAN_CLIENT_SECRET`.
-
-Until that's done the dialog says so and offers CSV upload. For local work,
-put the same two values in `.dev.vars` (git-ignored) and use
-`bun run worker:dev`. `TOGGL_PLAN_AUTH_URL` and `TOGGL_PLAN_API_URL` can point
-at a mock server.
-
-The code is in `src/import/`. The CSV parser, column mapping and API→rows
-conversion are pure functions with unit tests.
+The code is in `src/import/`. The CSV parser and column mapping are pure
+functions with unit tests.
 
 Each person also shows how booked they are over the next four weeks; the
 darker part of the bar is parallel work.
@@ -159,6 +139,27 @@ command, which is also exactly one sync message.
 
 **Undo** records the cells each local command changed and restores only those
 cells. TinyBase checkpoints would also roll back collaborators' edits.
+
+## Milestones and attachments
+
+**Milestones** are sheet-wide dates such as launches, freezes and offsites.
+Each shows as a flag in its own lane under the dates and as a hatched column
+through every row. The minimap marks them too. Click an empty spot in the lane
+to add one, drag a flag to move it (one undo step), and click a flag to edit
+it.
+
+**Attachments** are files or links on a task. The task's block shows a
+paperclip with the count, and a notes mark when it has notes. Only the
+metadata (name, size, type) is stored in the synced sheet. File bytes stay out
+of the CRDT:
+- they are always kept in the browser's IndexedDB, so they work offline;
+- if the sheet syncs to the worker and an R2 bucket is bound as `FILES`, they
+  are also uploaded to `/files/<sheet>/<id>`, so collaborators can open them.
+
+To enable R2: run `wrangler r2 bucket create prepweek-files` and uncomment the
+`[[r2_buckets]]` block in `wrangler.toml`. Without it, files stay on the
+device that attached them, and the app says so when someone else tries to open
+one. Files are limited to 25 MB.
 
 ## Storage, sync, realtime
 

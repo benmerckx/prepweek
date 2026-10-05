@@ -7,7 +7,8 @@ export const SIDEBAR_W = 220;
 /** Narrow screens: avatar-only people column. */
 export const SIDEBAR_W_COMPACT = 64;
 export const COMPACT_QUERY = '(max-width: 640px)';
-export const HEADER_H = 52;
+/** Month band 22 + day band 30 + milestone lane 22. */
+export const HEADER_H = 74;
 
 export const ZOOM_MIN = 6;
 export const ZOOM_MAX = 160;

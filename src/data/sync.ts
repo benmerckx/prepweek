@@ -53,8 +53,17 @@ const syncUrl = (): string | null => {
  * All three speak TinyBase's MergeableStore protocol, so they compose: the
  * server is just another replica.
  */
+let currentSheet = 'demo';
+let serverHttp: string | null = null;
+/** The sheet this page shows, and the HTTP origin of its sync server (if any). */
+export const getSheet = () => currentSheet;
+export const getServerHttp = () => serverHttp;
+
 export const startSync = async (sheetId: string) => {
   const server = syncUrl();
+  currentSheet = sheetId;
+  // wss://host/sync → https://host (files are served next to the sync route).
+  serverHttp = server ? server.replace(/^ws/, 'http').replace(/\/sync\/?$/, '') : null;
 
   const persister = createIndexedDbPersister(store, `prepweek:${sheetId}`);
   await persister.load();

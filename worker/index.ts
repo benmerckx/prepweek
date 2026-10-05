@@ -14,7 +14,6 @@ import {
   getWsServerDurableObjectFetch,
   WsServerDurableObject,
 } from 'tinybase/synchronizers/synchronizer-ws-server-durable-object';
-import { handleToggl, type TogglEnv } from './toggl.ts';
 
 export class SheetDurableObject extends WsServerDurableObject {
   override createPersister() {
@@ -32,13 +31,45 @@ export default {
       // e.g. a session cookie / JWT checked here.
       return sync(request, env);
     }
-    const toggl = await handleToggl(request, env);
-    if (toggl) return toggl;
+    if (url.pathname.startsWith('/files/')) return files(request, env, url);
     return env.ASSETS.fetch(request);
   },
 } satisfies ExportedHandler<Env>;
 
-interface Env extends TogglEnv {
+const MAX_FILE_BYTES = 25 * 1024 * 1024;
+
+/**
+ * Attachment bytes: PUT/GET /files/<sheet>/<id>, stored in R2 under
+ * <sheet>/<id>. Optional: without an R2 binding named FILES this returns 501
+ * and the app keeps attachments in each browser only.
+ * TODO(auth): same as /sync, check access to <sheet> here.
+ */
+async function files(request: Request, env: Env, url: URL): Promise<Response> {
+  if (!env.FILES) return new Response('File storage is not configured', { status: 501 });
+  const m = /^\/files\/([^/]+)\/([A-Za-z0-9_-]{1,64})$/.exec(url.pathname);
+  if (!m) return new Response('Not found', { status: 404 });
+  const key = `${decodeURIComponent(m[1]!)}/${m[2]}`;
+  if (request.method === 'PUT') {
+    const len = Number(request.headers.get('content-length') ?? 0);
+    if (len > MAX_FILE_BYTES) return new Response('Too large', { status: 413 });
+    await env.FILES.put(key, request.body, {
+      httpMetadata: { contentType: request.headers.get('content-type') ?? 'application/octet-stream' },
+    });
+    return new Response(null, { status: 204 });
+  }
+  if (request.method === 'GET') {
+    const obj = await env.FILES.get(key);
+    if (!obj) return new Response('Not found', { status: 404 });
+    const headers = new Headers({ 'cache-control': 'private, max-age=31536000, immutable' });
+    obj.writeHttpMetadata(headers);
+    return new Response(obj.body, { headers });
+  }
+  return new Response('Method not allowed', { status: 405 });
+}
+
+interface Env {
+  /** Optional R2 bucket for attachment bytes. */
+  FILES?: R2Bucket;
   SHEETS: DurableObjectNamespace<SheetDurableObject>;
   ASSETS: Fetcher;
 }

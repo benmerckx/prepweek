@@ -1,20 +1,15 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { parseCsv } from './csv.ts';
-import { buildPlan, detectDateOrder, FIELD_LABELS, FIELDS, guessMapping, type DateOrder, type Field, type Mapping } from './teamweek.ts';
-import { applyImport, getUser, store } from '../data/store.ts';
+import { buildPlan, detectDateOrder, FIELD_LABELS, guessMapping, type DateOrder, type Field, type Mapping } from './teamweek.ts';
+import { applyImport, getUser, store, type ImportMode } from '../data/store.ts';
 import { formatDay, formatRange } from '../lib/dates.ts';
 import { useBackToClose } from '../lib/useBackToClose.ts';
-import { Calendar, Close, Upload } from '../ui/icons.tsx';
-import { today as getToday } from '../lib/dates.ts';
-import { connectToggl, disconnectToggl, fetchTogglRows, fetchWorkspaces, togglStatus, TOGGL_HEADER, type Workspace } from './toggl.ts';
+import { Close, Upload } from '../ui/icons.tsx';
 
 interface Props {
   /** A file dropped on the app opens the dialog with it preloaded. */
   initialFile?: File | null;
-  /** Back from the Toggl Plan OAuth round trip. */
-  startWith?: 'toggl' | null;
-  oauthError?: string;
   onClose(): void;
   onImported(range: [number, number] | null): void;
 }
@@ -23,12 +18,13 @@ interface Loaded {
   name: string;
   header: string[];
   rows: string[][];
-  source: 'csv' | 'toggl';
 }
 
 const SHOWN_FIELDS: Field[] = ['title', 'assignee', 'email', 'start', 'end', 'project', 'status', 'notes', 'tags', 'color', 'estimate'];
 
-export function ImportDialog({ initialFile, startWith, oauthError, onClose, onImported }: Props) {
+const plural = (n: number, one: string, many = `${one}s`) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
+
+export function ImportDialog({ initialFile, onClose, onImported }: Props) {
   useBackToClose(true, onClose);
   const [file, setFile] = useState<Loaded | null>(null);
   const [error, setError] = useState('');
@@ -37,6 +33,7 @@ export function ImportDialog({ initialFile, startWith, oauthError, onClose, onIm
   const [ambiguous, setAmbiguous] = useState(false);
   const [includeDone, setIncludeDone] = useState(false);
   const [unassigned, setUnassigned] = useState<'skip' | 'row'>('skip');
+  const [mode, setMode] = useState<ImportMode>('add');
   const [dragOver, setDragOver] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const started = useRef(false);
@@ -53,7 +50,7 @@ export function ImportDialog({ initialFile, startWith, oauthError, onClose, onIm
       }
       const dates = data.slice(0, 500).flatMap((r) => [r[m.start ?? -1] ?? '', r[m.end ?? -1] ?? '']);
       const d = detectDateOrder(dates);
-      setFile({ name: f.name, header: header!, rows: data, source: 'csv' });
+      setFile({ name: f.name, header: header!, rows: data });
       setMapping(m);
       setDateOrder(d.order);
       setAmbiguous(d.ambiguous);
@@ -67,19 +64,24 @@ export function ImportDialog({ initialFile, startWith, oauthError, onClose, onIm
     void load(initialFile);
   }
 
-  const existing = useMemo(
-    () => store.getRowIds('users').map((id) => ({ id, name: getUser(id)!.name, email: getUser(id)!.email })),
+  const current = useMemo(
+    () => ({
+      people: store.getRowIds('users').map((id) => ({ id, name: getUser(id)!.name, email: getUser(id)!.email })),
+      tasks: store.getRowCount('tasks'),
+    }),
     [],
   );
+  // Replacing starts from an empty sheet, so nobody "matches".
   const plan = useMemo(
-    () => (file ? buildPlan(file.rows, { mapping, dateOrder, includeDone, unassigned }, existing) : null),
-    [file, mapping, dateOrder, includeDone, unassigned, existing],
+    () => (file ? buildPlan(file.rows, { mapping, dateOrder, includeDone, unassigned }, mode === 'add' ? current.people : []) : null),
+    [file, mapping, dateOrder, includeDone, unassigned, mode, current],
   );
 
   const newPeople = plan?.people.filter((p) => !p.existingId) ?? [];
   const matched = plan?.people.filter((p) => p.existingId) ?? [];
   const sample = plan?.tasks.slice(0, 6) ?? [];
   const nameOf = (key: string) => plan?.people.find((p) => p.key === key)?.name ?? '';
+  const sheetEmpty = current.people.length === 0 && current.tasks === 0;
 
   return createPortal(
     <div className="modal-backdrop" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
@@ -92,19 +94,8 @@ export function ImportDialog({ initialFile, startWith, oauthError, onClose, onIm
         </header>
 
         {!file ? (
-          <div className="sources">
-            <TogglSource
-              autoStart={startWith === 'toggl'}
-              oauthError={oauthError}
-              onLoaded={(name, rows) => {
-                setFile({ name, header: TOGGL_HEADER, rows, source: 'toggl' });
-                setMapping(guessMapping(TOGGL_HEADER));
-                setDateOrder('dmy');
-                setAmbiguous(false);
-              }}
-            />
-            <div className="source-or">or</div>
-          <div
+          <div className="sources single">
+            <div
               className={'dropzone' + (dragOver ? ' over' : '')}
               onDragOver={(e) => {
                 e.preventDefault();
@@ -118,11 +109,11 @@ export function ImportDialog({ initialFile, startWith, oauthError, onClose, onIm
                 if (f) void load(f);
               }}
             >
-              <span className="source-logo csv" aria-hidden>
-              <Upload />
-            </span>
-            <p className="dz-title">Drop a CSV export here</p>
-              <button className="btn primary" onClick={() => input.current?.click()}>
+              <span className="source-logo" aria-hidden>
+                <Upload />
+              </span>
+              <p className="dz-title">Drop your CSV export here</p>
+              <button className="btn primary big" onClick={() => input.current?.click()}>
                 Choose CSV file
               </button>
               <input
@@ -136,30 +127,52 @@ export function ImportDialog({ initialFile, startWith, oauthError, onClose, onIm
                 }}
               />
               {error && <p className="import-error">{error}</p>}
-              <ol className="dz-help">
-                <li>
-                  In Toggl Plan (formerly Teamweek), open the <b>Team</b> or <b>Plan</b> view.
-                </li>
-                <li>
-                  Use the <b>⋯</b> menu (top right) → <b>Export tasks</b>, pick the workspace, a team or a project, and the dates.
-                </li>
-                <li>Drop the downloaded .csv here. Exporting needs an Owner or Admin account.</li>
-              </ol>
-              <p className="dz-note">
-                Re-importing the same export updates those tasks instead of duplicating them. Everything is one undo step.
-              </p>
             </div>
+            <ol className="dz-help">
+              <li>
+                In Toggl Plan (formerly Teamweek), open the <b>Team</b> or <b>Plan</b> view.
+              </li>
+              <li>
+                Open the <b>⋯</b> menu at the top right, choose <b>Export tasks</b>, then pick the workspace (or a team or project) and the dates.
+              </li>
+              <li>Drop the downloaded .csv here. Exporting needs an Owner or Admin account.</li>
+            </ol>
           </div>
         ) : (
           <div className="import-body">
             <div className="import-file">
-              <b>{file.name}</b> · {file.rows.length.toLocaleString()} {file.source === 'toggl' ? 'tasks' : 'rows'}
+              <b>{file.name}</b> · {plural(file.rows.length, 'row')}
               <button className="linkbtn" onClick={() => setFile(null)}>
                 Choose another
               </button>
             </div>
 
-            <details className="columns" open={file.source === 'csv'}>
+            {!sheetEmpty && (
+              <section>
+                <h3>What should happen to this sheet?</h3>
+                <div className="choice" role="radiogroup" aria-label="Import mode">
+                  <button role="radio" aria-checked={mode === 'add'} className={'choice-card' + (mode === 'add' ? ' on' : '')} onClick={() => setMode('add')}>
+                    <span className="choice-title">Add to sheet</span>
+                    <span className="choice-sub">
+                      Keep everything. People are matched by email or name. Tasks from an earlier import of this export are updated, not duplicated.
+                    </span>
+                  </button>
+                  <button
+                    role="radio"
+                    aria-checked={mode === 'replace'}
+                    className={'choice-card danger' + (mode === 'replace' ? ' on' : '')}
+                    onClick={() => setMode('replace')}
+                  >
+                    <span className="choice-title">Replace sheet</span>
+                    <span className="choice-sub">
+                      Remove the current {plural(current.people.length, 'person', 'people')} and {plural(current.tasks, 'task')} first. Milestones stay.
+                    </span>
+                  </button>
+                </div>
+              </section>
+            )}
+
+            <details className="columns" open={ambiguous || mapping.title === undefined || mapping.assignee === undefined}>
               <summary>
                 <h3>Columns</h3>
               </summary>
@@ -187,7 +200,6 @@ export function ImportDialog({ initialFile, startWith, oauthError, onClose, onIm
             </details>
 
             <section className="import-options">
-              {file.source === 'csv' && (
               <label className={ambiguous ? 'warn' : ''}>
                 <span>Dates are</span>
                 <select value={dateOrder} onChange={(e) => setDateOrder(e.currentTarget.value as DateOrder)}>
@@ -196,7 +208,6 @@ export function ImportDialog({ initialFile, startWith, oauthError, onClose, onIm
                 </select>
                 {ambiguous && <em>Can’t tell from the file, please check</em>}
               </label>
-              )}
               <label>
                 <input type="checkbox" checked={includeDone} onChange={(e) => setIncludeDone(e.currentTarget.checked)} />
                 Include completed tasks
@@ -213,7 +224,7 @@ export function ImportDialog({ initialFile, startWith, oauthError, onClose, onIm
             {plan && (
               <section className="import-summary">
                 <h3>
-                  {plan.tasks.length.toLocaleString()} tasks for {plan.people.length} {plan.people.length === 1 ? 'person' : 'people'}
+                  {plural(plan.tasks.length, 'task')} for {plural(plan.people.length, 'person', 'people')}
                   {plan.range && <span className="dim"> · {formatRange(plan.range[0], plan.range[1])}</span>}
                 </h3>
                 {(plan.skipped.noDate > 0 || plan.skipped.unassigned > 0 || plan.skipped.done > 0) && (
@@ -261,19 +272,21 @@ export function ImportDialog({ initialFile, startWith, oauthError, onClose, onIm
             )}
 
             <footer className="modal-foot">
+              {mode === 'replace' && <span className="foot-note">You can undo this.</span>}
               <button className="btn" onClick={onClose}>
                 Cancel
               </button>
               <button
-                className="btn primary"
+                className={'btn ' + (mode === 'replace' ? 'destructive' : 'primary')}
                 disabled={!plan || plan.tasks.length === 0}
                 onClick={() => {
                   if (!plan) return;
-                  applyImport(plan);
+                  applyImport(plan, mode);
                   onImported(plan.range);
                 }}
               >
-                Import {plan?.tasks.length.toLocaleString() ?? ''} tasks
+                {mode === 'replace' ? 'Replace with ' : 'Import '}
+                {plural(plan?.tasks.length ?? 0, 'task')}
               </button>
             </footer>
           </div>
@@ -281,135 +294,5 @@ export function ImportDialog({ initialFile, startWith, oauthError, onClose, onIm
       </div>
     </div>,
     document.body,
-  );
-}
-
-const isoDay = (d: number) => new Date(d * 86_400_000).toISOString().slice(0, 10);
-const fromIso = (s: string) => Math.floor(Date.parse(`${s}T00:00:00Z`) / 86_400_000);
-
-type TogglState =
-  | { kind: 'checking' }
-  | { kind: 'unconfigured' }
-  | { kind: 'disconnected'; error?: string }
-  | { kind: 'connected'; workspaces: Workspace[] }
-  | { kind: 'loading'; workspaces: Workspace[] };
-
-function TogglSource({ autoStart, oauthError, onLoaded }: { autoStart: boolean; oauthError?: string; onLoaded(name: string, rows: string[][]): void }) {
-  const [st, setSt] = useState<TogglState>({ kind: 'checking' });
-  const [ws, setWs] = useState<number | null>(null);
-  const t = useMemo(getToday, []);
-  const [from, setFrom] = useState(isoDay(t - 90));
-  const [to, setTo] = useState(isoDay(t + 365));
-  const [error, setError] = useState(oauthError ? 'Toggl Plan didn’t finish connecting. Please try again.' : '');
-
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      const s = await togglStatus();
-      if (!alive) return;
-      if (!s.configured) return setSt({ kind: 'unconfigured' });
-      if (!s.connected) return setSt({ kind: 'disconnected' });
-      try {
-        const workspaces = await fetchWorkspaces();
-        if (!alive) return;
-        setSt({ kind: 'connected', workspaces });
-        setWs(workspaces[0]?.id ?? null);
-      } catch {
-        if (alive) setSt({ kind: 'disconnected', error: 'Your Toggl Plan connection expired.' });
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  const load = async (workspaces: Workspace[]) => {
-    if (ws == null) return;
-    setError('');
-    setSt({ kind: 'loading', workspaces });
-    try {
-      const rows = await fetchTogglRows(ws, fromIso(from), fromIso(to));
-      const name = workspaces.find((w) => w.id === ws)?.name ?? 'Toggl Plan';
-      if (!rows.length) {
-        setError('No tasks in that range.');
-        setSt({ kind: 'connected', workspaces });
-        return;
-      }
-      onLoaded(`Toggl Plan · ${name}`, rows);
-    } catch (e) {
-      const status = (e as { status?: number }).status;
-      if (status === 401) setSt({ kind: 'disconnected', error: 'Your Toggl Plan connection expired.' });
-      else {
-        setError(`Couldn’t load tasks from Toggl Plan${status ? ` (${status})` : ''}.`);
-        setSt({ kind: 'connected', workspaces });
-      }
-    }
-  };
-
-  return (
-    <div className="source toggl">
-      <div className="source-head">
-        <span className="source-logo" aria-hidden>
-          <Calendar />
-        </span>
-        <div>
-          <div className="source-title">Toggl Plan</div>
-          <div className="source-sub">formerly Teamweek</div>
-        </div>
-      </div>
-      {st.kind === 'checking' && <p className="dim">Checking connection…</p>}
-      {st.kind === 'unconfigured' && (
-        <p className="dim">
-          Not set up on this server yet: it needs a Toggl Plan app (client id and secret). Upload a CSV export instead, or see the README.
-        </p>
-      )}
-      {st.kind === 'disconnected' && (
-        <>
-          <p className="dim">{st.error ?? 'Sign in with Toggl Plan and pick a workspace. People, projects and tasks come over in one go.'}</p>
-          <button className="btn primary big" onClick={connectToggl} autoFocus={autoStart}>
-            Connect Toggl Plan
-          </button>
-        </>
-      )}
-      {(st.kind === 'connected' || st.kind === 'loading') && (
-        <>
-          <div className="toggl-form">
-            <label>
-              <span>Workspace</span>
-              <select value={ws ?? ''} onChange={(e) => setWs(Number(e.currentTarget.value))}>
-                {st.workspaces.map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {w.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              <span>From</span>
-              <input type="date" value={from} onChange={(e) => setFrom(e.currentTarget.value)} />
-            </label>
-            <label>
-              <span>To</span>
-              <input type="date" value={to} onChange={(e) => setTo(e.currentTarget.value)} />
-            </label>
-          </div>
-          <div className="toggl-actions">
-            <button className="btn primary big" disabled={st.kind === 'loading' || ws == null} onClick={() => load(st.workspaces)}>
-              {st.kind === 'loading' ? 'Loading tasks…' : 'Load tasks'}
-            </button>
-            <button
-              className="linkbtn"
-              onClick={async () => {
-                await disconnectToggl();
-                setSt({ kind: 'disconnected' });
-              }}
-            >
-              Disconnect
-            </button>
-          </div>
-        </>
-      )}
-      {error && <p className="import-error">{error}</p>}
-    </div>
   );
 }

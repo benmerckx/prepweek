@@ -161,6 +161,22 @@ export function Minimap({ model, vp, today }: Props) {
       }
       o.globalAlpha = 1;
 
+      // Milestones: a marker in the label row and a thin line down.
+      for (const m of model.milestones) {
+        if (m.day < s0 || m.day > s1) continue;
+        const x = Math.round((m.day + 0.5 - s0) * g.scale);
+        o.fillStyle = m.color;
+        o.globalAlpha = 0.55;
+        o.fillRect(x, LABEL_H, 1, H - LABEL_H);
+        o.globalAlpha = 1;
+        o.beginPath();
+        o.moveTo(x - 4, LABEL_H - 9);
+        o.lineTo(x + 4, LABEL_H - 9);
+        o.lineTo(x, LABEL_H - 2);
+        o.closePath();
+        o.fill();
+      }
+
       // Today.
       o.fillStyle = c.today!;
       o.fillRect(Math.round((today - s0) * g.scale), 0, 2, H);

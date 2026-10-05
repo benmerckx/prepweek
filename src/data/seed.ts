@@ -32,6 +32,15 @@ export const seed = (people = 24, density = 1, seedValue = 7) => {
 
   store.transaction(() => {
     store.delTables();
+    const t0 = today();
+    const ms: [number, string, string][] = [
+      [t0 - 26, 'Kickoff', '#64748b'],
+      [t0 + 9, 'Design freeze', '#8b5cf6'],
+      [t0 + 31, 'v2 launch', '#ef4444'],
+      [t0 + 52, 'Offsite', '#22a06b'],
+      [t0 + 80, 'Year-end freeze', '#4f5bd5'],
+    ];
+    for (const [day, title, color] of ms) store.setRow('milestones', newId(), { day, title, color });
     for (let u = 0; u < people; u++) {
       const userId = newId();
       store.setRow('users', userId, {

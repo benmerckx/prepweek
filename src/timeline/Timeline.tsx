@@ -10,8 +10,10 @@ import { Editor } from './Editor.tsx';
 import { Toolbar } from './Toolbar.tsx';
 import { labelPinner } from './pin.ts';
 import { ImportDialog } from '../import/ImportDialog.tsx';
+import { MilestoneBand, MilestoneEditor, MilestoneLines, type MsDrag } from './Milestones.tsx';
+import { Flag, Plus } from '../ui/icons.tsx';
 import { useBackToClose } from '../lib/useBackToClose.ts';
-import { createTask, createUser, deleteTask, getTask, redo, store, undo, updateTask } from '../data/store.ts';
+import { createMilestone, createTask, createUser, deleteTask, getTask, MILESTONE_COLORS, redo, store, undo, updateTask } from '../data/store.ts';
 import { dayFromYMD, formatRange, startOfWeek, startOfYear, today as getToday, ymd } from '../lib/dates.ts';
 
 interface Win {
@@ -22,7 +24,7 @@ interface Win {
 }
 
 const ZOOM_KEY = 'prepweek:zoom';
-const EDITOR_H = 230;
+const EDITOR_H = 300;
 
 const isCompact = () => matchMedia(COMPACT_QUERY).matches;
 
@@ -81,6 +83,16 @@ export function Timeline({ model }: { model: TimelineModel }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [drag, setDrag] = useState<{ kind: DragKind; id: string } | null>(null);
+  const [msDrag, setMsDrag] = useState<MsDrag | null>(null);
+  const [msEdit, setMsEdit] = useState<{ id: string; anchor: DOMRect; fresh?: boolean } | null>(null);
+  const editMilestone = useCallback((id: string, anchor: DOMRect, fresh?: boolean) => setMsEdit({ id, anchor, fresh }), []);
+  /** "+" in the corner: a milestone in the middle of the view. */
+  const addMilestoneHere = () => {
+    const day = Math.floor(vp.firstVisibleDay + vp.visibleDays / 2);
+    const id = createMilestone({ day, title: '', color: MILESTONE_COLORS[0] });
+    const lane = document.querySelector('.hd-ms')!.getBoundingClientRect();
+    setMsEdit({ id, anchor: new DOMRect(lane.left + (day - vp.origin) * vp.colW, lane.top, vp.colW, lane.height), fresh: true });
+  };
   const selectedRef = useRef(selected);
   selectedRef.current = selected;
   const [query, setQuery] = useState('');
@@ -402,13 +414,7 @@ export function Timeline({ model }: { model: TimelineModel }) {
   const closeEditor = useCallback(() => setEditing(null), []);
 
   // --- Import ---
-  const [importing, setImporting] = useState<{ file: File | null; startWith?: 'toggl'; error?: string } | null>(() => {
-    // Coming back from "Connect Toggl Plan": #import=toggl[&error=…]
-    const h = new URLSearchParams(location.hash.slice(1));
-    if (h.get('import') !== 'toggl') return null;
-    history.replaceState(history.state, '', location.pathname + location.search);
-    return { file: null, startWith: 'toggl', error: h.get('error') ?? undefined };
-  });
+  const [importing, setImporting] = useState<{ file: File | null } | null>(null);
   const importingRef = useRef(importing);
   importingRef.current = importing;
   // Dropping a CSV anywhere on the app opens the importer with it.
@@ -526,6 +532,7 @@ export function Timeline({ model }: { model: TimelineModel }) {
           }}
         >
           <div className={'corner' + (focus ? ' focusing' : '')}>
+            <div className="corner-top">
             {focus ? (
               <button className="focus-chip" onClick={clearFocus} title="Show everyone (Esc)">
                 <span className="corner-label">Focus</span>
@@ -540,9 +547,28 @@ export function Timeline({ model }: { model: TimelineModel }) {
                 <span className="corner-count">{rows.length}</span>
               </>
             )}
+            </div>
+            <div className="corner-ms">
+              <Flag size={13} />
+              <span className="corner-ms-label">Milestones</span>
+              <button className="corner-ms-add" onClick={addMilestoneHere} aria-label="Add milestone" title="Add milestone (or click the lane)">
+                <Plus />
+              </button>
+            </div>
           </div>
           <div className="header">
             <Header d0={win.d0} d1={win.d1} origin={range.origin} colW={colW} today={todayDay} />
+            <MilestoneBand
+              milestones={model.milestones}
+              d0={win.d0}
+              d1={win.d1}
+              origin={range.origin}
+              colW={colW}
+              vp={vp}
+              drag={msDrag}
+              onDrag={setMsDrag}
+              onEdit={editMilestone}
+            />
           </div>
           <div className="sidebar">
             <Sidebar
@@ -566,6 +592,7 @@ export function Timeline({ model }: { model: TimelineModel }) {
           </div>
           <div className="body" onPointerDown={(e) => dragCtl.pointerDown(e.nativeEvent)} onDoubleClick={onDoubleClick}>
             <GridBackground d0={win.d0} d1={win.d1} origin={range.origin} colW={colW} height={bodyH} today={todayDay} />
+            <MilestoneLines milestones={model.milestones} d0={win.d0} d1={win.d1} origin={range.origin} colW={colW} height={bodyH} drag={msDrag} />
             {rendered}
             {rows.length === 0 && (
               <div className="empty" style={{ transform: `translateX(${(vp.scroller?.scrollLeft ?? 0) + 32}px)` }}>
@@ -583,11 +610,10 @@ export function Timeline({ model }: { model: TimelineModel }) {
         </div>
         <Minimap model={model} vp={vp} today={todayDay} />
       </div>
+      {msEdit && <MilestoneEditor key={msEdit.id} id={msEdit.id} anchor={msEdit.anchor} fresh={msEdit.fresh} sheet={compact} onClose={() => setMsEdit(null)} />}
       {importing && (
         <ImportDialog
           initialFile={importing.file}
-          startWith={importing.startWith}
-          oauthError={importing.error}
           onClose={() => setImporting(null)}
           onImported={(range) => {
             setImporting(null);
