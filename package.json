@@ -1,0 +1,26 @@
+{
+  "name": "prepweek",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --hot server.ts",
+    "build": "bun build ./src/index.html --outdir dist --production --sourcemap=linked",
+    "start": "NODE_ENV=production bun server.ts",
+    "typecheck": "tsc --noEmit -p .",
+    "test": "bun test",
+    "worker:dev": "wrangler dev --config worker/wrangler.toml",
+    "worker:deploy": "wrangler deploy --config worker/wrangler.toml"
+  },
+  "dependencies": {
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "reconnecting-websocket": "^4.4.0",
+    "tinybase": "^10.0.1"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "typescript": "^7.0.2"
+  }
+}
