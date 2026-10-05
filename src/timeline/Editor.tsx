@@ -5,6 +5,7 @@ import { RULES, RULE_LABELS } from '../lib/recur.ts';
 import { dayFromYMD, formatDay, formatRange, workdays, ymd } from '../lib/dates.ts';
 import type { TaskView, TimelineModel } from './model.ts';
 import { ProjectField, TagField } from './Projects.tsx';
+import { Discussion } from './Discussion.tsx';
 import { Calendar, Check, Repeat, Trash } from '../ui/icons.tsx';
 
 interface Props {
@@ -45,6 +46,22 @@ export function Editor({ task, model, x, y, sheet, onClose }: Props) {
       window.removeEventListener('pointerdown', away, true);
     };
   }, [task.id, onClose]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Bottom sheet: keep the block being edited visible above the sheet.
+  useEffect(() => {
+    if (!sheet) return;
+    const t = setTimeout(() => {
+      const block = document.querySelector(`[data-task="${CSS.escape(task.id)}"]`);
+      const scroller = document.querySelector<HTMLElement>('.scroller');
+      if (!block || !scroller || !ref.current) return;
+      const b = block.getBoundingClientRect();
+      const top = ref.current.getBoundingClientRect().top;
+      const header = scroller.getBoundingClientRect().top + 80;
+      if (b.bottom > top - 12) scroller.scrollBy({ top: b.bottom - top + 24, behavior: 'smooth' });
+      else if (b.top < header) scroller.scrollBy({ top: b.top - header - 12, behavior: 'smooth' });
+    }, 220); // after the sheet's slide-in
+    return () => clearTimeout(t);
+  }, [sheet, task.id]);
 
   // Keyboard handling for the bottom sheet. Android (with the viewport's
   // interactive-widget=resizes-content) shrinks the layout instead of
@@ -166,6 +183,7 @@ export function Editor({ task, model, x, y, sheet, onClose }: Props) {
       />
       <Attachments taskId={task.series} onError={setError} />
       {error && <p className="editor-error">{error}</p>}
+      <Discussion taskId={task.series} collapsed={sheet && !task.comments} />
       <div className="editor-actions">
         <button
           className="btn danger"

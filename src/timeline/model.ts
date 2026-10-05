@@ -41,6 +41,8 @@ export interface TaskView {
   lane: number;
   /** Number of attachments (files + links). */
   files: number;
+  /** Number of comments. */
+  comments: number;
   projectId: string;
   /** Project name ('' when none), shown on the block. */
   project: string;
@@ -185,6 +187,7 @@ export class TimelineModel {
   constructor(private store: MergeableStore) {
     // Attachments first, so tasks are created with their badge counts.
     for (const id of store.getRowIds('attachments')) this.ingestAttachment(id);
+    for (const id of store.getRowIds('comments')) this.ingestComment(id);
     this.readMilestones();
     this.readProjects();
     for (const id of store.getRowIds('tasks')) this.ingestTask(id);
@@ -195,6 +198,7 @@ export class TimelineModel {
       const touched = new Set(tasks ? Object.keys(tasks) : []);
       // Attachment changes re-ingest their task so the block's badge updates.
       if (tables.attachments) for (const id of Object.keys(tables.attachments)) for (const t of this.ingestAttachment(id)) touched.add(t);
+      if (tables.comments) for (const id of Object.keys(tables.comments)) for (const t of this.ingestComment(id)) touched.add(t);
       // A renamed project relabels its blocks.
       if (tables.projects) {
         this.readProjects();
@@ -346,6 +350,25 @@ export class TimelineModel {
       .sort((a, b) => a.day - b.day || a.title.localeCompare(b.title));
   }
 
+  private commentTask = new Map<string, string>();
+  private commentCount = new Map<string, number>();
+  private ingestComment(id: string): string[] {
+    const affected: string[] = [];
+    const prev = this.commentTask.get(id);
+    if (prev) {
+      this.commentCount.set(prev, (this.commentCount.get(prev) ?? 1) - 1);
+      this.commentTask.delete(id);
+      affected.push(prev);
+    }
+    if (this.store.hasRow('comments', id)) {
+      const t = this.store.getCell('comments', id, 'taskId') as string;
+      this.commentTask.set(id, t);
+      this.commentCount.set(t, (this.commentCount.get(t) ?? 0) + 1);
+      affected.push(t);
+    }
+    return affected.filter((t) => this.store.hasRow('tasks', t));
+  }
+
   /** Track which task an attachment belongs to; returns affected task ids. */
   private ingestAttachment(id: string): string[] {
     const affected: string[] = [];
@@ -402,6 +425,7 @@ export class TimelineModel {
       notes: r.notes,
       lane: -1,
       files: this.fileCount.get(id) ?? 0,
+      comments: this.commentCount.get(id) ?? 0,
       projectId: r.projectId ?? '',
       project: (r.projectId && this.projectById.get(r.projectId)?.name) || '',
       tags: parseTags(r.tags),
@@ -460,6 +484,7 @@ export class TimelineModel {
         notes: base?.notes ?? '',
         lane: -1,
         files: base?.files ?? 0,
+        comments: base?.comments ?? 0,
         projectId: base?.projectId ?? '',
         project: base?.project ?? '',
         tags: base?.tags ?? [],

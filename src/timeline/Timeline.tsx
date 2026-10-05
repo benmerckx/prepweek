@@ -9,6 +9,8 @@ import { GridBackground, RowView, matches, type TaskFilter } from './Rows.tsx';
 import { Sidebar } from './Sidebar.tsx';
 import { NO_FILTER, type FilterState } from './Filters.tsx';
 import { ProjectsDialog } from './Projects.tsx';
+import { ActivityPanel } from './Discussion.tsx';
+import { watchDesktopNotifications } from '../data/notify.ts';
 import { Minimap } from './Minimap.tsx';
 import { Editor } from './Editor.tsx';
 import { Toolbar } from './Toolbar.tsx';
@@ -17,7 +19,7 @@ import { ImportDialog } from '../import/ImportDialog.tsx';
 import { MilestoneBand, MilestoneEditor, MilestoneLines, type MsDrag } from './Milestones.tsx';
 import { Flag, Plus } from '../ui/icons.tsx';
 import { useBackToClose } from '../lib/useBackToClose.ts';
-import { createMilestone, createTask, createUser, deleteTask, getTask, MILESTONE_COLORS, redo, store, undo, updateTask, type ViewConfig } from '../data/store.ts';
+import { createMilestone, createTask, createUser, deleteTask, getTask, getUser, MILESTONE_COLORS, redo, store, undo, updateTask, type ViewConfig } from '../data/store.ts';
 import { dayFromYMD, formatRange, startOfWeek, startOfYear, today as getToday, ymd } from '../lib/dates.ts';
 
 interface Win {
@@ -327,6 +329,33 @@ export function Timeline({ model }: { model: TimelineModel }) {
     model.setDims(next ? COMPACT : COMFORTABLE);
     setDense(next);
   }, [model]);
+  // --- Jump to a task (from notifications, activity, the palette) ---
+  const [activityOpen, setActivityOpen] = useState(false);
+  const openActivity = useCallback(() => setActivityOpen(true), []);
+  const revealTask = useCallback(
+    (id: string) => {
+      const t = getTask(id);
+      if (!t) return;
+      // Make sure its person is on screen.
+      const f = model.getFocus();
+      if (f && !f.has(t.userId)) model.setFocus(null);
+      const team = getUser(t.userId)?.team ?? '';
+      if (model.isCollapsed(team)) toggleTeam(team);
+      setSelected(id);
+      setEditing(null);
+      vp.scrollToDay(t.start, 0.3, true);
+      requestAnimationFrame(() => {
+        const ri = model.indexOfUser(t.userId);
+        const top = model.rowTops[ri] ?? 0;
+        vp.scroller?.scrollTo({ top: Math.max(0, top - 60), behavior: 'smooth' });
+        // Open the editor once the scroll has settled.
+        setTimeout(() => setEditing(id), 450);
+      });
+    },
+    [model, vp, toggleTeam],
+  );
+  useEffect(() => watchDesktopNotifications(revealTask), [revealTask]);
+
   // --- Saved views ---
   const viewConfig: ViewConfig = useMemo(
     () => ({
@@ -581,7 +610,8 @@ export function Timeline({ model }: { model: TimelineModel }) {
 
   // --- Render ---
   const bodyW = scale.x(range.origin + range.days);
-  const bodyH = Math.max(model.totalHeight + 64, vp.viewHeight);
+  // With the phone sheet open, leave room to scroll the edited block above it.
+  const bodyH = Math.max(model.totalHeight + 64 + (compact && editing ? vp.viewHeight * 0.7 : 0), vp.viewHeight);
   const rows = model.rows;
   // Only the rows holding the selected / dragged block get those ids, so a
   // selection change re-renders two rows instead of all of them.
@@ -661,6 +691,8 @@ export function Timeline({ model }: { model: TimelineModel }) {
         onManageProjects={manageProjects}
         view={viewConfig}
         onApplyView={applyView}
+        onOpenTask={revealTask}
+        onOpenActivity={openActivity}
       />
       <div className="scroller" ref={scrollerRef}>
         <div
@@ -754,6 +786,15 @@ export function Timeline({ model }: { model: TimelineModel }) {
         <Minimap model={model} vp={vp} today={todayDay} />
       </div>
       {msEdit && <MilestoneEditor key={msEdit.id} id={msEdit.id} anchor={msEdit.anchor} fresh={msEdit.fresh} sheet={compact} onClose={() => setMsEdit(null)} />}
+      {activityOpen && (
+        <ActivityPanel
+          onClose={() => setActivityOpen(false)}
+          onOpenTask={(id) => {
+            setActivityOpen(false);
+            revealTask(id);
+          }}
+        />
+      )}
       {managingProjects && <ProjectsDialog model={model} onClose={() => setManagingProjects(false)} />}
       {importing && (
         <ImportDialog

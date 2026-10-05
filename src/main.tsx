@@ -3,6 +3,7 @@ import { loadFonts } from './fonts.ts';
 import { store } from './data/store.ts';
 import { startSync } from './data/sync.ts';
 import { seed } from './data/seed.ts';
+import { loadMe } from './data/identity.ts';
 import { TimelineModel } from './timeline/model.ts';
 import { Timeline } from './timeline/Timeline.tsx';
 
@@ -19,5 +20,6 @@ try {
   console.error('Local storage unavailable, changes will not be kept', e);
   if (store.getRowCount('users') === 0) seed();
 }
+loadMe();
 const model = new TimelineModel(store);
 createRoot(document.getElementById('root')!).render(<Timeline model={model} />);

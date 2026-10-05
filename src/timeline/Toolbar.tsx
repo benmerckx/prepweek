@@ -6,8 +6,9 @@ import { seed } from '../data/seed.ts';
 import { ZOOM_MAX, ZOOM_MIN } from './viewport.ts';
 import type { TimelineModel } from './model.ts';
 import { FilterMenu, ViewsMenu, type FilterState } from './Filters.tsx';
+import { NotificationsMenu } from './Discussion.tsx';
 import type { ViewConfig } from '../data/store.ts';
-import { Check, ChevronLeft, ChevronRight, Close, Folder, Logo, Minus, More, People, Plus, Redo, Search as SearchIc, Undo, Upload } from '../ui/icons.tsx';
+import { Check, ChevronLeft, ChevronRight, Close, Folder, History, Logo, Minus, More, People, Plus, Redo, Search as SearchIc, Undo, Upload } from '../ui/icons.tsx';
 
 interface Props {
   colW: number;
@@ -31,6 +32,8 @@ interface Props {
   onManageProjects(): void;
   view: ViewConfig;
   onApplyView(c: ViewConfig): void;
+  onOpenTask(id: string): void;
+  onOpenActivity(): void;
 }
 
 
@@ -112,6 +115,7 @@ export const Toolbar = memo(function Toolbar(props: Props) {
       <Search {...props} open={searchOpen} setOpen={setSearchOpen} />
       <PeopleMenu {...props} />
       <FilterMenu model={model} filter={props.filter} onFilter={props.onFilter} onManageProjects={props.onManageProjects} />
+      <NotificationsMenu onOpenTask={props.onOpenTask} />
       <div className={`sync sync-${sync}`} title={SYNC_HELP[sync]}>
         <span className="dot" />
         <span className="sync-label">{sync === 'local' ? 'Local' : sync}</span>
@@ -135,6 +139,10 @@ export const Toolbar = memo(function Toolbar(props: Props) {
           <button className="menu-item" onClick={props.onImport}>
             <Upload />
             Import from Teamweek…
+          </button>
+          <button className="menu-item" onClick={props.onOpenActivity}>
+            <History />
+            Activity
           </button>
           <button className="menu-item" onClick={props.onManageProjects}>
             <Folder />

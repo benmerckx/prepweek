@@ -76,6 +76,25 @@ store.setTablesSchema({
     title: { type: 'string', default: '' },
     color: { type: 'string', default: '#8b5cf6' },
   },
+  // Who changed what, newest last. Written with each local command.
+  activity: {
+    at: { type: 'number', default: 0 },
+    by: { type: 'string', default: '' }, // display name
+    byId: { type: 'string', default: '' }, // person on this sheet, if linked
+    label: { type: 'string', default: '' }, // "Move task"
+    taskId: { type: 'string', default: '' },
+    title: { type: 'string', default: '' }, // task title at the time
+    owner: { type: 'string', default: '' }, // person the task belongs to
+  },
+  // Comments on a task (series id for recurring tasks).
+  comments: {
+    taskId: { type: 'string', default: '' },
+    at: { type: 'number', default: 0 },
+    by: { type: 'string', default: '' },
+    byId: { type: 'string', default: '' },
+    text: { type: 'string', default: '' },
+    mentions: { type: 'string', default: '' }, // comma-separated person ids
+  },
   // Files and links on a task. File bytes live outside the CRDT (see
   // data/files.ts); this row is the shared metadata.
   attachments: {
@@ -164,13 +183,89 @@ export const isOccurrence = (id: string) => splitOccurrence(id).n > 0;
 export const getUser = (id: string): UserRow | undefined =>
   store.hasRow('users', id) ? (store.getRow('users', id) as UserRow) : undefined;
 
+// --- Who is editing, and the activity log -------------------------------------
+
+/** The local editor: a display name, optionally linked to a person row. */
+let actor = { name: '', id: '' };
+export const setActor = (a: { name: string; id: string }) => (actor = a);
+export const getActor = () => actor;
+
+const ACTIVITY_MAX = 4000;
+const MERGE_MS = 2 * 60_000;
+let lastLog: { id: string; key: string; at: number } | null = null;
+
+/**
+ * Record a command in the activity table. Repeats of the same command on the
+ * same task by the same person within two minutes (nudging a block around)
+ * update one entry instead of adding many.
+ */
+function logActivity(label: string, before: Snap[], after: Snap[]) {
+  const i = after.findIndex((s) => s.table === 'tasks');
+  const j = i >= 0 ? i : after.findIndex((s) => s.table === 'comments');
+  let taskId = '';
+  let row: Row | null = null;
+  if (i >= 0 && after.filter((s) => s.table === 'tasks').length === 1) {
+    taskId = after[i]!.id;
+    row = after[i]!.row ?? before[i]!.row;
+  } else if (j >= 0) {
+    taskId = ((after[j]!.row ?? before[j]!.row)?.taskId as string) ?? '';
+    row = taskId && store.hasRow('tasks', taskId) ? store.getRow('tasks', taskId) : null;
+  }
+  const now = Date.now();
+  const key = `${label}|${taskId}|${actor.name}`;
+  if (lastLog && lastLog.key === key && now - lastLog.at < MERGE_MS && store.hasRow('activity', lastLog.id)) {
+    store.setCell('activity', lastLog.id, 'at', now);
+    lastLog.at = now;
+    return;
+  }
+  const id = newId();
+  store.setRow('activity', id, {
+    at: now,
+    by: actor.name,
+    byId: actor.id,
+    label,
+    taskId,
+    title: (row?.title as string) ?? '',
+    owner: (row?.userId as string) ?? '',
+  });
+  lastLog = { id, key, at: now };
+  // Keep the log bounded: drop the oldest entries now and then.
+  if (store.getRowCount('activity') > ACTIVITY_MAX) {
+    const ids = store.getSortedRowIds('activity', 'at');
+    for (const old of ids.slice(0, ids.length - ACTIVITY_MAX + 500)) store.delRow('activity', old);
+  }
+}
+
+// --- Comments ---
+
+export type CommentRow = { taskId: string; at: number; by: string; byId: string; text: string; mentions: string };
+
+/** People @mentioned in a comment, by matching "@Full Name" (longest first). */
+export const findMentions = (text: string): string[] => {
+  const lower = text.toLowerCase();
+  const out: string[] = [];
+  const users = store.getRowIds('users').map((id) => ({ id, name: (store.getCell('users', id, 'name') as string).toLowerCase() }));
+  users.sort((a, b) => b.name.length - a.name.length);
+  for (const u of users) if (u.name && lower.includes(`@${u.name}`)) out.push(u.id);
+  return out;
+};
+
+export const addComment = (taskId: string, text: string): string => {
+  const id = newId();
+  commit('Comment', [['comments', id]], () =>
+    store.setRow('comments', id, { taskId, at: Date.now(), by: actor.name, byId: actor.id, text, mentions: findMentions(text).join(',') }),
+  );
+  return id;
+};
+export const deleteComment = (id: string) => commit('Delete comment', [['comments', id]], () => store.delRow('comments', id));
+
 // --- Undo / redo -----------------------------------------------------------
 //
 // We deliberately don't use TinyBase Checkpoints here: those would also undo
 // changes that arrived from other collaborators. Instead each local command
 // records the cells it changed, and undo only restores those cells.
 
-type TableId = 'users' | 'tasks' | 'milestones' | 'attachments' | 'projects' | 'views';
+type TableId = 'users' | 'tasks' | 'milestones' | 'attachments' | 'projects' | 'views' | 'comments';
 type Snap = { table: TableId; id: string; row: Row | null };
 type Entry = { label: string; before: Snap[]; after: Snap[] };
 
@@ -215,9 +310,15 @@ const restore = (snaps: Snap[], other: Snap[]) => {
  */
 export const commit = (label: string, touches: [TableId, string][], mutate: () => void) => {
   const before = touches.map(([t, id]) => snap(t, id));
-  store.transaction(mutate);
-  const after = touches.map(([t, id]) => snap(t, id));
-  const changed = before.some((b, i) => JSON.stringify(b.row) !== JSON.stringify(after[i]!.row));
+  let after: Snap[] = [];
+  let changed = false;
+  // The change and its activity entry sync as one transaction.
+  store.transaction(() => {
+    mutate();
+    after = touches.map(([t, id]) => snap(t, id));
+    changed = before.some((b, i) => JSON.stringify(b.row) !== JSON.stringify(after[i]!.row));
+    if (changed) logActivity(label, before, after);
+  });
   if (!changed) return;
   undoStack.push({ label, before, after });
   if (undoStack.length > 200) undoStack.shift();
@@ -228,7 +329,10 @@ export const commit = (label: string, touches: [TableId, string][], mutate: () =
 export const undo = () => {
   const e = undoStack.pop();
   if (!e) return;
-  restore(e.before, e.after);
+  store.transaction(() => {
+    restore(e.before, e.after);
+    logActivity(`Undo: ${e.label}`, e.after, e.before);
+  });
   redoStack.push(e);
   emitHistory();
 };
@@ -236,7 +340,10 @@ export const undo = () => {
 export const redo = () => {
   const e = redoStack.pop();
   if (!e) return;
-  restore(e.after, e.before);
+  store.transaction(() => {
+    restore(e.after, e.before);
+    logActivity(`Redo: ${e.label}`, e.before, e.after);
+  });
   undoStack.push(e);
   emitHistory();
 };

@@ -92,8 +92,8 @@ export const Calendar = () => (
     <path d="M2.5 6.5h11M5.5 1.75v2.5M10.5 1.75v2.5" />
   </Svg>
 );
-export const Trash = () => (
-  <Svg>
+export const Trash = ({ size = 16 }: { size?: number }) => (
+  <Svg size={size}>
     <path d="M2.75 4.25h10.5M6.25 4.25V2.75h3.5v1.5M4 4.25l.6 8.5c.05.8.7 1.5 1.5 1.5h3.8c.8 0 1.45-.7 1.5-1.5l.6-8.5" />
   </Svg>
 );
@@ -192,5 +192,28 @@ export const Repeat = ({ size = 16 }: { size?: number }) => (
   <Svg size={size}>
     <path d="M2.75 7.25V6.5A2.25 2.25 0 0 1 5 4.25h8.25M11 2l2.25 2.25L11 6.5" />
     <path d="M13.25 8.75v.75A2.25 2.25 0 0 1 11 11.75H2.75M5 14l-2.25-2.25L5 9.5" />
+  </Svg>
+);
+export const Comment = ({ size = 16 }: { size?: number }) => (
+  <Svg size={size}>
+    <path d="M2.75 4.25c0-.83.67-1.5 1.5-1.5h7.5c.83 0 1.5.67 1.5 1.5v5.5c0 .83-.67 1.5-1.5 1.5H7l-3 2.25v-2.25h.25c-.83 0-1.5-.67-1.5-1.5Z" />
+  </Svg>
+);
+export const Bell = ({ size = 16 }: { size?: number }) => (
+  <Svg size={size}>
+    <path d="M4 10.75V7a4 4 0 0 1 8 0v3.75l1.25 1.5H2.75Z" />
+    <path d="M6.5 13.5a1.6 1.6 0 0 0 3 0" />
+  </Svg>
+);
+export const History = ({ size = 16 }: { size?: number }) => (
+  <Svg size={size}>
+    <path d="M2.75 8a5.25 5.25 0 1 0 1.6-3.8" />
+    <path d="M2.5 2.75v2.5H5M8 5.25V8l2 1.5" />
+  </Svg>
+);
+export const Send = ({ size = 16 }: { size?: number }) => (
+  <Svg size={size}>
+    <path d="M2.5 8 13.5 2.75 10.5 13.25 8 8.75Z" />
+    <path d="M8 8.75 13.5 2.75" />
   </Svg>
 );
