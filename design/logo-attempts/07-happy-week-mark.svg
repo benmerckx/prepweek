@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="5 4 54 56" width="216" height="224">
+  <title>PrepWeek</title>
+  <rect x="7" y="12" width="50" height="46" rx="13" fill="#4f5bd5"/>
+  <rect x="18" y="6" width="7" height="13" rx="3.5" fill="#f59e0b"/>
+  <rect x="39" y="6" width="7" height="13" rx="3.5" fill="#f59e0b"/>
+  <rect x="22.5" y="26" width="6" height="10" rx="3" fill="#ffffff"/>
+  <rect x="35.5" y="26" width="6" height="10" rx="3" fill="#ffffff"/>
+  <path d="M41.71 40.16A11 11 0 0 1 22.29 40.16" fill="none" stroke="#ec4899" stroke-width="5.5" stroke-linecap="round"/>
+</svg>
