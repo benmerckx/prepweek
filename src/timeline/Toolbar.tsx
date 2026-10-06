@@ -8,11 +8,12 @@ import type { TimelineModel } from './model.ts';
 import { FilterMenu, ViewsMenu, type FilterState } from './Filters.tsx';
 import { NotificationsMenu } from './Discussion.tsx';
 import { PresenceAvatars } from './Presence.tsx';
+import { AccountButton, SheetSwitcher } from './Account.tsx';
 import { canInstall, install, onInstallChange } from '../lib/install.ts';
 import { getTheme, onThemeChange, toggleTheme } from '../lib/theme.ts';
 import type { Peer } from '../data/presence.ts';
 import type { ViewConfig } from '../data/store.ts';
-import { Check, ChevronLeft, ChevronRight, Close, Download, Eye, Folder, History, LinkIcon, Logo, Minus, Moon, More, People, Plus, Redo, Search as SearchIc, Sun, Undo, Upload } from '../ui/icons.tsx';
+import { Check, ChevronLeft, ChevronRight, Close, Download, Eye, Folder, History, LinkIcon, Minus, Moon, More, People, Plus, Redo, Search as SearchIc, Sun, Undo, Upload } from '../ui/icons.tsx';
 
 interface Props {
   colW: number;
@@ -43,6 +44,8 @@ interface Props {
   readOnly: boolean;
   onShare(): void;
   onPalette(): void;
+  onSignIn(): void;
+  onWorkspace(id: string): void;
 }
 
 
@@ -81,10 +84,7 @@ export const Toolbar = memo(function Toolbar(props: Props) {
 
   return (
     <header className="toolbar">
-      <div className="brand">
-        <Logo />
-        <span className="brand-name">prepweek</span>
-      </div>
+      <SheetSwitcher onSignIn={props.onSignIn} onWorkspace={props.onWorkspace} />
       <ViewsMenu current={props.view} onApply={props.onApplyView} />
       <div className="seg">
         <button className="btn icon tb-page" onClick={() => onPage(-1)} aria-label="Earlier" title="Earlier">
@@ -154,6 +154,7 @@ export const Toolbar = memo(function Toolbar(props: Props) {
       >
         {theme === 'dark' ? <Sun /> : <Moon />}
       </button>
+      <AccountButton onSignIn={props.onSignIn} onWorkspace={props.onWorkspace} />
       <details className="tb-more">
         <summary className="btn icon" aria-label="More" title="More">
           <More />

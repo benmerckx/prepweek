@@ -23,10 +23,10 @@ export const onSyncStatus = (fn: () => void) => {
 /**
  * Where to sync, in order:
  *  - `?sync=wss://host/sync` (remembered), `?sync=off` to forget it;
- *  - same origin `/sync` when the app is served by the worker (not localhost);
+ *  - same origin `/sync` when the app is served by the worker (on localhost: once its API answered);
  *  - otherwise local-only (IndexedDB + other tabs).
  */
-const syncUrl = (): string | null => {
+const syncUrl = (served: boolean): string | null => {
   const KEY = 'prepweek:sync';
   const param = new URLSearchParams(location.search).get('sync');
   try {
@@ -40,7 +40,7 @@ const syncUrl = (): string | null => {
   } catch {}
   if (param || stored) return param ?? stored;
   const local = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
-  return local ? null : `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/sync`;
+  return local && !served ? null : `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/sync`;
 };
 
 /**
@@ -60,8 +60,9 @@ let serverHttp: string | null = null;
 export const getSheet = () => currentSheet;
 export const getServerHttp = () => serverHttp;
 
-export const startSync = async (sheetId: string) => {
-  const server = syncUrl();
+/** `served`: the app is known to be served by the worker (its API answered). */
+export const startSync = async (sheetId: string, served = false) => {
+  const server = syncUrl(served);
   currentSheet = sheetId;
   // wss://host/sync → https://host (files are served next to the sync route).
   serverHttp = server ? server.replace(/^ws/, 'http').replace(/\/sync\/?$/, '') : null;
@@ -71,7 +72,7 @@ export const startSync = async (sheetId: string) => {
   const local = await startLocalDb(store, `prepweek2:${sheetId}`, `prepweek:${sheetId}`);
   // Demo data only for purely local sheets; a synced sheet gets its content
   // from the server (seeding both sides would merge two sets of people).
-  if (!server && local.empty) {
+  if (!server && local.empty && sheetId === 'demo') {
     seed();
     local.compactSoon();
   }

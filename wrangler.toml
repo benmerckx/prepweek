@@ -12,7 +12,7 @@ watch_dir = "src"
 directory = "./dist"
 binding = "ASSETS"
 not_found_handling = "single-page-application"
-run_worker_first = ["/sync/*", "/files/*", "/presence/*", "/share/*"]
+run_worker_first = ["/sync/*", "/files/*", "/presence/*", "/share/*", "/auth/*", "/api/*"]
 
 # One SQLite-backed Durable Object per sheet (storage + realtime room).
 [[durable_objects.bindings]]
@@ -23,6 +23,15 @@ class_name = "SheetDurableObject"
 [[durable_objects.bindings]]
 name = "PRESENCE"
 class_name = "PresenceDurableObject"
+
+# Accounts, workspaces and the sheet directory (one SQLite object).
+[[durable_objects.bindings]]
+name = "DIRECTORY"
+class_name = "DirectoryDurableObject"
+
+# Optional secrets (wrangler secret put …):
+#   RESEND_API_KEY, EMAIL_FROM          magic-link and invite emails
+#   GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET   "Continue with Google"
 
 # Attachment storage (served by the worker at /files/<sheet>/<id>).
 # Disabled until the bucket exists. To enable: run
@@ -39,3 +48,7 @@ new_sqlite_classes = ["SheetDurableObject"]
 [[migrations]]
 tag = "v2"
 new_sqlite_classes = ["PresenceDurableObject"]
+
+[[migrations]]
+tag = "v3"
+new_sqlite_classes = ["DirectoryDurableObject"]

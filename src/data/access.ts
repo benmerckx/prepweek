@@ -14,6 +14,10 @@ export interface ShareInfo {
   /** Keys, only for editors of a private sheet. */
   edit?: string;
   view?: string;
+  /** The sheet's name and workspace (none for a sheet started without an account). */
+  name?: string;
+  workspace?: { id: string; name: string } | null;
+  signedIn?: boolean;
 }
 
 let sheet = 'demo';
@@ -55,6 +59,9 @@ const setKey = (k: string) => {
 export const withKey = (url: string) => (key ? `${url}${url.includes('?') ? '&' : '?'}k=${encodeURIComponent(key)}` : url);
 
 export const getAccess = () => info;
+export const getSheetId = () => sheet;
+/** Re-check after signing in, joining or saving the sheet to a workspace. */
+export const reloadAccess = () => loadAccess(server);
 export const onAccess = (fn: () => void) => {
   listeners.add(fn);
   return () => void listeners.delete(fn);

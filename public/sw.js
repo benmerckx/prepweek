@@ -4,11 +4,11 @@
 //    /s/<sheet> URL is the same single-page app);
 //  - hashed bundles, fonts and icons: cache first (their names change when
 //    their content does);
-//  - sync, presence, files and sharing go straight to the network.
+//  - sync, presence, files, sharing and the account API go straight to the network.
 
-const CACHE = 'prepweek-v1';
+const CACHE = 'prepweek-v2';
 const SHELL = '/';
-const LIVE = /^\/(sync|presence|files|share)\//;
+const LIVE = /^\/(sync|presence|files|share|api|auth)\//;
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

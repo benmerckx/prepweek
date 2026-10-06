@@ -3789,7 +3789,7 @@ button.tag-chip {
 .lock {
   position: fixed;
   inset: 0;
-  z-index: 200;
+  z-index: 95; /* under dialogs, so "Log in" can open over it */
   display: grid;
   place-items: center;
   padding: 24px;
@@ -4035,4 +4035,379 @@ button.tag-chip {
 }
 .app.space-pan .body {
   user-select: none;
+}
+
+
+/* =============================================================================
+   Accounts, workspaces, sheets
+   ========================================================================== */
+
+.brand.switcher {
+  width: auto;
+  min-width: 0;
+  max-width: 300px;
+  gap: 8px;
+}
+.sheet-dd {
+  min-width: 0;
+}
+.sheet-btn {
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 6px;
+  min-width: 0;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  list-style: none;
+}
+.sheet-btn::-webkit-details-marker {
+  display: none;
+}
+.sheet-btn:hover,
+.sheet-dd[open] .sheet-btn {
+  background: var(--hover);
+}
+.sheet-name {
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sheet-ws {
+  grid-row: 2;
+  overflow: hidden;
+  color: var(--text-dim);
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sheet-btn > svg {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+  color: var(--text-faint);
+}
+.tb-dd .sheet-menu {
+  right: auto;
+  left: 12px;
+  width: 300px;
+  max-height: min(78vh, 620px);
+  overflow-y: auto;
+}
+.sheet-group {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 4px 0;
+}
+.sheet-group + .sheet-group {
+  border-top: 1px solid var(--border);
+}
+.sheet-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px 4px;
+  color: var(--text-dim);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.sheet-group-head .link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.sheet-menu a.tb-person {
+  color: var(--text);
+  text-decoration: none;
+}
+.sheet-save {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 2px 2px 6px;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  white-space: normal;
+}
+.sheet-save span {
+  color: var(--text-dim);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+.sheet-save .btn {
+  align-self: flex-start;
+  margin-top: 2px;
+}
+.tb-signup {
+  flex: none;
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+.acct-btn {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  list-style: none;
+}
+.acct-btn::-webkit-details-marker {
+  display: none;
+}
+.acct-avatar {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 700;
+  object-fit: cover;
+}
+.acct-menu {
+  width: 260px;
+}
+.acct-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px 10px;
+}
+.acct-head div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.acct-head span {
+  overflow: hidden;
+  color: var(--text-dim);
+  font-size: 12px;
+  text-overflow: ellipsis;
+}
+
+.signin-modal {
+  width: min(420px, 100%);
+}
+.signin {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.signin form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.signin input {
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  outline: none;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+}
+.signin input:focus {
+  border-color: var(--accent);
+  box-shadow: var(--ring);
+}
+.signin .btn.big {
+  justify-content: center;
+  width: 100%;
+}
+.btn.google {
+  gap: 10px;
+  color: var(--text);
+  text-decoration: none;
+}
+.signin-or {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-faint);
+  font-size: 12px;
+}
+.signin-or::before,
+.signin-or::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+.signin-foot {
+  margin: 0;
+  color: var(--text-faint);
+  font-size: 12px;
+  text-align: center;
+}
+.signin-sent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+}
+.signin-sent p {
+  margin: 0;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+.signin-dev {
+  padding: 10px;
+  border-radius: 8px;
+  background: var(--panel);
+  font-size: 12.5px;
+}
+
+.ws-modal {
+  width: min(560px, 100%);
+}
+.ws-name {
+  flex: 1;
+  min-width: 0;
+  margin-right: 8px;
+  padding: 2px 6px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  outline: none;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 650;
+}
+.ws-name:hover {
+  border-color: var(--border);
+}
+.ws-name:focus {
+  border-color: var(--accent);
+}
+.ws-invite {
+  display: flex;
+  gap: 8px;
+}
+.ws-invite input,
+.ws-row select,
+.ws-invite select {
+  min-width: 0;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  outline: none;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+.ws-invite input {
+  flex: 1;
+}
+.ws-invite input:focus {
+  border-color: var(--accent);
+  box-shadow: var(--ring);
+}
+.ws-link {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  font-size: 12.5px;
+}
+.share-row.single {
+  grid-template-columns: 1fr auto;
+}
+.ws-h {
+  margin: 6px 0 0 !important;
+  color: var(--text-dim);
+  font-size: 11.5px !important;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.ws-list {
+  display: flex;
+  flex-direction: column;
+}
+.ws-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+.ws-row:last-child {
+  border-bottom: none;
+}
+.ws-who {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+.ws-who span {
+  overflow: hidden;
+  color: var(--text-dim);
+  font-size: 12px;
+  text-overflow: ellipsis;
+}
+.ws-who .dim {
+  color: var(--text-faint);
+  font-weight: 400;
+}
+.ws-role {
+  color: var(--text-dim);
+  font-size: 12.5px;
+}
+.ws-sheet {
+  flex: 1;
+  color: var(--text);
+  font-weight: 550;
+  text-decoration: none;
+}
+.ws-sheet:hover {
+  color: var(--accent);
+}
+.lock.invite .lock-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: min(400px, 100%);
+}
+.lock.invite .lock-icon {
+  background: none;
+}
+.lock.invite .signin {
+  width: 100%;
+  margin-top: 6px;
+}
+.lock-card .btn.big {
+  margin-top: 6px;
+}
+.app.compact .sheet-ws,
+.app.compact .tb-signup {
+  display: none;
+}
+.app.compact .brand.switcher {
+  max-width: 150px;
 }

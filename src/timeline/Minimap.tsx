@@ -5,13 +5,13 @@ import { getPeers, onPeers } from '../data/presence.ts';
 import { onThemeChange } from '../lib/theme.ts';
 import { addMonths, formatDay, isWeekend, monthShort, startOfMonth, startOfWeek, ymd } from '../lib/dates.ts';
 
-// A VS Code–style scrubber for the time axis. The canvas shows ~18 months at
+// A VS Code–style scrubber for the time axis. The canvas shows ~6 months at
 // a time (or the whole range if it fits); like VS Code's minimap it scrolls
 // proportionally with the main view, so the slider moves linearly with the
 // scroll position and you can traverse years with one drag. Clicking outside
 // the slider jumps there and keeps scrubbing.
 
-const TARGET_DAYS = 548;
+const TARGET_DAYS = 183;
 const LABEL_H = 16;
 
 interface Props {

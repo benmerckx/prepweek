@@ -210,6 +210,32 @@ offline: `public/sw.js` serves the cached app shell when the network is
 gone, and the sheet itself already lives in IndexedDB. Sync, presence,
 files and sharing requests always go to the network.
 
+### Accounts, workspaces and sheets
+
+- **No account needed to start.** Opening the app without one creates a new
+  plan with its own unguessable address (`/s/<id>`), remembered on this
+  device, so you can come back to it and share it.
+- **Sign up / log in** (same thing): a magic link by email, or Google. Signing
+  in saves the plan you started into your workspace automatically.
+- **Workspaces** hold one or more sheets. People are **admins** (invite and
+  remove people, change roles, delete sheets) or **members** (plan on every
+  sheet in the workspace). Invite by email from the sheet menu → *People*; the
+  invite link can also be copied and sent yourself.
+- A sheet in a workspace opens only for its members, or for someone holding
+  one of its private share links.
+
+Everything account-related lives in one SQLite Durable Object
+(`worker/directory.ts`), so there's no database to create. Configure sign-in
+with Worker secrets (`wrangler secret put …`):
+
+| Secret | For |
+| --- | --- |
+| `RESEND_API_KEY`, `EMAIL_FROM` | sending magic links and invites via [Resend](https://resend.com) (EMAIL_FROM like `prepweek <login@yourdomain.com>`, from a verified domain) |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | "Continue with Google". Create an OAuth client (web) in Google Cloud and add `https://<your host>/auth/google/callback` as a redirect URI |
+
+Without a mail provider, `wrangler dev` on localhost shows the magic link on
+screen instead of emailing it.
+
 ### Sharing
 
 A sheet starts open: anyone with its address can edit, which suits a demo.

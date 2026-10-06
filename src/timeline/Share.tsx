@@ -132,8 +132,8 @@ export function ShareDialog({ onClose }: { onClose(): void }) {
   );
 }
 
-/** Shown instead of the sheet when it's private and we have no valid link. */
-export function LockScreen() {
+/** Shown instead of the sheet when we may not open it. */
+export function LockScreen({ signedIn, onSignIn }: { signedIn: boolean; onSignIn(): void }) {
   return (
     <div className="lock">
       <div className="lock-card">
@@ -141,7 +141,16 @@ export function LockScreen() {
           <Lock size={22} />
         </span>
         <h1>This sheet is private</h1>
-        <p>You need a share link to open it. Ask someone on the team to send you one from the Share button.</p>
+        <p>
+          {signedIn
+            ? 'Your account isn’t in the workspace this sheet belongs to. Ask an admin to invite you, or ask for a share link.'
+            : 'Log in if it belongs to your workspace, or ask someone on the team for a share link.'}
+        </p>
+        {!signedIn && (
+          <button className="btn primary big" onClick={onSignIn}>
+            Log in
+          </button>
+        )}
       </div>
     </div>
   );

@@ -15,6 +15,7 @@ import { publish, startPresence, type Peer } from '../data/presence.ts';
 import { PresenceLayer } from './Presence.tsx';
 import { LockScreen, ShareDialog, useAccess } from './Share.tsx';
 import { CommandPalette, type Command } from './Palette.tsx';
+import { SignInDialog, WorkspaceDialog, useAutoSave } from './Account.tsx';
 import { Minimap } from './Minimap.tsx';
 import { Editor } from './Editor.tsx';
 import { Toolbar } from './Toolbar.tsx';
@@ -85,6 +86,11 @@ export function Timeline({ model }: { model: TimelineModel }) {
   const readOnly = access?.role === 'view';
   const [sharing, setSharing] = useState(false);
   const openShare = useCallback(() => setSharing(true), []);
+  // Accounts: sign in, workspace people, and saving a plan started here.
+  const [signingIn, setSigningIn] = useState(false);
+  const openSignIn = useCallback(() => setSigningIn(true), []);
+  const [workspaceOpen, setWorkspaceOpen] = useState<string | null>(null);
+  useAutoSave();
   const todayDay = useMemo(getToday, []);
   const vp = useMemo(() => new Viewport(), []);
   const scrollerRef = useRef<HTMLDivElement>(null);
@@ -849,6 +855,8 @@ export function Timeline({ model }: { model: TimelineModel }) {
         readOnly={readOnly}
         onShare={openShare}
         onPalette={openPalette}
+        onSignIn={openSignIn}
+        onWorkspace={setWorkspaceOpen}
       />
       <div className="scroller" ref={scrollerRef}>
         <div
@@ -961,7 +969,9 @@ export function Timeline({ model }: { model: TimelineModel }) {
           onClose={() => setPalette(false)}
         />
       )}
-      {access?.role === 'none' && <LockScreen />}
+      {access?.role === 'none' && <LockScreen signedIn={!!access.signedIn} onSignIn={openSignIn} />}
+      {signingIn && <SignInDialog onClose={() => setSigningIn(false)} />}
+      {workspaceOpen && <WorkspaceDialog workspaceId={workspaceOpen} onClose={() => setWorkspaceOpen(null)} />}
       {activityOpen && (
         <ActivityPanel
           onClose={() => setActivityOpen(false)}

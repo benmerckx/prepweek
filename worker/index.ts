@@ -11,11 +11,16 @@
 //   wss://<host>/presence/<sheetId>  → presence relay for the sheet
 //   /files/<sheetId>/<id>            → attachment bytes in R2
 //   /share/<sheetId>                 → GET sharing state, POST enable/rotate/disable
+//   /auth/*, /api/*                  → accounts, workspaces, sheets (auth.ts)
 // Everything else is served from ../dist (the Bun-built app).
 import { DurableObject } from 'cloudflare:workers';
 import { createMergeableStore } from 'tinybase';
 import { createDurableObjectSqlStoragePersister } from 'tinybase/persisters/persister-durable-object-sql-storage';
 import { WsServerDurableObject } from 'tinybase/synchronizers/synchronizer-ws-server-durable-object';
+import { directory, handleApi, handleAuth, sessionUser } from './auth.ts';
+import type { Env } from './env.ts';
+
+export { DirectoryDurableObject } from './directory.ts';
 
 export type Role = 'edit' | 'view' | 'none';
 interface Share {
@@ -45,33 +50,30 @@ export class SheetDurableObject extends WsServerDurableObject {
   // link or the view link is needed. Resetting replaces both and drops
   // everyone connected, so old links stop working at once.
 
-  /** What `key` allows on this sheet. */
-  async access(key: string): Promise<Role> {
+  /** What a share key allows; 'open' when private links are off. */
+  async keyRole(key: string): Promise<Role | 'open'> {
     const share = await this.ctx.storage.get<Share>('share');
-    if (!share) return 'edit';
+    if (!share) return 'open';
     if (key && key === share.edit) return 'edit';
     if (key && key === share.view) return 'view';
     return 'none';
   }
 
-  /** Sharing state for someone holding `key`; the keys only for editors. */
-  async shareInfo(key: string) {
-    const share = await this.ctx.storage.get<Share>('share');
-    const role = await this.access(key);
-    return { role, private: !!share, ...(share && role === 'edit' ? share : {}) };
+  async shareKeys(): Promise<Share | null> {
+    return (await this.ctx.storage.get<Share>('share')) ?? null;
   }
 
-  async setSharing(key: string, action: 'enable' | 'rotate' | 'disable') {
-    if ((await this.access(key)) !== 'edit') return null;
+  /** The worker has already checked the caller may edit. */
+  async setSharing(action: 'enable' | 'rotate' | 'disable'): Promise<Share | null> {
     if (action === 'disable') {
       await this.ctx.storage.delete('share');
-      return this.shareInfo('');
+      return null;
     }
     const share = { edit: newToken(), view: newToken() };
     await this.ctx.storage.put<Share>('share', share);
     // Everyone reconnects and is checked against the new links.
     for (const ws of this.ctx.getWebSockets()) ws.close(4001, 'Sharing links changed');
-    return this.shareInfo(share.edit);
+    return share;
   }
 
   override async fetch(request: Request) {
@@ -152,28 +154,51 @@ const forbidden = () => new Response('This sheet needs a share link', { status: 
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
 
+/**
+ * The caller's role on a sheet. A sheet in a workspace is open to its
+ * members; anyone else needs a private link. A sheet not (yet) in a
+ * workspace, e.g. one started without an account, is open to whoever has
+ * its unguessable address unless private links are on.
+ */
+const sheetAccess = async (request: Request, env: Env, sheet: string, key: string) => {
+  const user = await sessionUser(request, env);
+  const [info, byKey] = await Promise.all([directory(env).sheet(sheet, user?.id ?? null), sheetStub(env, sheet).keyRole(key)]);
+  let role: Role;
+  if (info.deleted) role = 'none';
+  else if (info.workspace) role = info.role ? 'edit' : byKey === 'open' ? 'none' : byKey;
+  else role = byKey === 'open' ? 'edit' : byKey;
+  return { role, user, info, isPrivate: byKey !== 'open' };
+};
+
 export default {
   async fetch(request: Request, env: Env) {
     const url = new URL(request.url);
+    if (url.pathname.startsWith('/auth/')) return handleAuth(request, env, url);
+    if (url.pathname.startsWith('/api/')) return handleApi(request, env, url);
     const route = /^\/(sync|files|presence|share)\/([^/]+)/.exec(url.pathname);
     if (!route) return env.ASSETS.fetch(request);
     const kind = route[1]!;
     const sheet = decodeURIComponent(route[2]!);
     const key = url.searchParams.get('k') ?? '';
     const stub = sheetStub(env, sheet);
+    const { role, user, info, isPrivate } = await sheetAccess(request, env, sheet, key);
 
     if (kind === 'share') {
-      if (request.method === 'GET') return json(await stub.shareInfo(key));
+      if (request.method === 'GET') {
+        const keys = role === 'edit' && isPrivate ? await stub.shareKeys() : null;
+        return json({ role, private: isPrivate, ...keys, name: info.name, workspace: info.workspace, signedIn: !!user });
+      }
       if (request.method === 'POST') {
+        if (role !== 'edit') return forbidden();
+        if (request.headers.get('origin') && request.headers.get('origin') !== url.origin) return forbidden();
         const { action } = (await request.json().catch(() => ({}))) as { action?: string };
         if (action !== 'enable' && action !== 'rotate' && action !== 'disable') return json({ error: 'Unknown action' }, 400);
-        const info = await stub.setSharing(key, action);
-        return info ? json(info) : forbidden();
+        const keys = await stub.setSharing(action);
+        return json({ role, private: !!keys, ...keys, name: info.name, workspace: info.workspace, signedIn: !!user });
       }
       return new Response('Method not allowed', { status: 405 });
     }
 
-    const role = await stub.access(key);
     if (role === 'none') return forbidden();
     if (kind === 'sync') {
       if (request.headers.get('upgrade')?.toLowerCase() !== 'websocket') return new Response('Upgrade required', { status: 426 });
@@ -219,12 +244,4 @@ async function files(request: Request, env: Env, url: URL): Promise<Response> {
     return new Response(obj.body, { headers });
   }
   return new Response('Method not allowed', { status: 405 });
-}
-
-interface Env {
-  /** Optional R2 bucket for attachment bytes. */
-  FILES?: R2Bucket;
-  SHEETS: DurableObjectNamespace<SheetDurableObject>;
-  PRESENCE: DurableObjectNamespace<PresenceDurableObject>;
-  ASSETS: Fetcher;
 }
