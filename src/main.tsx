@@ -1,6 +1,6 @@
 import { createRoot } from 'react-dom/client';
 import { loadFonts } from './fonts.ts';
-import { store } from './data/store.ts';
+import { migrateClients, store } from './data/store.ts';
 import { getServerHttp, startSync } from './data/sync.ts';
 import { seed } from './data/seed.ts';
 import { loadMe as loadIdentity } from './data/identity.ts';
@@ -54,6 +54,14 @@ if (invite) {
     console.error('Local storage unavailable, changes will not be kept', e);
     if (sheetId === 'demo' && store.getRowCount('users') === 0) seed();
   }
+  // Client names on projects become client rows (also when a device on an
+  // older version adds one later).
+  migrateClients();
+  let migrating = 0;
+  store.addTableListener('projects', () => {
+    clearTimeout(migrating);
+    migrating = setTimeout(migrateClients, 1000) as unknown as number;
+  });
   loadIdentity();
   // What we may do here (view-only, or locked out); never blocks first paint.
   void loadAccess(getServerHttp());

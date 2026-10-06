@@ -1,8 +1,8 @@
 import type { MergeableStore } from 'tinybase';
 import { HORIZON_DAYS, isRule, occurrenceId, occurrences, parseSkip } from '../lib/recur.ts';
-import { today } from '../lib/dates.ts';
+import { today, workdays } from '../lib/dates.ts';
 import { packLanes, type Cluster, type PackItem } from '../lib/layout.ts';
-import { parseTags, type ProjectRow, type TaskRow, type UserRow } from '../data/store.ts';
+import { parseTags, type ClientRow, type ProjectRow, type TaskRow, type UserRow } from '../data/store.ts';
 
 // The TimelineModel is a derived, render-ready index over the TinyBase store:
 // users in order, each with its tasks sorted by start and packed into lanes,
@@ -60,6 +60,20 @@ export interface TaskView {
 
 export interface Project extends ProjectRow {
   id: string;
+}
+export interface Client extends ClientRow {
+  id: string;
+}
+/** What's planned for a project (stored tasks; a series counts once). */
+export interface ProjectStats {
+  tasks: number;
+  /** Planned workdays (calendar days for weekend-only tasks). */
+  days: number;
+  /** Tasks not yet over. */
+  upcoming: number;
+  first: number;
+  last: number;
+  people: Set<string>;
 }
 
 export interface Milestone {
@@ -222,7 +236,7 @@ export class TimelineModel {
       for (const id of ids('attachments', () => this.attachmentTask.keys())) for (const t of this.ingestAttachment(id)) touched.add(t);
       for (const id of ids('comments', () => this.commentTask.keys())) for (const t of this.ingestComment(id)) touched.add(t);
       // A renamed project relabels its blocks.
-      if (has('projects')) {
+      if (has('projects') || has('clients')) {
         const changed = new Set(ids('projects', () => this.projectById.keys()));
         this.readProjects();
         for (const [id, u] of this.taskUser) if (changed.has(this.byUser.get(u)?.get(id)?.projectId ?? '')) touched.add(this.byUser.get(u)!.get(id)!.series);
@@ -231,7 +245,7 @@ export class TimelineModel {
       if (has('users')) this.usersDirty = true;
       if (has('milestones')) this.readMilestones();
       if (touched.size || has('users')) this.flush();
-      else if (has('milestones') || has('projects') || has('views')) this.finish();
+      else if (has('milestones') || has('projects') || has('clients') || has('views')) this.finish();
     });
   }
 
@@ -336,12 +350,45 @@ export class TimelineModel {
   private projectById = new Map<string, Project>();
   getProject = (id: string) => this.projectById.get(id);
 
+  clients: Client[] = [];
+  private clientById = new Map<string, Client>();
+  getClient = (id: string) => this.clientById.get(id);
+
   private readProjects() {
+    this.clients = this.store
+      .getRowIds('clients')
+      .map((id) => ({ id, ...(this.store.getRow('clients', id) as ClientRow) }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    this.clientById = new Map(this.clients.map((c) => [c.id, c]));
     this.projects = this.store
       .getRowIds('projects')
-      .map((id) => ({ id, ...(this.store.getRow('projects', id) as ProjectRow) }))
+      .map((id) => {
+        const row = this.store.getRow('projects', id) as ProjectRow;
+        // The client row's name wins over the older text copy.
+        const c = row.clientId ? this.clientById.get(row.clientId) : undefined;
+        return { id, ...row, client: c ? c.name : row.clientId ? '' : (row.client ?? '') };
+      })
       .sort((a, b) => a.client.localeCompare(b.client) || a.name.localeCompare(b.name));
     this.projectById = new Map(this.projects.map((p) => [p.id, p]));
+  }
+
+  /** Per project id: tasks, planned days, dates and people. */
+  projectStats(): Map<string, ProjectStats> {
+    const out = new Map<string, ProjectStats>();
+    const now = today();
+    for (const id of this.store.getRowIds('tasks')) {
+      const t = this.store.getRow('tasks', id) as TaskRow;
+      if (!t.projectId) continue;
+      let s = out.get(t.projectId);
+      if (!s) out.set(t.projectId, (s = { tasks: 0, days: 0, upcoming: 0, first: Infinity, last: -Infinity, people: new Set() }));
+      s.tasks++;
+      s.days += workdays(t.start, t.end) || t.end - t.start + 1;
+      if (t.end >= now) s.upcoming++;
+      if (t.start < s.first) s.first = t.start;
+      if (t.end > s.last) s.last = t.end;
+      if (t.userId) s.people.add(t.userId);
+    }
+    return out;
   }
 
   /** Every tag in use, most used first. */

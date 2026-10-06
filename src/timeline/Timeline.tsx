@@ -8,7 +8,8 @@ import { Header } from './Header.tsx';
 import { GridBackground, RowView, matches, type TaskFilter } from './Rows.tsx';
 import { Sidebar } from './Sidebar.tsx';
 import { NO_FILTER, type FilterState } from './Filters.tsx';
-import { ProjectsDialog } from './Projects.tsx';
+import { navigate, useRoute } from '../lib/route.ts';
+import { Pages } from './Pages.tsx';
 import { ActivityPanel } from './Discussion.tsx';
 import { watchDesktopNotifications } from '../data/notify.ts';
 import { publish, startPresence, type Peer } from '../data/presence.ts';
@@ -176,8 +177,11 @@ export function Timeline({ model }: { model: TimelineModel }) {
     [model],
   );
   const [filterState, setFilterState] = useState<FilterState>(NO_FILTER);
-  const [managingProjects, setManagingProjects] = useState(false);
-  const manageProjects = useCallback(() => setManagingProjects(true), []);
+  const manageProjects = useCallback(() => navigate({ section: 'projects' }), []);
+  const route = useRoute();
+  const onPage = route.section !== 'plan';
+  const onPageRef = useRef(onPage);
+  onPageRef.current = onPage;
   /** Search and filters as one predicate; non-matching blocks are faded. */
   const filter: TaskFilter = useMemo(() => {
     const ps = new Set(filterState.projects);
@@ -572,6 +576,8 @@ export function Timeline({ model }: { model: TimelineModel }) {
       // Dialogs and drawers handle their own keys.
       if (isTyping(e.target) || importingRef.current || document.querySelector('.modal-backdrop, .drawer-backdrop')) return;
       const mod = e.metaKey || e.ctrlKey;
+      // On the projects and clients pages only undo/redo reach the plan.
+      if (onPageRef.current && !(mod && /^[zy]$/i.test(e.key))) return;
       const sel = selectedRef.current;
       const t = sel ? getTask(sel) : undefined;
       if (mod && e.key.toLowerCase() === 'z') {
@@ -666,7 +672,9 @@ export function Timeline({ model }: { model: TimelineModel }) {
       c.push(
         { label: 'Add person', keywords: 'new member user', run: () => createUser('New person') },
         { label: 'Add milestone', keywords: 'deadline flag launch', run: addMilestoneHere },
-        { label: 'Manage projects…', keywords: 'clients', run: manageProjects },
+        { label: 'Projects', keywords: 'manage list page', run: manageProjects },
+        { label: 'Clients', keywords: 'customers manage list page', run: () => navigate({ section: 'clients' }) },
+        { label: 'Plan', keywords: 'timeline back', run: () => navigate({ section: 'plan' }) },
         { label: 'Import from Teamweek…', keywords: 'csv toggl plan upload', run: openImport },
         { label: 'Undo', keys: '⌘Z', run: undo },
         { label: 'Redo', keys: '⇧⌘Z', run: redo },
@@ -708,7 +716,7 @@ export function Timeline({ model }: { model: TimelineModel }) {
   useEffect(() => {
     const isControl = (t: EventTarget | null) => isTyping(t) || (t instanceof HTMLElement && !!t.closest('button, a, select, summary'));
     const down = (e: KeyboardEvent) => {
-      if (e.code !== 'Space' || isControl(e.target) || document.querySelector('.modal-backdrop, .drawer-backdrop')) return;
+      if (e.code !== 'Space' || isControl(e.target) || onPageRef.current || document.querySelector('.modal-backdrop, .drawer-backdrop')) return;
       e.preventDefault(); // no page scroll
       if (!spaceDown.current) {
         spaceDown.current = true;
@@ -990,7 +998,20 @@ export function Timeline({ model }: { model: TimelineModel }) {
           }}
         />
       )}
-      {managingProjects && <ProjectsDialog model={model} onClose={() => setManagingProjects(false)} />}
+      {onPage && (
+        <Pages
+          model={model}
+          route={route}
+          onOpenInPlan={(projects) => {
+            setFilterState({ projects, tags: [] });
+            navigate({ section: 'plan' });
+          }}
+          onOpenTask={(id) => {
+            navigate({ section: 'plan' });
+            requestAnimationFrame(() => revealTask(id));
+          }}
+        />
+      )}
       {importing && (
         <ImportDialog
           initialFile={importing.file}

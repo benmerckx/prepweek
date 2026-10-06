@@ -172,6 +172,18 @@ export const Folder = ({ size = 16 }: { size?: number }) => (
     <path d="M2.25 4.5c0-.7.55-1.25 1.25-1.25h2.6l1.5 1.5h4.9c.7 0 1.25.55 1.25 1.25v5.75c0 .7-.55 1.25-1.25 1.25h-9c-.7 0-1.25-.55-1.25-1.25Z" />
   </Svg>
 );
+export const Archive = ({ size = 16 }: { size?: number }) => (
+  <Svg size={size}>
+    <rect x="2.25" y="3" width="11.5" height="3" rx="0.75" />
+    <path d="M3.25 6v6.25c0 .7.55 1.25 1.25 1.25h7c.7 0 1.25-.55 1.25-1.25V6M6.5 8.75h3" />
+  </Svg>
+);
+export const Briefcase = ({ size = 16 }: { size?: number }) => (
+  <Svg size={size}>
+    <rect x="2.25" y="4.75" width="11.5" height="8.5" rx="1.25" />
+    <path d="M5.75 4.75v-1.5c0-.4.35-.75.75-.75h3c.4 0 .75.35.75.75v1.5M2.25 8.5h11.5" />
+  </Svg>
+);
 export const Tag = ({ size = 16 }: { size?: number }) => (
   <Svg size={size}>
     <path d="M2.25 2.25h5.2l6.3 6.3-5.2 5.2-6.3-6.3Z" />

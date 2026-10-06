@@ -66,11 +66,22 @@ store.setTablesSchema({
     skip: { type: 'string', default: '' },
   },
   // Projects group tasks across people; a client groups projects.
+  // `client` is the client's name as text (from before clients were their
+  // own rows); `clientId` wins when set, see migrateClients.
   projects: {
     name: { type: 'string', default: '' },
     client: { type: 'string', default: '' },
+    clientId: { type: 'string', default: '' },
     color: { type: 'string', default: PALETTE[0] },
     archived: { type: 'boolean', default: false },
+    /** Markdown, like task notes. */
+    notes: { type: 'string', default: '' },
+  },
+  clients: {
+    name: { type: 'string', default: '' },
+    color: { type: 'string', default: PALETTE[0] },
+    archived: { type: 'boolean', default: false },
+    notes: { type: 'string', default: '' },
   },
   // Saved views, shared with everyone on the sheet. `config` is JSON (see
   // ViewConfig), so new view options don't need a schema change.
@@ -117,7 +128,8 @@ store.setTablesSchema({
   },
 });
 
-export type ProjectRow = { name: string; client: string; color: string; archived: boolean };
+export type ProjectRow = { name: string; client: string; clientId: string; color: string; archived: boolean; notes: string };
+export type ClientRow = { name: string; color: string; archived: boolean; notes: string };
 export type ViewRow = { name: string; order: number; config: string };
 
 /** What a saved view restores. Missing fields leave that setting alone. */
@@ -277,7 +289,7 @@ export const deleteComment = (id: string) => commit('Delete comment', [['comment
 // changes that arrived from other collaborators. Instead each local command
 // records the cells it changed, and undo only restores those cells.
 
-type TableId = 'users' | 'tasks' | 'milestones' | 'attachments' | 'projects' | 'views' | 'comments';
+type TableId = 'users' | 'tasks' | 'milestones' | 'attachments' | 'projects' | 'clients' | 'views' | 'comments';
 type Snap = { table: TableId; id: string; row: Row | null };
 type Entry = { label: string; before: Snap[]; after: Snap[] };
 
@@ -513,13 +525,28 @@ export const getProject = (id: string): ProjectRow | undefined =>
 export const createProject = (p: Partial<ProjectRow> & { name: string }): string => {
   const id = newId();
   const color = p.color ?? PALETTE[store.getRowCount('projects') % PALETTE.length]!;
-  commit('Add project', [['projects', id]], () => store.setRow('projects', id, { client: '', archived: false, ...p, color }));
+  const { client = '', ...rest } = p;
+  const cid = client.trim() ? clientIdFor(client) : '';
+  commit('Add project', [['projects', id], ...(cid ? [['clients', cid] as [TableId, string]] : [])], () => {
+    if (cid) ensureClient(cid, client.trim());
+    store.setRow('projects', id, { client: client.trim(), clientId: cid, archived: false, notes: '', ...rest, color });
+  });
   return id;
 };
 export const updateProject = (id: string, patch: Partial<ProjectRow>, label = 'Edit project') =>
   commit(label, [['projects', id]], () => {
     for (const [k, v] of Object.entries(patch)) store.setCell('projects', id, k, v as string | number | boolean);
   });
+/** Give a project a client by name (created when new); '' removes it. */
+export const setProjectClient = (projectId: string, name: string) => {
+  name = name.trim();
+  const cid = name ? clientIdFor(name) : '';
+  commit(name ? 'Set client' : 'Remove client', [['projects', projectId], ...(cid ? [['clients', cid] as [TableId, string]] : [])], () => {
+    if (cid) ensureClient(cid, name);
+    store.setCell('projects', projectId, 'clientId', cid);
+    store.setCell('projects', projectId, 'client', cid ? (store.getCell('clients', cid, 'name') as string) : '');
+  });
+};
 /** Deleting a project keeps its tasks, just without a project. */
 export const deleteProject = (id: string) => {
   const tasks = store.getRowIds('tasks').filter((t) => store.getCell('tasks', t, 'projectId') === id);
@@ -534,6 +561,70 @@ export const recolorProject = (id: string, color: string) => {
   commit('Recolor project', [['projects', id], ...tasks.map((t) => ['tasks', t] as [TableId, string])], () => {
     store.setCell('projects', id, 'color', color);
     for (const t of tasks) store.setCell('tasks', t, 'color', color);
+  });
+};
+
+// --- Clients ---
+
+const fnv = (s: string) => {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 0x01000193);
+  return (h >>> 0).toString(36);
+};
+/**
+ * The client called `name`: an existing one (case-insensitive), else an id
+ * derived from the name, so two devices adding "Imec" at once agree.
+ */
+export const clientIdFor = (name: string): string => {
+  const n = name.trim().toLowerCase();
+  for (const id of store.getRowIds('clients')) if ((store.getCell('clients', id, 'name') as string).trim().toLowerCase() === n) return id;
+  const id = `c${fnv(n)}`;
+  // That id belongs to a client since renamed: don't merge into it.
+  return store.hasRow('clients', id) ? newId() : id;
+};
+/** Inside a transaction: make sure client `id` exists. */
+const ensureClient = (id: string, name: string) => {
+  if (store.hasRow('clients', id)) return;
+  store.setRow('clients', id, { name, color: PALETTE[store.getRowCount('clients') % PALETTE.length]!, archived: false, notes: '' });
+};
+export const createClient = (name: string): string => {
+  const id = clientIdFor(name);
+  commit('Add client', [['clients', id]], () => ensureClient(id, name.trim()));
+  return id;
+};
+export const updateClient = (id: string, patch: Partial<ClientRow>, label = 'Edit client') => {
+  const projects = patch.name !== undefined ? store.getRowIds('projects').filter((p) => store.getCell('projects', p, 'clientId') === id) : [];
+  commit(label, [['clients', id], ...projects.map((p) => ['projects', p] as [TableId, string])], () => {
+    for (const [k, v] of Object.entries(patch)) store.setCell('clients', id, k, v as string | number | boolean);
+    // Keep the text copy on projects in step (older versions read it).
+    for (const p of projects) store.setCell('projects', p, 'client', patch.name!);
+  });
+};
+/** Deleting a client keeps its projects, just without a client. */
+export const deleteClient = (id: string) => {
+  const projects = store.getRowIds('projects').filter((p) => store.getCell('projects', p, 'clientId') === id);
+  commit('Delete client', [['clients', id], ...projects.map((p) => ['projects', p] as [TableId, string])], () => {
+    store.delRow('clients', id);
+    for (const p of projects) {
+      store.setCell('projects', p, 'clientId', '');
+      store.setCell('projects', p, 'client', '');
+    }
+  });
+};
+/**
+ * Projects from before clients were rows name their client as text: give
+ * each such name a client row and link it. Idempotent and not an undo step.
+ */
+export const migrateClients = () => {
+  const todo = store.getRowIds('projects').filter((p) => !store.getCell('projects', p, 'clientId') && (store.getCell('projects', p, 'client') as string)?.trim());
+  if (!todo.length) return;
+  store.transaction(() => {
+    for (const p of todo) {
+      const name = (store.getCell('projects', p, 'client') as string).trim();
+      const id = clientIdFor(name);
+      ensureClient(id, name);
+      store.setCell('projects', p, 'clientId', id);
+    }
   });
 };
 
@@ -629,7 +720,7 @@ export const applyImport = async (
     if (!name) continue;
     const known = projectIds.get(name.toLowerCase());
     if (known) {
-      if (t.client && !store.getCell('projects', known, 'client')) clientFor.set(known, t.client);
+      if (t.client && !store.getCell('projects', known, 'client') && !store.getCell('projects', known, 'clientId')) clientFor.set(known, t.client);
       continue;
     }
     const id = newId();
@@ -651,6 +742,16 @@ export const applyImport = async (
   for (const t of plan.tasks) touches.push(['tasks', t.id]);
   for (const p of newProjects) touches.push(['projects', p.id]);
   for (const id of clientFor.keys()) touches.push(['projects', id]);
+  // Clients by name, created when missing.
+  const clientIds = new Map<string, string>();
+  for (const name of [...newProjects.map((p) => p.client), ...clientFor.values()]) {
+    const k = name.trim().toLowerCase();
+    if (!k || clientIds.has(k)) continue;
+    const id = clientIdFor(name);
+    clientIds.set(k, id);
+    touches.push(['clients', id]);
+  }
+  const clientId = (name: string) => clientIds.get(name.trim().toLowerCase()) ?? '';
   for (const a of links) touches.push(['attachments', a.id]);
   // Big imports take seconds to write (TinyBase's mergeable store does real
   // work per cell), so they go in chunks with progress instead of freezing.
@@ -659,8 +760,15 @@ export const applyImport = async (
       for (const [table, id] of part) store.delRow(table, id);
     }),
     () => {
-      for (const p of newProjects) store.setRow('projects', p.id, { name: p.name, color: p.color, client: p.client, archived: false });
-      for (const [id, client] of clientFor) store.setCell('projects', id, 'client', client);
+      for (const [k, id] of clientIds) {
+        const name = [...newProjects.map((p) => p.client), ...clientFor.values()].find((n) => n.trim().toLowerCase() === k)!.trim();
+        ensureClient(id, name);
+      }
+      for (const p of newProjects) store.setRow('projects', p.id, { name: p.name, color: p.color, client: p.client, clientId: clientId(p.client), archived: false, notes: '' });
+      for (const [id, client] of clientFor) {
+        store.setCell('projects', id, 'client', client);
+        store.setCell('projects', id, 'clientId', clientId(client));
+      }
       for (const p of plan.people) {
         const id = ids.get(p.key)!;
         if (p.existingId) {

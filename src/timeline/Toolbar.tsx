@@ -13,7 +13,8 @@ import { canInstall, install, onInstallChange } from '../lib/install.ts';
 import { getTheme, onThemeChange, toggleTheme } from '../lib/theme.ts';
 import type { Peer } from '../data/presence.ts';
 import type { ViewConfig } from '../data/store.ts';
-import { Check, ChevronLeft, ChevronRight, Close, Download, Eye, Folder, History, LinkIcon, Minus, Moon, More, People, Plus, Redo, Search as SearchIc, Sun, Undo, Upload } from '../ui/icons.tsx';
+import { navigate, useRoute, type Section } from '../lib/route.ts';
+import { Briefcase, Check, ChevronLeft, ChevronRight, Close, Download, Eye, Folder, History, LinkIcon, Minus, Moon, More, People, Plus, Redo, Search as SearchIc, Sun, Undo, Upload } from '../ui/icons.tsx';
 
 interface Props {
   colW: number;
@@ -59,6 +60,34 @@ const SYNC_HELP = {
 
 const historySnapshot = () => (canUndo() ? 1 : 0) | (canRedo() ? 2 : 0) | (isHistoryBusy() ? 4 : 0);
 
+const SECTIONS: { id: Section; label: string }[] = [
+  { id: 'plan', label: 'Plan' },
+  { id: 'projects', label: 'Projects' },
+  { id: 'clients', label: 'Clients' },
+];
+
+/** Plan · Projects · Clients. */
+export function SectionTabs({ current }: { current: Section }) {
+  return (
+    <nav className="sections" aria-label="Sections">
+      {SECTIONS.map((s) => (
+        <a
+          key={s.id}
+          href={s.id}
+          className={'section-tab' + (s.id === current ? ' on' : '')}
+          aria-current={s.id === current ? 'page' : undefined}
+          onClick={(e) => {
+            e.preventDefault();
+            navigate({ section: s.id });
+          }}
+        >
+          {s.label}
+        </a>
+      ))}
+    </nav>
+  );
+}
+
 export const Toolbar = memo(function Toolbar(props: Props) {
   const { colW, model, onZoom, onToday, onPage } = props;
   const [searchOpen, setSearchOpen] = useState(false);
@@ -81,10 +110,15 @@ export const Toolbar = memo(function Toolbar(props: Props) {
   const counts = useCallback(() => `${model.personCount}|${store.getRowCount('tasks')}|${model.getFocus()?.size ?? 0}`, [model]);
   useSyncExternalStore(model.subscribe, counts);
   const taskCount = store.getRowCount('tasks');
+  const route = useRoute();
+  const plan = route.section === 'plan';
 
   return (
-    <header className="toolbar">
+    <header className={'toolbar' + (plan ? '' : ' on-page')}>
       <SheetSwitcher onSignIn={props.onSignIn} onWorkspace={props.onWorkspace} />
+      <SectionTabs current={route.section} />
+      {plan && (
+      <>
       <ViewsMenu current={props.view} onApply={props.onApplyView} />
       <div className="seg">
         <button className="btn icon tb-page" onClick={() => onPage(-1)} aria-label="Earlier" title="Earlier">
@@ -114,6 +148,8 @@ export const Toolbar = memo(function Toolbar(props: Props) {
           <Plus />
         </button>
       </div>
+      </>
+      )}
       <div className="seg">
         <button className="btn icon" disabled={!(hist & 1) || !!(hist & 4)} onClick={() => void undo()} aria-label="Undo" title="Undo (⌘Z)">
           {hist & 4 ? <span className="spinner" aria-label="Undoing" /> : <Undo />}
@@ -123,9 +159,13 @@ export const Toolbar = memo(function Toolbar(props: Props) {
         </button>
       </div>
       <div className="tb-spacer" />
-      <Search {...props} open={searchOpen} setOpen={setSearchOpen} />
-      <PeopleMenu {...props} />
-      <FilterMenu model={model} filter={props.filter} onFilter={props.onFilter} onManageProjects={props.onManageProjects} />
+      {plan && (
+        <>
+          <Search {...props} open={searchOpen} setOpen={setSearchOpen} />
+          <PeopleMenu {...props} />
+          <FilterMenu model={model} filter={props.filter} onFilter={props.onFilter} onManageProjects={props.onManageProjects} />
+        </>
+      )}
       <PresenceAvatars onFollow={props.onFollow} />
       {props.readOnly && (
         <span className="ro-chip" title="You have a view-only link">
@@ -189,9 +229,13 @@ export const Toolbar = memo(function Toolbar(props: Props) {
             <History />
             Activity
           </button>
-          <button className="menu-item" onClick={props.onManageProjects}>
+          <button className="menu-item" onClick={() => navigate({ section: 'projects' })}>
             <Folder />
-            Projects…
+            Projects
+          </button>
+          <button className="menu-item" onClick={() => navigate({ section: 'clients' })}>
+            <Briefcase />
+            Clients
           </button>
           <div className="menu-sep" />
           <div className="menu-label">View</div>
