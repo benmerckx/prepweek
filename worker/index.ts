@@ -186,7 +186,7 @@ export default {
     if (kind === 'share') {
       if (request.method === 'GET') {
         const keys = role === 'edit' && isPrivate ? await stub.shareKeys() : null;
-        return json({ role, private: isPrivate, ...keys, name: info.name, workspace: info.workspace, signedIn: !!user });
+        return json({ role, private: isPrivate, ...keys, name: info.name, workspace: info.workspace, signedIn: !!user, deleted: info.deleted });
       }
       if (request.method === 'POST') {
         if (role !== 'edit') return forbidden();

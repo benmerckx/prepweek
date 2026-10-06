@@ -168,6 +168,11 @@ export const lastSheet = () => {
     return null;
   }
 };
+export const forgetLastSheet = () => {
+  try {
+    localStorage.removeItem(LAST);
+  } catch {}
+};
 export const rememberLastSheet = (id: string) => {
   try {
     localStorage.setItem(LAST, id);

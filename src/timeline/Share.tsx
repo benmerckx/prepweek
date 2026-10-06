@@ -2,7 +2,7 @@ import { useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { changeSharing, getAccess, hasServer, onAccess, shareLink } from '../data/access.ts';
 import { useBackToClose, useEscape } from '../lib/useBackToClose.ts';
-import { Check, Close, LinkIcon, Lock } from '../ui/icons.tsx';
+import { Check, Close, LinkIcon, Lock, Trash } from '../ui/icons.tsx';
 
 export const useAccess = () => useSyncExternalStore(onAccess, getAccess);
 
@@ -133,7 +133,30 @@ export function ShareDialog({ onClose }: { onClose(): void }) {
 }
 
 /** Shown instead of the sheet when we may not open it. */
-export function LockScreen({ signedIn, onSignIn }: { signedIn: boolean; onSignIn(): void }) {
+export function LockScreen({ signedIn, deleted, onSignIn }: { signedIn: boolean; deleted?: boolean; onSignIn(): void }) {
+  if (deleted)
+    return (
+      <div className="lock">
+        <div className="lock-card">
+          <span className="lock-icon">
+            <Trash size={22} />
+          </span>
+          <h1>This sheet was deleted</h1>
+          <p>Someone removed it from its workspace, so it can’t be opened any more.</p>
+          <button
+            className="btn primary big"
+            onClick={() => {
+              try {
+                localStorage.removeItem('prepweek:lastSheet');
+              } catch {}
+              location.href = '/';
+            }}
+          >
+            Go to your sheets
+          </button>
+        </div>
+      </div>
+    );
   return (
     <div className="lock">
       <div className="lock-card">

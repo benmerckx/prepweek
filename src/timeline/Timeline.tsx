@@ -974,7 +974,7 @@ export function Timeline({ model }: { model: TimelineModel }) {
           onClose={() => setPalette(false)}
         />
       )}
-      {access?.role === 'none' && <LockScreen signedIn={!!access.signedIn} onSignIn={openSignIn} />}
+      {access?.role === 'none' && <LockScreen signedIn={!!access.signedIn} deleted={access.deleted} onSignIn={openSignIn} />}
       {signingIn && <SignInDialog onClose={() => setSigningIn(false)} />}
       {workspaceOpen && <WorkspaceDialog workspaceId={workspaceOpen} onClose={() => setWorkspaceOpen(null)} />}
       {activityOpen && (

@@ -18,6 +18,8 @@ export interface ShareInfo {
   name?: string;
   workspace?: { id: string; name: string } | null;
   signedIn?: boolean;
+  /** The sheet was deleted from its workspace. */
+  deleted?: boolean;
 }
 
 let sheet = 'demo';

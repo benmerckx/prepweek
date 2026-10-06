@@ -6,6 +6,7 @@ import {
   authConfig,
   createWorkspace,
   deleteSheet,
+  forgetLastSheet,
   forgetMySheet,
   getMe,
   getPeople,
@@ -36,6 +37,14 @@ const useAccess = () => useSyncExternalStore(onAccess, getAccess);
 
 const go = (sheetId: string) => {
   location.href = `/s/${encodeURIComponent(sheetId)}`;
+};
+
+/** The sheet we're on is gone: open another one of yours (or start fresh). */
+const leaveSheet = () => {
+  const next = getMe()?.workspaces.flatMap((w) => w.sheets)[0];
+  forgetLastSheet();
+  if (next) go(next.id);
+  else location.href = '/';
 };
 
 const initials = (name: string) =>
@@ -106,9 +115,12 @@ export function SheetSwitcher({ onSignIn, onWorkspace }: { onSignIn(): void; onW
     );
   }
 
-  const ws = access?.workspace ?? null;
-  const name = access?.name || (ws ? 'Untitled sheet' : 'Untitled plan');
-  const member = !!ws && me.workspaces.some((w) => w.id === ws.id);
+  // Your own sheets are known from the account right away (and stay fresh
+  // after a rename); other sheets wait for the access check.
+  const home = me.workspaces.find((w) => w.sheets.some((s) => s.id === current));
+  const ws = home ? { id: home.id, name: home.name } : (access?.workspace ?? null);
+  const name = home?.sheets.find((s) => s.id === current)?.name || access?.name || (ws ? 'Untitled sheet' : 'Untitled plan');
+  const member = !!home || (!!ws && me.workspaces.some((w) => w.id === ws.id));
   const newSheet = async (workspace?: Workspace) => {
     setError('');
     try {
@@ -531,7 +543,13 @@ export function WorkspaceDialog({ workspaceId, onClose }: { workspaceId: string;
                         className="tb-search-btn"
                         aria-label={`Delete ${s.name}`}
                         title="Delete sheet"
-                        onClick={() => confirm(`Delete “${s.name}” for everyone? It can’t be opened afterwards.`) && void run(() => deleteSheet(s.id))}
+                        onClick={() =>
+                          confirm(`Delete “${s.name}” for everyone? It can’t be opened afterwards.`) &&
+                          void run(async () => {
+                            await deleteSheet(s.id);
+                            if (s.id === getSheetId()) leaveSheet();
+                          })
+                        }
                       >
                         <Trash />
                       </button>
