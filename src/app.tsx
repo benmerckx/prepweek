@@ -7,23 +7,27 @@ import { getServerHttp, startSync } from './data/sync.ts';
 import { seed } from './data/seed.ts';
 import { loadMe as loadIdentity } from './data/identity.ts';
 import { initAccess, loadAccess } from './data/access.ts';
-import { getMe, lastSheet, newSheetId, rememberLastSheet, rememberMySheet } from './data/account.ts';
+import { getMe, lastSheet, newSheetId, rememberLastSheet, rememberMySheet, type Me } from './data/account.ts';
 import { TimelineModel } from './timeline/model.ts';
 import { Timeline } from './timeline/Timeline.tsx';
 import { InviteScreen } from './timeline/Account.tsx';
 
-export const startApp = async (root: Root) => {
+/** `account`: who's signed in, still loading; only awaited where it matters. */
+export const startApp = async (root: Root, account: Promise<Me | null>) => {
   // /invite/<token>: join a workspace.
   const invite = location.pathname.match(/^\/invite\/([^/]+)/)?.[1];
   if (invite) {
+    await account;
     root.render(<InviteScreen token={decodeURIComponent(invite)} />);
   } else {
     // One sheet per URL: /s/<sheetId>. Each sheet is its own store, IndexedDB
     // database, broadcast channel and (server-side) Durable Object.
     // /app (or any other path): your last sheet, else the first you can open,
-  // else a new one.
-  let sheetId = location.pathname.match(/^\/s\/([^/]+)/)?.[1];
+    // else a new one.
+    let sheetId = location.pathname.match(/^\/s\/([^/]+)/)?.[1];
     if (!sheetId) {
+      // Which sheet to open depends on the account.
+      await account;
       const me = getMe();
       const known = me?.workspaces.flatMap((w) => w.sheets.map((s) => s.id)) ?? [];
       const last = lastSheet();
@@ -44,7 +48,10 @@ export const startApp = async (root: Root) => {
 
     initAccess(sheetId);
     try {
-      await startSync(sheetId, getMe() !== null);
+      // Whether the worker serves us only matters on localhost (see syncUrl);
+      // elsewhere, open the sheet from this device without waiting for it.
+      const local = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
+      await startSync(sheetId, local ? (await account) !== null : true);
     } catch (e) {
       // Storage can be unavailable (some private modes, quota). Run in memory
       // rather than staying on the boot screen.

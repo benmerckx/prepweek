@@ -20,6 +20,16 @@ type Changes = Parameters<MergeableStore['applyMergeableChanges']>[0];
 const SNAPSHOT = 'snapshot';
 const LOG = 'log';
 const COMPACT_AFTER = 200; // log entries
+/** ...or this many rows changed: an import or a first sync from the server is
+ *  a handful of huge entries, and replaying those on every open is slow. */
+const COMPACT_AFTER_ROWS = 1500;
+/** Rows touched by a batch of changes (a cheap measure of its size). */
+const rowsIn = (ch: Changes): number => {
+  let n = 0;
+  const tables = (ch as unknown as [[Record<string, [Record<string, unknown>]>]])[0]?.[0];
+  for (const t in tables) n += Object.keys(tables[t]?.[0] ?? {}).length;
+  return n;
+};
 /** Writes go out on the next tick: entries are tiny, and this still merges
  *  synchronous bursts (e.g. a remote sync applying many transactions). */
 const FLUSH_MS = 0;
@@ -64,6 +74,7 @@ export const startLocalDb = async (store: MergeableStore, name: string, legacyNa
 
   // --- Load: snapshot, then replay the log on top. ---
   let logCount = 0;
+  let logRows = 0;
   {
     const tx = db.transaction([SNAPSHOT, LOG], 'readonly');
     const [snapshot, log] = await Promise.all([
@@ -71,6 +82,7 @@ export const startLocalDb = async (store: MergeableStore, name: string, legacyNa
       req(tx.objectStore(LOG).getAll()) as Promise<Changes[]>,
     ]);
     logCount = log.length;
+    for (const ch of log) logRows += rowsIn(ch);
     store.transaction(() => {
       if (snapshot) store.setMergeableContent(snapshot);
       for (const ch of log) store.applyMergeableChanges(ch);
@@ -102,13 +114,16 @@ export const startLocalDb = async (store: MergeableStore, name: string, legacyNa
     queue = [];
     const tx = db.transaction(LOG, 'readwrite');
     const os = tx.objectStore(LOG);
-    for (const ch of batch) os.add(ch);
+    for (const ch of batch) {
+      os.add(ch);
+      logRows += rowsIn(ch);
+    }
     logCount += batch.length;
     // Commit now rather than when the transaction auto-closes, so a reload
     // or tab close right after an edit can't lose it.
     tx.commit?.();
     await done(tx);
-    if (logCount > COMPACT_AFTER) scheduleCompact();
+    if (logCount > COMPACT_AFTER || logRows > COMPACT_AFTER_ROWS) scheduleCompact();
   };
 
   const compact = async () => {
@@ -122,6 +137,7 @@ export const startLocalDb = async (store: MergeableStore, name: string, legacyNa
     tx.commit?.();
     await done(tx);
     logCount = 0;
+    logRows = 0;
   };
 
   function scheduleCompact() {
@@ -145,6 +161,10 @@ export const startLocalDb = async (store: MergeableStore, name: string, legacyNa
   addEventListener('pagehide', () => void flush());
 
   if (migrated || logCount > COMPACT_AFTER) scheduleCompact();
+
+  // A sheet saved before size-based compaction (or synced in big batches):
+  // fold its log now, so the next open is a single snapshot.
+  if (logCount > COMPACT_AFTER || logRows > COMPACT_AFTER_ROWS) scheduleCompact();
 
   return { empty, flush, compactSoon: scheduleCompact };
 };
