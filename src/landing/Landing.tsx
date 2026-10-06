@@ -426,16 +426,16 @@ function Hero({ v }: { v: Visitor }) {
       <div className="lp-wrap lp-hero-copy">
         <a className="lp-pill lp-in" href="#import" style={{ ['--d' as string]: '0ms' }}>
           <span className="lp-pill-dot" />
-          Coming from Teamweek? Import in one go
+          Coming from Teamweek? Bring your plan over in one go
           <Arrow />
         </a>
         <h1 className="lp-in" style={{ ['--d' as string]: '60ms' }}>
-          Your team’s weeks, <br className="lp-br" />
-          <span className="lp-accent">at a glance.</span>
+          Who’s doing what, <br className="lp-br" />
+          <span className="lp-accent">week by week.</span>
         </h1>
         <p className="lp-lede lp-in" style={{ ['--d' as string]: '120ms' }}>
-          PrepWeek is a fast, visual planner for teams. Drag work onto people, stretch it across days, and everyone sees the change the
-          moment you make it.
+          PrepWeek puts everyone’s work on one timeline. Drag a block onto someone, stretch it over the days it takes, and your whole
+          team sees it the moment you let go.
         </p>
         <div className="lp-in" style={{ ['--d' as string]: '180ms' }}>
           <Ctas v={v} />
@@ -447,13 +447,13 @@ function Hero({ v }: { v: Visitor }) {
             </span>
           )}
           <span>
-            <Tick /> Great on mobile
+            <Tick /> Made for phones too
           </span>
           <span>
             <Tick /> Works offline
           </span>
           <span>
-            <Tick /> Live for everyone on the sheet
+            <Tick /> Live for the whole team
           </span>
         </p>
       </div>
@@ -674,26 +674,26 @@ function Features() {
       <div className="lp-wrap">
         <Reveal className="lp-heading">
           <span className="lp-eyebrow" style={{ ['--c' as string]: C.blue }}>Everything in one view</span>
-          <h2>Planning that keeps up with your team.</h2>
+          <h2>Planning that keeps up with the week.</h2>
           <p>For studios, agencies and product teams who plan people, not tickets.</p>
         </Reveal>
         <div className="lp-bento">
-          <Card className="wide" tint={C.blue} title="Drag, stretch, done" text="Move work between people and days with one drag. Blocks pack themselves into lanes, so nothing hides behind anything else.">
+          <Card className="wide" tint={C.blue} title="Drag, stretch, done" text="Hand work to someone else or move it to another day in one drag. Blocks stack themselves, so nothing hides behind anything else.">
             <DragVisual />
           </Card>
-          <Card tint={C.pink} title="Live, together" text="See who is looking at what. Edits, comments and @mentions reach everyone on the sheet instantly." delay={80}>
+          <Card tint={C.pink} title="Live, together" text="See who’s looking at what. Every edit, comment and @mention shows up for the whole team instantly." delay={80}>
             <LiveVisual />
           </Card>
-          <Card tint={C.amber} title="Months at a glance" text="The scrubber charts your team’s workload. Filter on a project and its busy weeks light up." delay={0}>
+          <Card tint={C.amber} title="The months ahead" text="A strip along the bottom charts how busy every week is. Filter on a project and see where its work lands." delay={0}>
             <ScrubVisual />
           </Card>
-          <Card tint={C.red} title="Projects and clients" text="Every project gets a color and a pattern, and its own page with people, dates and notes." delay={80}>
+          <Card tint={C.red} title="Projects and clients" text="Give every project a color and a pattern you can spot anywhere, and a page with its people, dates and notes." delay={80}>
             <ProjectsVisual />
           </Card>
-          <Card tint={C.green} title="Offline first" text="Your plan lives on your device. Keep planning on the train; it syncs the moment you’re back." delay={160}>
+          <Card tint={C.green} title="Works offline" text="Your plan lives on your device. Keep planning on the train; it syncs as soon as you’re back online." delay={160}>
             <OfflineVisual />
           </Card>
-          <Card tint={C.cyan} title="Set it once" text="Weekly stand-ups, monthly reviews, yearly renewals. Repeating work fills itself in." delay={0}>
+          <Card tint={C.cyan} title="Set it once" text="Weekly stand-ups, monthly reviews, yearly renewals: set the rhythm once and the blocks keep coming." delay={0}>
             <RepeatVisual />
           </Card>
           <Card tint={C.violet} title="Notes that format themselves" text="Type / for headings and lists, or select text to style it. Mention a teammate and they’ll know." delay={80}>
@@ -812,9 +812,9 @@ function Mobile() {
         </Reveal>
         <Reveal className="lp-split-copy" delay={100}>
           <span className="lp-eyebrow" style={{ ['--c' as string]: C.green }}>On your phone</span>
-          <h2>The whole plan, in your pocket.</h2>
+          <h2>Your whole plan, in your pocket.</h2>
           <p>
-            Built for small screens, not squeezed onto them. See who is on what from the train, and move things the moment plans
+            Made for small screens, not squeezed onto them. Check who’s on what from the train, and move things the moment plans
             change.
           </p>
           <ul className="lp-mobile-points">
@@ -834,8 +834,8 @@ function Mobile() {
 
 function Steps() {
   const steps = [
-    { n: '1', title: 'Add your people', text: 'One row per person. Group them in teams if you like.' },
-    { n: '2', title: 'Drag work in', text: 'Drag across a row to plan a block. Give it a project, a color, a pattern.' },
+    { n: '1', title: 'Add your people', text: 'One row per person, grouped in teams if you like.' },
+    { n: '2', title: 'Drag in the work', text: 'Drag across someone’s row to plan a block, then give it a project and a color.' },
     { n: '3', title: 'Share the link', text: 'Everyone sees the same plan, live. Sign up to keep it and invite your team.' },
   ];
   return (
@@ -843,7 +843,7 @@ function Steps() {
       <div className="lp-wrap">
         <Reveal className="lp-heading">
           <span className="lp-eyebrow" style={{ ['--c' as string]: C.amber }}>Getting started</span>
-          <h2>Planned before your coffee cools.</h2>
+          <h2>Up and running before your coffee cools.</h2>
         </Reveal>
         <ol className="lp-steps">
           {steps.map((s, i) => (
@@ -939,7 +939,7 @@ function Import() {
         <Reveal className="lp-split-copy">
           <span className="lp-eyebrow" style={{ ['--c' as string]: C.pink }}>Moving from Teamweek?</span>
           <h2>Bring your whole history along.</h2>
-          <p>Drop in a Teamweek export and your planning is back where you left it, with the details intact.</p>
+          <p>Drop in your Teamweek export and pick up exactly where you left off: people, projects and every block, details intact.</p>
           <ul className="lp-checks">
             {points.map((p) => (
               <li key={p}>
@@ -976,7 +976,7 @@ export function Landing() {
   if (signingIn && v.kind === 'signedIn') location.replace('/app');
   const signIn = () => (v.kind === 'signedIn' ? location.assign('/app') : setSigningIn(true));
   useEffect(() => {
-    document.title = 'PrepWeek: plan your team’s weeks at a glance';
+    document.title = 'PrepWeek: who’s doing what, week by week';
     const on = () => setScrolled(scrollY > 8);
     on();
     addEventListener('scroll', on, { passive: true });
