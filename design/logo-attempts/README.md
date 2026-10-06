@@ -37,7 +37,10 @@ installed. All of these typefaces are free under the SIL Open Font License.
 
 10 is the one-color-ready version: wherever shapes overlap, the one in front
 cuts a gap out of the one behind instead of having a white outline, so the
-black and white files are the same drawing in one color. Its files:
+black and white files are the same drawing in one color. Its colors are the
+brand indigo and the app's current block palette (cyan `#0fc2d8`, orange
+`#ff7b1c`, hot pink `#f72585`); 01–09 and `exploration/` keep the palette from
+before. Its files:
 
 - `-mark`, `-mark-dark` (gray stripes lightened for dark backgrounds),
   `-mark-black`, `-mark-white`, and `-mark-orange-stripes`, an alternative
