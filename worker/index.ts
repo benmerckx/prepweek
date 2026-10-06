@@ -46,7 +46,19 @@ export class SheetDurableObject extends WsServerDurableObject {
   override async createPersister() {
     const sql = this.ctx.storage.sql;
     const store = createMergeableStore();
-    const persister = createDurableObjectSqlStoragePersister(store, sql, { mode: 'fragmented' });
+    // Once loaded, TinyBase saves the whole store straight back: every row
+    // deleted and inserted again, each time the object starts. For a big sheet
+    // that is tens of thousands of rows written for nothing, and the free tier
+    // allows 100,000 a day. So writes are dropped until that first save is done.
+    let skipWrites = false;
+    const writes = /^\s*(INSERT|DELETE|UPDATE)\b/i;
+    const quiet = new Proxy(sql, {
+      get: (target, key) =>
+        key === 'exec'
+          ? (query: string, ...args: unknown[]) => (skipWrites && writes.test(query) ? target.exec('SELECT 1') : target.exec(query, ...args))
+          : Reflect.get(target, key, target),
+    });
+    const persister = createDurableObjectSqlStoragePersister(store, quiet, { mode: 'fragmented' });
     // Sheets saved before the switch: carry the JSON copy over, once.
     const tables = new Set(sql.exec<{ name: string }>("SELECT name FROM sqlite_master WHERE type = 'table'").toArray().map((r) => r.name));
     const migrated = tables.has('tinybase_tables') && sql.exec('SELECT 1 FROM tinybase_tables LIMIT 1').toArray().length > 0;
@@ -56,6 +68,12 @@ export class SheetDurableObject extends WsServerDurableObject {
       store.setMergeableContent(old.getMergeableContent());
       await persister.save();
     }
+    skipWrites = true;
+    let saving = false;
+    persister.addStatusListener((_, status) => {
+      if (status === 2 /* saving */) saving = true;
+      else if (saving && status === 0 /* idle */) skipWrites = false;
+    });
     return persister;
   }
 
