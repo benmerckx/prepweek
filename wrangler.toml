@@ -29,9 +29,12 @@ class_name = "PresenceDurableObject"
 name = "DIRECTORY"
 class_name = "DirectoryDurableObject"
 
-# Optional secrets (wrangler secret put …):
-#   MANDRILL_API_KEY, EMAIL_FROM        magic-link and invite emails (Mandrill)
-#   GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET   "Continue with Google"
+# Public settings. The matching secrets (wrangler secret put …):
+#   MANDRILL_API_KEY        magic-link and invite emails (Mandrill)
+#   GOOGLE_CLIENT_SECRET    "Continue with Google"
+[vars]
+EMAIL_FROM = "no-reply@prepweek.com"
+GOOGLE_CLIENT_ID = "344349983847-0o6bekkso8nj7folhue8v4q2cpvdp164.apps.googleusercontent.com"
 
 # Attachment storage (served by the worker at /files/<sheet>/<id>).
 # Disabled until the bucket exists. To enable: run

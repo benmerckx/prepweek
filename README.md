@@ -227,12 +227,12 @@ files and sharing requests always go to the network.
 
 Everything account-related lives in one SQLite Durable Object
 (`worker/directory.ts`), so there's no database to create. Configure sign-in
-with Worker secrets (`wrangler secret put …`):
+with Worker secrets (`wrangler secret put …`) and the `[vars]` in `wrangler.toml`:
 
-| Secret | For |
+| Setting | For |
 | --- | --- |
-| `MANDRILL_API_KEY`, `EMAIL_FROM` | sending magic links and invites via [Mandrill](https://mandrillapp.com) (Mailchimp Transactional). EMAIL_FROM like `prepweek <login@yourdomain.com>`, on a sending domain verified in Mandrill |
-| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | "Continue with Google". Create an OAuth client (web) in Google Cloud and add `https://<your host>/auth/google/callback` as a redirect URI |
+| `MANDRILL_API_KEY` (secret) + `EMAIL_FROM` (in `wrangler.toml` `[vars]`) | sending magic links and invites via [Mandrill](https://mandrillapp.com) (Mailchimp Transactional). EMAIL_FROM like `prepweek <login@yourdomain.com>` or just the address, on a sending domain verified in Mandrill |
+| `GOOGLE_CLIENT_SECRET` (secret) + `GOOGLE_CLIENT_ID` (in `wrangler.toml` `[vars]`) | "Continue with Google". Create an OAuth client (web) in Google Cloud and add `https://<your host>/auth/google/callback` as a redirect URI |
 
 Without a mail provider, `wrangler dev` on localhost shows the magic link on
 screen instead of emailing it.
