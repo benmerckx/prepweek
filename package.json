@@ -2,6 +2,7 @@
   "name": "prepweek",
   "private": true,
   "type": "module",
+  "packageManager": "bun@1.4.2",
   "scripts": {
     "dev": "bun --hot server.ts",
     "build": "rm -rf dist && bun build ./src/index.html --outdir dist --production --splitting --sourcemap=linked --public-path=/ && cp -r public/. dist/",
