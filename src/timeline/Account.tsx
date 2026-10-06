@@ -54,7 +54,7 @@ const leaveSheet = () => {
   const next = getMe()?.workspaces.flatMap((w) => w.sheets)[0];
   forgetLastSheet();
   if (next) go(next.id);
-  else location.href = '/';
+  else location.href = '/app';
 };
 
 const initials = (name: string) =>
@@ -157,10 +157,10 @@ export function SheetSwitcher({ onSignIn, onWorkspace }: { onSignIn(): void; onW
   // No accounts here (dev server, offline): just the brand.
   if (!me) {
     return (
-      <div className="brand">
+      <a className="brand" href="/" title="PrepWeek home">
         <Logo />
-        <span className="brand-name">prepweek</span>
-      </div>
+        <span className="brand-name">PrepWeek</span>
+      </a>
     );
   }
 
@@ -185,7 +185,9 @@ export function SheetSwitcher({ onSignIn, onWorkspace }: { onSignIn(): void; onW
 
   return (
     <div className="brand switcher">
-      <Logo />
+      <a className="brand-home" href="/" title="PrepWeek home" aria-label="PrepWeek home">
+        <Logo />
+      </a>
       <details className="tb-dd sheet-dd" ref={ref} onToggle={(e) => {
           if (e.currentTarget.open) me.workspaces.forEach((w) => prefetchPeople(w.id));
           else {
@@ -536,10 +538,10 @@ function SignInForm({ next, compact, email: initialEmail = '' }: { next: string;
   );
 }
 
-export function SignInDialog({ onClose }: { onClose(): void }) {
+/** `next`: where signing in leads (default: back to this page). */
+export function SignInDialog({ onClose, next = location.pathname + location.search }: { onClose(): void; next?: string }) {
   useBackToClose(true, onClose);
   useEscape(onClose);
-  const next = location.pathname + location.search;
   return createPortal(
     <div className="modal-backdrop" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal signin-modal" role="dialog" aria-label="Sign up or log in">
@@ -770,8 +772,8 @@ export function InviteScreen({ token }: { token: string }) {
           <>
             <h1>Invite unavailable</h1>
             <p>{error}</p>
-            <a className="btn" href="/">
-              Open prepweek
+            <a className="btn" href="/app">
+              Open PrepWeek
             </a>
           </>
         ) : !info ? (

@@ -57,7 +57,7 @@ const json = (data: unknown, status = 200, headers: HeadersInit = {}) =>
 const fail = (message: string, status = 400) => json({ error: message }, status);
 
 /** Only same-site paths after sign-in (no open redirects). */
-const safeNext = (next: unknown) => (typeof next === 'string' && next.startsWith('/') && !next.startsWith('//') ? next : '/');
+const safeNext = (next: unknown) => (typeof next === 'string' && next.startsWith('/') && !next.startsWith('//') ? next : '/app');
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const isLocal = (url: URL) => ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
@@ -144,7 +144,7 @@ export async function handleAuth(req: Request, env: Env, url: URL): Promise<Resp
 
   if (path === '/auth/verify') {
     const login = await directory(env).consumeLogin(url.searchParams.get('token') ?? '');
-    if (!login) return Response.redirect(`${url.origin}/?signin=expired`, 302);
+    if (!login) return Response.redirect(`${url.origin}/?signin`, 302);
     return signedIn(env, url, login.email, login.next);
   }
 

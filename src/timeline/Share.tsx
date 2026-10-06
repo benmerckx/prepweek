@@ -149,7 +149,7 @@ export function LockScreen({ signedIn, deleted, onSignIn }: { signedIn: boolean;
               try {
                 localStorage.removeItem('prepweek:lastSheet');
               } catch {}
-              location.href = '/';
+              location.href = '/app';
             }}
           >
             Go to your sheets

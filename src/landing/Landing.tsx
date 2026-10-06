@@ -5,10 +5,12 @@
 // people who prefer reduced motion.
 
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
-import { getMe, newSheetId, rememberMySheet } from '../data/account.ts';
+import { getMe, lastSheet, mySheets, newSheetId, rememberMySheet } from '../data/account.ts';
 import { Logo } from '../ui/icons.tsx';
+import { loadChunk } from '../lib/chunks.ts';
 
-const SignInDialog = lazy(() => import('../timeline/Account.tsx').then((m) => ({ default: m.SignInDialog })));
+// After a deploy the old chunk is gone: reload into a page that reopens sign-in.
+const SignInDialog = lazy(() => loadChunk(() => import('../timeline/Account.tsx'), '/?signin').then((m) => ({ default: m.SignInDialog })));
 
 const C = {
   blue: '#4f7cff',
@@ -776,8 +778,10 @@ function Import() {
 
 export function Landing() {
   const [scrolled, setScrolled] = useState(false);
-  const [signingIn, setSigningIn] = useState(false);
+  const [signingIn, setSigningIn] = useState(() => new URLSearchParams(location.search).has('signin'));
   const signedIn = !!getMe()?.user;
+  // Already planning on this device (not just the demo): offer the way back.
+  const returning = signedIn || mySheets().length > 0 || ![null, 'demo'].includes(lastSheet());
   const accounts = getMe() !== null;
   useEffect(() => {
     document.title = 'PrepWeek: plan your team’s weeks at a glance';
@@ -791,7 +795,7 @@ export function Landing() {
     <div className="lp">
       <nav className={'lp-nav' + (scrolled ? ' scrolled' : '')}>
         <div className="lp-wrap lp-nav-inner">
-          <a className="lp-brand" href="/welcome" aria-label="PrepWeek home">
+          <a className="lp-brand" href="/" aria-label="PrepWeek home">
             <Logo size={24} />
             PrepWeek
           </a>
@@ -801,10 +805,18 @@ export function Landing() {
             <a href="/s/demo">Demo</a>
           </span>
           <span className="lp-nav-actions">
-            {signedIn ? (
-              <a className="lp-btn primary" href="/">
-                Open PrepWeek
-              </a>
+            {returning ? (
+              <>
+                {accounts && !signedIn && (
+                  <button className="lp-btn ghost" onClick={() => setSigningIn(true)}>
+                    Log in
+                  </button>
+                )}
+                <a className="lp-btn primary" href="/app">
+                  Open PrepWeek
+                  <Arrow />
+                </a>
+              </>
             ) : (
               <>
                 {accounts && (
@@ -854,6 +866,7 @@ export function Landing() {
           <span className="lp-dim">Made for teams who plan in weeks.</span>
           <span className="lp-foot-links">
             <a href="/s/demo">Demo</a>
+            <a href="/app">Open the app</a>
             {accounts && !signedIn && (
               <button className="lp-link" onClick={() => setSigningIn(true)}>
                 Log in
@@ -866,7 +879,7 @@ export function Landing() {
 
       {signingIn && (
         <Suspense fallback={null}>
-          <SignInDialog onClose={() => setSigningIn(false)} />
+          <SignInDialog next="/app" onClose={() => setSigningIn(false)} />
         </Suspense>
       )}
     </div>

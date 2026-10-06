@@ -12,8 +12,9 @@ import { PatternPicker } from './PatternPicker.tsx';
 
 import { DatePicker, Select, isPopoverOpen, type Option } from '../ui/Select.tsx';
 
-const RichNotes = lazy(() => import('./RichNotes.tsx'));
+const RichNotes = lazy(() => loadChunk(() => import('./RichNotes.tsx')));
 import { Calendar, Check, Close, Repeat, Trash } from '../ui/icons.tsx';
+import { loadChunk } from '../lib/chunks.ts';
 
 interface Props {
   task: TaskView;

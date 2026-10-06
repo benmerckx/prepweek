@@ -23,13 +23,8 @@
       document.querySelectorAll('meta[name=theme-color]').forEach(function (m) {
         m.content = t === 'dark' ? '#111318' : '#ffffff';
       });
-      // New visitors get the landing page (see main.tsx): no "opening your
-      // sheet" screen for them.
-      try {
-        var p = location.pathname,
-          last = localStorage.getItem('prepweek:lastSheet');
-        if (p === '/welcome' || (p === '/' && (!last || last === 'demo'))) document.documentElement.dataset.landing = '';
-      } catch (e) {}
+      // The home page (see main.tsx) skips the "opening your sheet" screen.
+      if (location.pathname === '/' || location.pathname === '/welcome') document.documentElement.dataset.landing = '';
     </script>
     <!-- Boot screen: inline so it paints before the bundle and data load. -->
     <style>

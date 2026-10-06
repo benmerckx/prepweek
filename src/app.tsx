@@ -20,7 +20,9 @@ export const startApp = async (root: Root) => {
   } else {
     // One sheet per URL: /s/<sheetId>. Each sheet is its own store, IndexedDB
     // database, broadcast channel and (server-side) Durable Object.
-    let sheetId = location.pathname.match(/^\/s\/([^/]+)/)?.[1];
+    // /app (or any other path): your last sheet, else the first you can open,
+  // else a new one.
+  let sheetId = location.pathname.match(/^\/s\/([^/]+)/)?.[1];
     if (!sheetId) {
       const me = getMe();
       const known = me?.workspaces.flatMap((w) => w.sheets.map((s) => s.id)) ?? [];

@@ -25,8 +25,9 @@ import { SectionTabs } from './Toolbar.tsx';
 import { PatternChip, PatternPicker } from './PatternPicker.tsx';
 import type { Client, Project, ProjectStats, TimelineModel } from './model.ts';
 import { Archive, Check, ChevronDown, Plus, Search as SearchIc, Trash } from '../ui/icons.tsx';
+import { loadChunk } from '../lib/chunks.ts';
 
-const RichNotes = lazy(() => import('./RichNotes.tsx'));
+const RichNotes = lazy(() => loadChunk(() => import('./RichNotes.tsx')));
 
 interface Props {
   model: TimelineModel;
