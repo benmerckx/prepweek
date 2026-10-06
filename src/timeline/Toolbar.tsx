@@ -134,10 +134,13 @@ export const Toolbar = memo(function Toolbar(props: Props) {
         </span>
       )}
       <NotificationsMenu onOpenTask={props.onOpenTask} />
-      <div className={`sync sync-${sync}`} title={SYNC_HELP[sync]}>
-        <span className="dot" />
-        <span className="sync-label">{sync === 'local' ? 'Local' : sync}</span>
-      </div>
+      {/* Connection state lives in the menu; only losing it is worth a chip. */}
+      {sync === 'offline' && (
+        <div className="sync sync-offline" title={SYNC_HELP.offline}>
+          <span className="dot" />
+          <span className="sync-label">Offline</span>
+        </div>
+      )}
       <button className="btn primary tb-share" onClick={props.onShare} title="Share this sheet">
         <LinkIcon size={14} />
         Share

@@ -928,6 +928,11 @@ export function Timeline({ model }: { model: TimelineModel }) {
               {compact ? '+' : '+ Add person'}
             </button>
             )}
+            {rows.length === 0 && !compact && (
+              <p className="sidebar-empty" style={{ transform: `translateY(${model.totalHeight}px)` }}>
+                No people yet. Add someone, then drag across their row to plan work.
+              </p>
+            )}
           </div>
           <div
             className="body"
@@ -939,7 +944,7 @@ export function Timeline({ model }: { model: TimelineModel }) {
             <GridBackground d0={win.d0} d1={win.d1} scale={scale} height={bodyH} today={todayDay} />
             <MilestoneLines milestones={model.milestones} d0={win.d0} d1={win.d1} scale={scale} height={bodyH} drag={msDrag} />
             {rendered}
-            {rows.length === 0 && (
+            {rows.length === 0 && compact && (
               <div className="empty" style={{ transform: `translateX(${(vp.scroller?.scrollLeft ?? 0) + 32}px)` }}>
                 No people on this sheet yet. Add someone on the left, then drag across their row to plan work.
               </div>

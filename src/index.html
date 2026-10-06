@@ -9,12 +9,16 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="prepweek" />
-    <!-- The theme picked with the toggle, before anything paints. -->
+    <!-- Dark unless light was picked with the toggle, before anything paints. -->
     <script>
+      var t = 'dark';
       try {
-        var t = localStorage.getItem('prepweek:theme');
-        if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+        if (localStorage.getItem('prepweek:theme') === 'light') t = 'light';
       } catch (e) {}
+      document.documentElement.dataset.theme = t;
+      document.querySelectorAll('meta[name=theme-color]').forEach(function (m) {
+        m.content = t === 'dark' ? '#111318' : '#ffffff';
+      });
     </script>
     <!-- Boot screen: inline so it paints before the bundle and data load. -->
     <style>
