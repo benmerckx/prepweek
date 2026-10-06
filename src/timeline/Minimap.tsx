@@ -33,7 +33,7 @@ interface Geo {
 export function Minimap({ model, vp, today }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
-  const state = useRef({ hoverX: -1, dragging: false, grabDx: 0, raf: 0, rebuild: 0, colors: {} as Record<string, string>, shift: 0, glide: null as null | { from: number; to: number; s0: number; s1: number; timer: number } });
+  const state = useRef({ hoverX: -1, dragging: false, grabDx: 0, raf: 0, rebuild: 0, colors: {} as Record<string, string>, shift: 0, lock: null as null | number, over: 0, glide: null as null | { from: number; to: number; s0: number; s1: number; timer: number } });
 
   useEffect(() => {
     const canvas = canvasRef.current!;
@@ -69,9 +69,11 @@ export function Minimap({ model, vp, today }: Props) {
         const p = gl.to === gl.from ? 1 : Math.min(1, Math.max(0, ((vp.scroller?.scrollLeft ?? 0) - gl.from) / (gl.to - gl.from)));
         st.shift = gl.s0 + (gl.s1 - gl.s0) * p;
       }
-      let mmStart = base + st.shift;
-      // Keep the handle on the strip (except mid-glide).
-      if (!gl) {
+      let mmStart = st.lock ?? base + st.shift;
+      // Keep the handle on the strip (except mid-glide or while dragging,
+      // when the strip holds still under the handle).
+      if (st.lock !== null) st.shift = mmStart - base;
+      else if (!gl) {
         if ((fv - mmStart) * scale < 0) mmStart = fv;
         else if ((fv - mmStart) * scale + sliderW > W) mmStart = fv - (W - sliderW) / scale;
         st.shift = mmStart - base;
@@ -347,10 +349,21 @@ export function Minimap({ model, vp, today }: Props) {
     };
 
     // Scrubbing.
+    // Dragging moves the timeline at the strip's own scale: the strip holds
+    // still (st.lock) and the handle follows the pointer over it. Pushing the
+    // handle past either edge pans the strip by the overshoot.
     const setFromSlider = (sliderLeft: number) => {
       const g = geo();
-      const f = Math.min(1, Math.max(0, (sliderLeft + st.shift * g.scale) / g.travel));
-      if (vp.scroller) vp.scroller.scrollLeft = f * vp.maxScrollLeft();
+      if (st.lock === null) return;
+      const room = g.W - g.sliderW;
+      // Only movement further out pans (coming back doesn't undo it).
+      const left = Math.min(room, Math.max(0, sliderLeft));
+      const over = sliderLeft - left;
+      const push = over < 0 ? Math.min(0, over - st.over) : over > 0 ? Math.max(0, over - st.over) : 0;
+      st.lock += push / g.scale;
+      st.over = over;
+      const day = st.lock + left / g.scale;
+      if (vp.scroller) vp.scroller.scrollLeft = Math.min(vp.maxScrollLeft(), Math.max(0, vp.scale.xF(day)));
     };
     const endGlide = () => {
       if (!st.glide) return;
@@ -394,6 +407,8 @@ export function Minimap({ model, vp, today }: Props) {
       endGlide();
       canvas.setPointerCapture(e.pointerId);
       st.dragging = true;
+      st.lock = g.mmStart;
+      st.over = 0;
       wrap.classList.add('scrubbing');
       st.grabDx = x - g.sliderX;
       schedule();
@@ -408,6 +423,7 @@ export function Minimap({ model, vp, today }: Props) {
     };
     const up = (e: PointerEvent) => {
       st.dragging = false;
+      st.lock = null;
       wrap.classList.remove('scrubbing');
       if (e.pointerType === 'touch') st.hoverX = -1;
       if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
