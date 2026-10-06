@@ -5,7 +5,7 @@
 
 import { dayFromYMD, isWeekend, ymd, type Day } from './dates.ts';
 
-export const RULES = ['daily', 'weekly', 'biweekly', 'monthly'] as const;
+export const RULES = ['daily', 'weekly', 'biweekly', 'monthly', 'yearly'] as const;
 export type Rule = (typeof RULES)[number];
 
 export const RULE_LABELS: Record<Rule, string> = {
@@ -13,6 +13,7 @@ export const RULE_LABELS: Record<Rule, string> = {
   weekly: 'Every week',
   biweekly: 'Every 2 weeks',
   monthly: 'Every month',
+  yearly: 'Every year',
 };
 
 export const isRule = (r: string | undefined): r is Rule => !!r && (RULES as readonly string[]).includes(r);
@@ -30,10 +31,12 @@ export const occurrenceStart = (start: Day, rule: Rule, n: number): Day => {
       return start + 7 * n;
     case 'biweekly':
       return start + 14 * n;
-    case 'monthly': {
+    case 'monthly':
+    case 'yearly': {
+      const k = rule === 'yearly' ? 12 * n : n;
       const { y, m, d } = ymd(start);
-      const ty = y + Math.floor((m + n) / 12);
-      const tm = (((m + n) % 12) + 12) % 12;
+      const ty = y + Math.floor((m + k) / 12);
+      const tm = (((m + k) % 12) + 12) % 12;
       return dayFromYMD(ty, tm, Math.min(d, daysInMonth(ty, tm)));
     }
     case 'daily': {

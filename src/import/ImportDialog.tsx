@@ -20,7 +20,7 @@ interface Loaded {
   rows: string[][];
 }
 
-const SHOWN_FIELDS: Field[] = ['title', 'assignee', 'email', 'start', 'end', 'startTime', 'endTime', 'project', 'client', 'status', 'notes', 'tags', 'segment', 'attachments', 'color', 'estimate', 'taskId'];
+const SHOWN_FIELDS: Field[] = ['title', 'assignee', 'email', 'start', 'end', 'startTime', 'endTime', 'project', 'client', 'status', 'notes', 'tags', 'segment', 'attachments', 'repeats', 'color', 'estimate', 'taskId'];
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
 
@@ -41,6 +41,7 @@ export function ImportDialog({ initialFile, onClose: close, onImported }: Props)
   const [ambiguous, setAmbiguous] = useState(false);
   // Done tasks are kept (shown as done): they're the history of the plan.
   const [includeDone, setIncludeDone] = useState(true);
+  const [keepRepeats, setKeepRepeats] = useState(true);
   const [unassigned, setUnassigned] = useState<'skip' | 'row'>('skip');
   const [mode, setMode] = useState<ImportMode>('add');
   const [dragOver, setDragOver] = useState(false);
@@ -87,8 +88,8 @@ export function ImportDialog({ initialFile, onClose: close, onImported }: Props)
   );
   // Replacing starts from an empty sheet, so nobody "matches".
   const plan = useMemo(
-    () => (file ? buildPlan(file.rows, { mapping, dateOrder, includeDone, unassigned }, mode === 'add' ? current.people : []) : null),
-    [file, mapping, dateOrder, includeDone, unassigned, mode, current],
+    () => (file ? buildPlan(file.rows, { mapping, dateOrder, includeDone, keepRepeats, unassigned }, mode === 'add' ? current.people : []) : null),
+    [file, mapping, dateOrder, includeDone, keepRepeats, unassigned, mode, current],
   );
 
   const newPeople = plan?.people.filter((p) => !p.existingId) ?? [];
@@ -227,6 +228,12 @@ export function ImportDialog({ initialFile, onClose: close, onImported }: Props)
                 <input type="checkbox" checked={includeDone} onChange={(e) => setIncludeDone(e.currentTarget.checked)} />
                 Include completed tasks (marked done)
               </label>
+              {mapping.repeats !== undefined && (
+                <label title="The export doesn’t say when a series ends: one ends where a newer series of the same task starts, or, when older than six months, where the task was last planned.">
+                  <input type="checkbox" checked={keepRepeats} onChange={(e) => setKeepRepeats(e.currentTarget.checked)} />
+                  Keep repeating tasks repeating
+                </label>
+              )}
               <label>
                 <span>Tasks without assignee</span>
                 <select value={unassigned} onChange={(e) => setUnassigned(e.currentTarget.value as 'skip' | 'row')}>
@@ -253,6 +260,14 @@ export function ImportDialog({ initialFile, onClose: close, onImported }: Props)
                       .filter(Boolean)
                       .join(', ')}
                     .
+                  </p>
+                )}
+                {plan.repeats.series + plan.repeats.once > 0 && (
+                  <p className="dim">
+                    {plural(plan.repeats.series, 'repeating task')} keep repeating. Teamweek doesn’t export when a series ends
+                    {plan.repeats.ended > 0 && `, so ${plural(plan.repeats.ended, 'older one', 'older ones')} end where they were last planned`}.
+                    {plan.repeats.once > 0 &&
+                      ` ${plural(plan.repeats.once, 'task repeats', 'tasks repeat')} on a schedule prepweek can’t follow (like every 5 months): imported once, with the schedule in the notes.`}
                   </p>
                 )}
                 <div className="people-chips">

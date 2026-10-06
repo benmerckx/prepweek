@@ -7,12 +7,13 @@
 // names: columns are guessed from synonyms and the user can correct the
 // mapping in the dialog before importing.
 
-import { dayFromYMD, type Day } from '../lib/dates.ts';
+import { dayFromYMD, today, type Day } from '../lib/dates.ts';
+import { occurrenceStart, type Rule } from '../lib/recur.ts';
 import { PALETTE } from '../data/store.ts';
 
 export const FIELDS = [
   'title', 'assignee', 'email', 'start', 'end', 'project', 'client', 'notes', 'tags', 'segment', 'status', 'color', 'estimate',
-  'startTime', 'endTime', 'attachments', 'taskId',
+  'startTime', 'endTime', 'attachments', 'taskId', 'repeats',
 ] as const;
 export type Field = (typeof FIELDS)[number];
 export type Mapping = Partial<Record<Field, number>>;
@@ -32,6 +33,7 @@ export const FIELD_LABELS: Record<Field, string> = {
   endTime: 'End time',
   attachments: 'Attachment links',
   taskId: 'Task ID',
+  repeats: 'Repeats',
   status: 'Status',
   color: 'Color',
   estimate: 'Estimate',
@@ -53,6 +55,7 @@ const SYNONYMS: Record<Field, string[]> = {
   endTime: ['endtime', 'totime'],
   attachments: ['attachmentlinks', 'attachments', 'attachmenturls', 'files', 'links'],
   taskId: ['taskid', 'id'],
+  repeats: ['repeats', 'repeat', 'recurrence', 'recurring', 'repeatrule'],
   status: ['taskstatus', 'status', 'state', 'done', 'completed'],
   color: ['color', 'colour', 'hex', 'taskcolor', 'projectcolor'],
   estimate: ['estimatedminutes', 'estimateminutes', 'estimatesminutes', 'estimate', 'estimatedtime', 'estimatedhours', 'estimates'],
@@ -149,6 +152,10 @@ export interface ImportOptions {
   mapping: Mapping;
   dateOrder: DateOrder;
   includeDone: boolean;
+  /** Turn rows with a repeat rule into series (else: one task each). */
+  keepRepeats?: boolean;
+  /** "Now" for telling stale series apart (default: today). */
+  today?: Day;
   /** What to do with tasks that have no assignee. */
   unassigned: 'skip' | 'row';
 }
@@ -179,6 +186,10 @@ export interface PlannedTask {
   time: string;
   /** Attachment URLs (added as links). */
   links: string[];
+  /** Repeat rule, or '' for a one-off. */
+  repeat: Rule | '';
+  /** Last day an occurrence may start (0 = open-ended). */
+  repeatUntil: Day;
 }
 
 export interface ImportPlan {
@@ -186,7 +197,32 @@ export interface ImportPlan {
   tasks: PlannedTask[];
   skipped: { noDate: number; unassigned: number; done: number };
   range: [Day, Day] | null;
+  /**
+   * Rows with a repeat rule: kept as series (`ended` of them given an end
+   * because they look finished), or imported once (no matching rule).
+   */
+  repeats: { series: number; ended: number; once: number };
 }
+
+/**
+ * "every 1 week", "every 2 weeks", "monthly"… → a rule we support, null for
+ * one we don't (every 5 months), '' for no repeat.
+ */
+export const parseRepeat = (s: string): Rule | '' | null => {
+  const t = s.trim().toLowerCase();
+  if (!t || /^(never|none|no|-|false|0)$/.test(t)) return '';
+  const words: Record<string, Rule> = { daily: 'daily', weekly: 'weekly', biweekly: 'biweekly', fortnightly: 'biweekly', monthly: 'monthly', yearly: 'yearly', annually: 'yearly' };
+  if (words[t]) return words[t];
+  const m = /^every\s+(\d+)?\s*(workday|weekday|day|week|month|year)s?$/.exec(t);
+  if (!m) return null;
+  const n = Number(m[1] ?? 1);
+  const unit = m[2]!;
+  if (n === 1 && /day/.test(unit)) return 'daily';
+  if (unit === 'week') return n === 1 ? 'weekly' : n === 2 ? 'biweekly' : null;
+  if (unit === 'month') return n === 1 ? 'monthly' : n === 12 ? 'yearly' : null;
+  if (unit === 'year') return n === 1 ? 'yearly' : null;
+  return null;
+};
 
 const DONE = /^(done|completed?|closed|archived|finished|yes|true|x)$/i;
 const HEX = /^#?([0-9a-f]{6}|[0-9a-f]{3})$/i;
@@ -226,6 +262,7 @@ export const buildPlan = (rows: string[][], opts: ImportOptions, existing: Exist
   const people = new Map<string, PlannedPerson>();
   const tasks = new Map<string, PlannedTask>();
   const skipped = { noDate: 0, unassigned: 0, done: 0 };
+  const repeats = { series: 0, ended: 0, once: 0 };
   let min = Infinity;
   let max = -Infinity;
 
@@ -288,7 +325,7 @@ export const buildPlan = (rows: string[][], opts: ImportOptions, existing: Exist
       .filter(Boolean)
       .join(',');
     const est = cell(row, 'estimate');
-    const notes = [
+    let notes = [
       // Exports escape line breaks as a literal "\n".
       cell(row, 'notes').replace(/(?:\\r)?\\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim(),
       est && Number(est) > 0 ? `Estimate: ${est} min` : '',
@@ -298,7 +335,16 @@ export const buildPlan = (rows: string[][], opts: ImportOptions, existing: Exist
     const t0 = cell(row, 'startTime').slice(0, 5);
     const t1 = cell(row, 'endTime').slice(0, 5);
     const time = t0 ? (t1 && t1 !== t0 ? `${t0}–${t1}` : t0) : '';
-    const done = DONE.test(cell(row, 'status'));
+    const rawRepeat = cell(row, 'repeats');
+    let repeat = opts.keepRepeats === false ? '' : parseRepeat(rawRepeat);
+    if (repeat === null) {
+      // A rule we can't express: import this occurrence and say so.
+      repeats.once++;
+      notes = [notes, `Repeats ${rawRepeat.toLowerCase()} in Teamweek.`].filter(Boolean).join('\n\n');
+      repeat = '';
+    } else if (repeat) repeats.series++;
+    // A series' status describes one occurrence, not all of them.
+    const done = !repeat && DONE.test(cell(row, 'status'));
     const links = cell(row, 'attachments')
       .split(/\s+|,(?=https?:)/)
       .filter((u) => /^https?:\/\//.test(u));
@@ -312,9 +358,40 @@ export const buildPlan = (rows: string[][], opts: ImportOptions, existing: Exist
       // one block each, and re-importing updates them.
       const id = taskId ? `tw${taskId}-${hash(who.get(p) ?? '')}` : `tw${hash(`${who.get(p)}|${title}|${project}|${start}|${end}`)}`;
       if (!tasks.has(id)) p.tasks++;
-      tasks.set(id, { id, personKey: p.key, start, end, title, color, notes, project, client, tags, done, time, links });
+      tasks.set(id, { id, personKey: p.key, start, end, title, color, notes, project, client, tags, done, time, links, repeat, repeatUntil: 0 });
       if (start < min) min = start;
       if (end > max) max = end;
+    }
+  }
+
+  // The export has no end date for a series, and an open-ended one from
+  // years ago would fill every week since. So:
+  // - when someone started a newer series of the same task (title, project,
+  //   client) at least one interval later, the older one ends there (two
+  //   yearly renewals a day apart are two series, not a replacement);
+  // - a series older than six months ends the last time the same task shows
+  //   up as a row of its own (moved or edited occurrences, or a replacement
+  //   planned by hand); with none, only its first occurrence stays.
+  const now = opts.today ?? today();
+  const taskKey = (t: PlannedTask) => `${t.personKey}|${t.title.toLowerCase()}|${t.project}|${t.client}`;
+  const series = new Map<string, PlannedTask[]>();
+  const lastSeen = new Map<string, Day[]>();
+  for (const t of tasks.values()) {
+    if (t.repeat) (series.get(taskKey(t)) ?? series.set(taskKey(t), []).get(taskKey(t))!).push(t);
+    else (lastSeen.get(taskKey(t)) ?? lastSeen.set(taskKey(t), []).get(taskKey(t))!).push(t.start);
+  }
+  for (const [k, list] of series) {
+    list.sort((a, b) => a.start - b.start);
+    const ones = lastSeen.get(k) ?? [];
+    for (const cur of list) {
+      const second = occurrenceStart(cur.start, cur.repeat as Rule, 1);
+      const next = list.find((n) => n.repeat === cur.repeat && n.start >= second);
+      if (next) cur.repeatUntil = next.start - 1;
+      else if (cur.start < now - 183) {
+        const seen = ones.filter((d) => d > cur.start);
+        cur.repeatUntil = seen.length ? Math.max(...seen) : cur.start;
+      } else continue;
+      repeats.ended++;
     }
   }
 
@@ -323,5 +400,6 @@ export const buildPlan = (rows: string[][], opts: ImportOptions, existing: Exist
     tasks: [...tasks.values()],
     skipped,
     range: min === Infinity ? null : [min, max],
+    repeats,
   };
 };

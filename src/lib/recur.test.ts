@@ -17,6 +17,9 @@ describe('recur', () => {
     expect(ymd(occurrenceStart(jan31, 'monthly', 1))).toEqual({ y: 2027, m: 1, d: 28 });
     expect(ymd(occurrenceStart(jan31, 'monthly', 2))).toEqual({ y: 2027, m: 2, d: 31 });
     expect(ymd(occurrenceStart(jan31, 'monthly', 12))).toEqual({ y: 2028, m: 0, d: 31 });
+    const feb29 = dayFromYMD(2028, 1, 29);
+    expect(ymd(occurrenceStart(feb29, 'yearly', 1))).toEqual({ y: 2029, m: 1, d: 28 });
+    expect(ymd(occurrenceStart(feb29, 'yearly', 4))).toEqual({ y: 2032, m: 1, d: 29 });
   });
 
   test('daily skips weekends and matches occurrenceStart', () => {

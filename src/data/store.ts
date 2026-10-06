@@ -601,6 +601,8 @@ export const applyImport = async (
       done?: boolean;
       time?: string;
       links?: string[];
+      repeat?: string;
+      repeatUntil?: number;
     }[];
   },
   mode: ImportMode = 'add',
@@ -683,6 +685,8 @@ export const applyImport = async (
           tags: joinTags(parseTags(t.tags)),
           done: !!t.done,
           time: t.time ?? '',
+          repeat: t.repeat ?? '',
+          repeatUntil: t.repeatUntil ?? 0,
         });
       }
     }),

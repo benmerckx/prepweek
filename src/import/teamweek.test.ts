@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { parseCsv } from './csv.ts';
-import { buildPlan, detectDateOrder, guessMapping, parseDate } from './teamweek.ts';
+import { buildPlan, detectDateOrder, guessMapping, parseDate, parseRepeat } from './teamweek.ts';
 import { dayFromYMD } from '../lib/dates.ts';
 
 const TOGGL = `﻿Task name,Task status,Project name,Segment,Tags,Assignee name,Assignee email,Start date,End date,Recurrence,Estimated time (minutes),Start time,End time
@@ -89,7 +89,7 @@ describe('teamweek import', () => {
 describe('teamweek workspace export (ids, clients, times)', () => {
   const csv = [
     'User ID,User Name,User Email,Client ID,Client Name,Project ID,Project Name,Task ID,Task Name,Start Date,Start Time,End Date,End Time,Estimated Time (minutes),Status,Segment,Tags,Repeats,Notes,Attachment Links',
-    '1,Ann Smith,ann@x.test,7,Imec,9,Website,42,Status meeting,2026-03-02,10:30:00,2026-03-02,11:00:00,30,Done,Default Segment,,every 1 week,Agenda:\\n- item one\\n- item two,https://cdn.test/a/Screen%20shot.png',
+    '1,Ann Smith,ann@x.test,7,Imec,9,Website,42,Status meeting,2026-03-02,10:30:00,2026-03-02,11:00:00,30,Done,Default Segment,,,Agenda:\\n- item one\\n- item two,https://cdn.test/a/Screen%20shot.png',
     '2,Bob Jones,bob@x.test,7,Imec,9,Website,42,Status meeting,2026-03-02,10:30:00,2026-03-02,11:00:00,30,to-do,🌴 Verlof,,,,',
   ].join('\n');
   const [header, ...rows] = parseCsv(csv);
@@ -118,5 +118,66 @@ describe('teamweek workspace export (ids, clients, times)', () => {
     expect(b!.tags).toBe('🌴 Verlof');
     expect(a!.notes.startsWith('Agenda:\n- item one\n- item two')).toBe(true);
     expect(a!.links).toEqual(['https://cdn.test/a/Screen%20shot.png']);
+  });
+});
+
+describe('teamweek repeats', () => {
+  test('parses Teamweek repeat rules', () => {
+    expect(parseRepeat('')).toBe('');
+    expect(parseRepeat('every 1 week')).toBe('weekly');
+    expect(parseRepeat('every 2 weeks')).toBe('biweekly');
+    expect(parseRepeat('every 1 month')).toBe('monthly');
+    expect(parseRepeat('every 1 year')).toBe('yearly');
+    expect(parseRepeat('Every 1 day')).toBe('daily');
+    expect(parseRepeat('every 5 months')).toBeNull();
+    expect(parseRepeat('every 3 weeks')).toBeNull();
+  });
+
+  const head = 'User ID,User Name,User Email,Task ID,Task Name,Start Date,End Date,Status,Repeats,Notes';
+  const csv = [
+    head,
+    '1,Ann,ann@x.test,10,Stavaza,2025-03-11,2025-03-11,Done,every 1 week,',
+    '1,Ann,ann@x.test,11,Stavaza,2026-06-02,2026-06-02,To-do,every 1 week,',
+    '1,Ann,ann@x.test,15,Prebes,2024-01-16,2024-01-19,Done,every 1 week,',
+    '1,Ann,ann@x.test,16,Prebes,2024-01-23,2024-01-26,Done,,',
+    '1,Ann,ann@x.test,17,Prebes,2024-03-12,2024-03-15,Done,,',
+    '1,Ann,ann@x.test,18,Cursus,2021-07-08,2021-07-09,Done,every 1 week,',
+    '1,Ann,ann@x.test,12,SLA,2026-12-11,2026-12-11,To-do,every 1 year,',
+    '1,Ann,ann@x.test,13,Uittreksels,2026-07-11,2026-07-11,To-do,every 5 months,Bring ID',
+    '1,Ann,ann@x.test,14,Launch,2026-07-11,2026-07-11,Done,,',
+  ].join('\n');
+  const [header, ...rows] = parseCsv(csv);
+  const mapping = guessMapping(header!);
+  const opts = { mapping, dateOrder: "dmy" as const, includeDone: true, unassigned: "skip" as const, today: dayFromYMD(2026, 9, 6) };
+  const plan = buildPlan(rows, opts, []);
+  const byTitle = (t: string) => plan.tasks.filter((x) => x.title === t).sort((a, b) => a.start - b.start);
+
+  test('repeating rows become series; a newer series ends the older one', () => {
+    expect(header![mapping.repeats!]).toBe('Repeats');
+    const [old, cur] = byTitle('Stavaza');
+    expect(old!.repeat).toBe('weekly');
+    expect(old!.repeatUntil).toBe(dayFromYMD(2026, 5, 1));
+    expect(cur!.repeatUntil).toBe(0);
+    expect(old!.done).toBe(false); // a series' status is one occurrence's
+    expect(byTitle('SLA')[0]!.repeat).toBe('yearly');
+    expect(byTitle('Launch')[0]!.done).toBe(true);
+    expect(plan.repeats).toEqual({ series: 5, ended: 3, once: 1 });
+  });
+
+  test('series older than six months end where the task was last seen', () => {
+    expect(byTitle('Prebes')[0]!.repeatUntil).toBe(dayFromYMD(2024, 2, 12));
+    expect(byTitle('Cursus')[0]!.repeatUntil).toBe(dayFromYMD(2021, 6, 8)); // just the first one
+  });
+
+  test('unsupported rules import once, with the rule in the notes', () => {
+    const t = byTitle('Uittreksels')[0]!;
+    expect(t.repeat).toBe('');
+    expect(t.notes).toBe('Bring ID\n\nRepeats every 5 months in Teamweek.');
+  });
+
+  test('can import repeats as single tasks', () => {
+    const flat = buildPlan(rows, { ...opts, keepRepeats: false }, []);
+    expect(flat.tasks.every((t) => t.repeat === '')).toBe(true);
+    expect(flat.repeats).toEqual({ series: 0, ended: 0, once: 0 });
   });
 });
