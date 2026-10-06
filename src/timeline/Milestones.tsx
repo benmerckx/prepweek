@@ -7,6 +7,7 @@ import { createMilestone, deleteMilestone, MILESTONE_COLORS, store, updateMilest
 import { formatDay } from '../lib/dates.ts';
 import { useBackToClose } from '../lib/useBackToClose.ts';
 import { Check, Flag, Plus, Trash } from '../ui/icons.tsx';
+import { DatePicker, isPopoverOpen } from '../ui/Select.tsx';
 
 // Milestones are sheet-wide dated markers: a flagged pill in the header's
 // milestone lane and a tinted day column through every row. Pills drag to
@@ -151,8 +152,6 @@ export const MilestoneLines = memo(function MilestoneLines({ milestones, d0, d1,
 });
 
 const EDITOR_W = 300;
-const isoDay = (d: number) => new Date(d * 86_400_000).toISOString().slice(0, 10);
-const fromIso = (s: string) => Math.floor(Date.parse(`${s}T00:00:00Z`) / 86_400_000);
 
 interface EditorProps {
   id: string;
@@ -183,7 +182,7 @@ export function MilestoneEditor({ id, anchor, sheet, fresh, onClose }: EditorPro
       title.current?.select();
     }
     const away = (e: PointerEvent) => {
-      if (!ref.current?.contains(e.target as Node)) closeRef.current();
+      if (!ref.current?.contains(e.target as Node) && !isPopoverOpen()) closeRef.current();
     };
     const t = setTimeout(() => window.addEventListener('pointerdown', away, true));
     return () => {
@@ -235,7 +234,7 @@ export function MilestoneEditor({ id, anchor, sheet, fresh, onClose }: EditorPro
       </div>
       <label className="ms-date">
         <span>Date</span>
-        <input type="date" value={isoDay(m.day)} onChange={(e) => e.currentTarget.value && updateMilestone(id, { day: fromIso(e.currentTarget.value) }, 'Move milestone')} />
+        <DatePicker label="Milestone date" value={m.day} onChange={(d) => d !== null && updateMilestone(id, { day: d }, 'Move milestone')} />
       </label>
       <div className="swatches">
         {MILESTONE_COLORS.map((c) => (

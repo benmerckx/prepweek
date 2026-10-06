@@ -30,10 +30,16 @@ import {
 } from '../data/account.ts';
 import { getAccess, getSheetId, onAccess, reloadAccess } from '../data/access.ts';
 import { useBackToClose, useEscape } from '../lib/useBackToClose.ts';
+import { Select, type Option } from '../ui/Select.tsx';
 import { Check, ChevronDown, Close, LinkIcon, Logo, People as PeopleIcon, Plus, Trash } from '../ui/icons.tsx';
 
 export const useAccount = () => useSyncExternalStore(onMe, getMe);
 const useAccess = () => useSyncExternalStore(onAccess, getAccess);
+
+const ROLES: Option<'member' | 'admin'>[] = [
+  { value: 'member', label: 'Member' },
+  { value: 'admin', label: 'Admin' },
+];
 
 const go = (sheetId: string) => {
   location.href = `/s/${encodeURIComponent(sheetId)}`;
@@ -475,10 +481,7 @@ export function WorkspaceDialog({ workspaceId, onClose }: { workspaceId: string;
               }}
             >
               <input type="email" required placeholder="Invite by email" value={email} onChange={(e) => setEmail(e.currentTarget.value)} />
-              <select value={role} onChange={(e) => setRole(e.currentTarget.value as 'member' | 'admin')} aria-label="Role">
-                <option value="member">Member</option>
-                <option value="admin">Admin</option>
-              </select>
+              <Select label="Role" value={role} options={ROLES} onChange={(r) => setRole(r)} />
               <button className="btn primary">Invite</button>
             </form>
           )}
@@ -509,10 +512,7 @@ export function WorkspaceDialog({ workspaceId, onClose }: { workspaceId: string;
                   <span>{m.email}</span>
                 </div>
                 {admin ? (
-                  <select value={m.role} onChange={(e) => void run(() => setMemberRole(workspaceId, m.id, e.currentTarget.value as 'admin' | 'member'))} aria-label={`Role of ${m.name}`}>
-                    <option value="member">Member</option>
-                    <option value="admin">Admin</option>
-                  </select>
+                  <Select label={`Role of ${m.name}`} value={m.role} options={ROLES} onChange={(r) => void run(() => setMemberRole(workspaceId, m.id, r))} />
                 ) : (
                   <span className="ws-role">{m.role === 'admin' ? 'Admin' : 'Member'}</span>
                 )}

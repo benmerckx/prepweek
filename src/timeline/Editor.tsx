@@ -1,14 +1,16 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Attachments, attachFiles } from './Attachments.tsx';
 import { PALETTE, deleteTask, getTask, updateTask } from '../data/store.ts';
-import { RULES, RULE_LABELS } from '../lib/recur.ts';
-import { dayFromYMD, formatDay, formatRange, workdays, ymd } from '../lib/dates.ts';
+import { RULES, RULE_LABELS, type Rule } from '../lib/recur.ts';
+import { formatDay, formatRange, workdays } from '../lib/dates.ts';
 import type { TaskView, TimelineModel } from './model.ts';
 import { ProjectField, TagField } from './Projects.tsx';
 import { Discussion } from './Discussion.tsx';
 
 // Lexical loads on first use, not on page load.
 import { PatternPicker } from './PatternPicker.tsx';
+
+import { DatePicker, Select, isPopoverOpen, type Option } from '../ui/Select.tsx';
 
 const RichNotes = lazy(() => import('./RichNotes.tsx'));
 import { Calendar, Check, Repeat, Trash } from '../ui/icons.tsx';
@@ -46,7 +48,8 @@ export function Editor({ task, model, sheet, side, readOnly, onClose }: Props) {
     }
     const away = (e: PointerEvent) => {
       const t = e.target as HTMLElement;
-      if (ref.current?.contains(t)) return;
+      // Inside the panel, or picking from (or dismissing) one of its dropdowns.
+      if (ref.current?.contains(t) || isPopoverOpen()) return;
       // Side panel: clicks on the timeline are handled there (open another
       // block, or close on empty space) so the panel doesn't flicker.
       if (side && t.closest?.('.body')) return;
@@ -263,12 +266,9 @@ export function Editor({ task, model, sheet, side, readOnly, onClose }: Props) {
   );
 }
 
-const isoOf = (day: number) => {
-  const { y, m, d } = ymd(day);
-  return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-};
-
 /** Repeat rule + optional end date; edits always apply to the whole series. */
+const REPEAT_OPTIONS: Option<Rule | ''>[] = [{ value: '', label: 'Doesn’t repeat' }, ...RULES.map((r) => ({ value: r, label: RULE_LABELS[r] }))];
+
 function RepeatField({ task }: { task: TaskView }) {
   const series = getTask(task.series);
   const until = series?.repeatUntil ?? 0;
@@ -276,29 +276,22 @@ function RepeatField({ task }: { task: TaskView }) {
   return (
     <div className={'repeat-field' + (task.repeat ? ' on' : '')}>
       <Repeat size={14} />
-      <select
-        aria-label="Repeat"
-        value={task.repeat}
-        onChange={(e) => set({ repeat: e.currentTarget.value, ...(e.currentTarget.value ? {} : { repeatUntil: 0 }) }, e.currentTarget.value ? 'Repeat task' : 'Stop repeating')}
-      >
-        <option value="">Doesn’t repeat</option>
-        {RULES.map((r) => (
-          <option key={r} value={r}>
-            {RULE_LABELS[r]}
-          </option>
-        ))}
-      </select>
+      <Select
+        label="Repeat"
+        className="repeat-select"
+        value={task.repeat as Rule | ''}
+        options={REPEAT_OPTIONS}
+        onChange={(v) => set({ repeat: v, ...(v ? {} : { repeatUntil: 0 }) }, v ? 'Repeat task' : 'Stop repeating')}
+      />
       {task.repeat && (
         <label className="repeat-until" title={until ? `Last one starts on or before ${formatDay(until)}` : 'Repeats for the next two years'}>
           <span>until</span>
-          <input
-            type="date"
-            value={until ? isoOf(until) : ''}
-            onChange={(e) => {
-              const v = e.currentTarget.value;
-              const [y, m, d] = v.split('-').map(Number);
-              set({ repeatUntil: v ? dayFromYMD(y!, m! - 1, d!) : 0 }, 'Set repeat end');
-            }}
+          <DatePicker
+            label="Repeat until"
+            value={until || null}
+            clearable
+            placeholder="No end"
+            onChange={(d) => set({ repeatUntil: d ?? 0 }, d ? 'Set repeat end' : 'Remove repeat end')}
           />
         </label>
       )}

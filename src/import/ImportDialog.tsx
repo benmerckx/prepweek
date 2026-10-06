@@ -6,6 +6,7 @@ import { applyImport, getUser, store, type ImportMode } from '../data/store.ts';
 import { formatDay, formatRange } from '../lib/dates.ts';
 import { useBackToClose } from '../lib/useBackToClose.ts';
 import { Close, Upload } from '../ui/icons.tsx';
+import { Select } from '../ui/Select.tsx';
 
 interface Props {
   /** A file dropped on the app opens the dialog with it preloaded. */
@@ -87,6 +88,11 @@ export function ImportDialog({ initialFile, onClose: close, onImported }: Props)
     [],
   );
   // Replacing starts from an empty sheet, so nobody "matches".
+  /** "—" (not in the file) or one of its columns. */
+  const columnOptions = useMemo(
+    () => [{ value: '-1', label: '—' }, ...(file?.header ?? []).map((h, i) => ({ value: String(i), label: h || `Column ${i + 1}` }))],
+    [file],
+  );
   const plan = useMemo(
     () => (file ? buildPlan(file.rows, { mapping, dateOrder, includeDone, keepRepeats, unassigned }, mode === 'add' ? current.people : []) : null),
     [file, mapping, dateOrder, includeDone, keepRepeats, unassigned, mode, current],
@@ -196,20 +202,15 @@ export function ImportDialog({ initialFile, onClose: close, onImported }: Props)
                 {SHOWN_FIELDS.map((f) => (
                   <label key={f} className={(f === 'start' || f === 'assignee' || f === 'title') && mapping[f] === undefined ? 'missing' : ''}>
                     <span>{FIELD_LABELS[f]}</span>
-                    <select
-                      value={mapping[f] ?? -1}
-                      onChange={(e) => {
-                        const v = Number(e.currentTarget.value);
-                        setMapping((m) => ({ ...m, [f]: v < 0 ? undefined : v }));
+                    <Select
+                      label={FIELD_LABELS[f]}
+                      value={String(mapping[f] ?? -1)}
+                      options={columnOptions}
+                      onChange={(v) => {
+                        const n = Number(v);
+                        setMapping((m) => ({ ...m, [f]: n < 0 ? undefined : n }));
                       }}
-                    >
-                      <option value={-1}>—</option>
-                      {file.header.map((h, i) => (
-                        <option key={i} value={i}>
-                          {h || `Column ${i + 1}`}
-                        </option>
-                      ))}
-                    </select>
+                    />
                   </label>
                 ))}
               </div>
@@ -218,10 +219,15 @@ export function ImportDialog({ initialFile, onClose: close, onImported }: Props)
             <section className="import-options">
               <label className={ambiguous ? 'warn' : ''}>
                 <span>Dates are</span>
-                <select value={dateOrder} onChange={(e) => setDateOrder(e.currentTarget.value as DateOrder)}>
-                  <option value="dmy">day / month / year</option>
-                  <option value="mdy">month / day / year</option>
-                </select>
+                <Select
+                  label="Date order"
+                  value={dateOrder}
+                  options={[
+                    { value: 'dmy', label: 'day / month / year' },
+                    { value: 'mdy', label: 'month / day / year' },
+                  ]}
+                  onChange={(v) => setDateOrder(v as DateOrder)}
+                />
                 {ambiguous && <em>Can’t tell from the file, please check</em>}
               </label>
               <label>
@@ -236,10 +242,15 @@ export function ImportDialog({ initialFile, onClose: close, onImported }: Props)
               )}
               <label>
                 <span>Tasks without assignee</span>
-                <select value={unassigned} onChange={(e) => setUnassigned(e.currentTarget.value as 'skip' | 'row')}>
-                  <option value="skip">Skip</option>
-                  <option value="row">Put on an “Unassigned” row</option>
-                </select>
+                <Select
+                  label="Tasks without assignee"
+                  value={unassigned}
+                  options={[
+                    { value: 'skip', label: 'Skip' },
+                    { value: 'row', label: 'Put on an “Unassigned” row' },
+                  ]}
+                  onChange={(v) => setUnassigned(v as 'skip' | 'row')}
+                />
               </label>
             </section>
 

@@ -79,7 +79,9 @@ const subscribeCompact = (fn: () => void) => {
 };
 
 const isTyping = (t: EventTarget | null) =>
-  t instanceof HTMLElement && (t.isContentEditable || t.tagName === 'INPUT' || t.tagName === 'TEXTAREA');
+  t instanceof HTMLElement &&
+  // Also dropdown lists and calendars: their keys (Backspace, arrows) are theirs.
+  (t.isContentEditable || t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || !!t.closest('.ui-pop'));
 
 export function Timeline({ model }: { model: TimelineModel }) {
   useSyncExternalStore(model.subscribe, model.getVersion);
@@ -714,7 +716,7 @@ export function Timeline({ model }: { model: TimelineModel }) {
   const spaceDown = useRef(false);
   const [spacePan, setSpacePan] = useState(false);
   useEffect(() => {
-    const isControl = (t: EventTarget | null) => isTyping(t) || (t instanceof HTMLElement && !!t.closest('button, a, select, summary'));
+    const isControl = (t: EventTarget | null) => isTyping(t) || (t instanceof HTMLElement && !!t.closest('button, a, select, summary, [role=button], .ui-pop'));
     const down = (e: KeyboardEvent) => {
       if (e.code !== 'Space' || isControl(e.target) || onPageRef.current || document.querySelector('.modal-backdrop, .drawer-backdrop')) return;
       e.preventDefault(); // no page scroll

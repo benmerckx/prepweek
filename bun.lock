@@ -4,12 +4,14 @@
   "workspaces": {
     "": {
       "dependencies": {
+        "@internationalized/date": "^3.12.4",
         "@lexical/code": "^0.52.0",
         "@lexical/link": "^0.52.0",
         "@lexical/list": "^0.52.0",
         "@lexical/markdown": "^0.52.0",
         "@lexical/react": "^0.52.0",
         "@lexical/rich-text": "^0.52.0",
+        "@lexical/selection": "0.52.0",
         "@lexical/utils": "^0.52.0",
         "lexical": "^0.52.0",
         "react": "^19.3.0",

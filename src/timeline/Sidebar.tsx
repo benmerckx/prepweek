@@ -8,6 +8,7 @@ import { getMe as getAccount, getPeople, type People } from '../data/account.ts'
 import { getAccess } from '../data/access.ts';
 import { identityMode, rowForEmail } from '../data/identity.ts';
 import type { RowLayout, TimelineModel } from './model.ts';
+import { isPopoverOpen } from '../ui/Select.tsx';
 
 interface SidebarProps {
   model: TimelineModel;
@@ -436,7 +437,7 @@ function PersonEditor({ id, anchor, model, sheet, onClose }: { id: string; ancho
 
   useEffect(() => {
     const away = (e: PointerEvent) => {
-      if (!ref.current?.contains(e.target as Node)) onClose();
+      if (!ref.current?.contains(e.target as Node) && !isPopoverOpen()) onClose();
     };
     const t = setTimeout(() => window.addEventListener('pointerdown', away, true));
     return () => {

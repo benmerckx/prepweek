@@ -407,15 +407,6 @@ svg {
   opacity: 1;
 }
 
-.modal select {
-  min-width: 0;
-  height: 32px;
-  padding: 0 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--raised);
-  color: var(--text);
-}
 
 /* =============================================================================
    Toolbar
@@ -1697,8 +1688,9 @@ svg {
 .mapping label.missing > span {
   color: var(--danger);
 }
-.mapping select {
+.mapping .ui-select {
   flex: 1;
+  min-width: 0;
 }
 .import-options {
   display: flex;
@@ -1909,9 +1901,6 @@ svg {
   .modal-foot {
     padding-bottom: calc(14px + env(safe-area-inset-bottom));
   }
-  .modal select {
-    font-size: 16px;
-  }
 }
 
 /* =============================================================================
@@ -2028,14 +2017,8 @@ svg {
   color: var(--text-dim);
   font-size: 12.5px;
 }
-.ms-date input {
+.ms-date .ui-date {
   flex: 1;
-  height: 32px;
-  padding: 0 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--panel);
-  color: var(--text);
 }
 
 /* =============================================================================
@@ -2997,19 +2980,18 @@ button.tag-chip {
 .repeat-field.on > svg {
   color: var(--accent);
 }
-.repeat-field select {
+.repeat-field .ui-select {
   flex: 1;
   min-width: 0;
-  height: 30px;
-  padding: 0;
-  border: none;
-  outline: none;
-  background: none;
-  color: var(--text);
-  font: inherit;
-  cursor: pointer;
 }
-.repeat-field:not(.on) select {
+.repeat-field .ui-select-btn {
+  height: 30px;
+  padding: 0 4px 0 0;
+  border: none;
+  background: none;
+  box-shadow: none;
+}
+.repeat-field:not(.on) .ui-select-value {
   color: var(--text-dim);
 }
 .repeat-until {
@@ -3019,16 +3001,8 @@ button.tag-chip {
   color: var(--text-dim);
   font-size: 12px;
 }
-.repeat-until input {
-  width: 118px;
+.repeat-until .ui-date-group {
   height: 26px;
-  padding: 0 4px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  outline: none;
-  background: var(--raised);
-  color: var(--text);
-  font: inherit;
   font-size: 12px;
 }
 .editor-actions .btn.primary {
@@ -4275,9 +4249,7 @@ button.tag-chip {
   display: flex;
   gap: 8px;
 }
-.ws-invite input,
-.ws-row select,
-.ws-invite select {
+.ws-invite input {
   min-width: 0;
   height: 34px;
   padding: 0 10px;
@@ -4733,6 +4705,58 @@ button.tag-chip {
   gap: 2px;
   padding: 4px 6px;
   border-bottom: 1px solid var(--border);
+}
+/* Over the selected text. */
+.rn-bar.floating {
+  position: absolute;
+  z-index: 5;
+  align-items: center;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--raised);
+  box-shadow: var(--shadow);
+  animation: pop-in 100ms cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+.rn-sep {
+  width: 1px;
+  height: 16px;
+  margin: 0 3px;
+  background: var(--border);
+}
+/* "/" menu (anchored at the caret by Lexical, at the end of <body>). */
+.rn-slash-anchor {
+  z-index: 300;
+}
+.rn-slash {
+  position: relative;
+  width: 210px;
+  margin-top: 4px;
+}
+.rn-slash-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 32px;
+  padding: 0 8px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.rn-slash-item.on {
+  background: var(--hover);
+}
+.rn-slash-icon {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--bg);
+  color: var(--text-dim);
+  font-size: 11.5px;
+  font-weight: 600;
 }
 .rn-btn {
   display: grid;
@@ -5341,4 +5365,236 @@ button.tag-chip {
 .face:has(> img) {
   overflow: hidden;
   padding: 0;
+}
+
+/* =============================================================================
+   Dropdowns and date pickers (src/ui/Select.tsx, react-aria-components)
+   ========================================================================== */
+
+.ui-select {
+  display: inline-flex;
+  min-width: 0;
+}
+.ui-select-btn,
+.ui-date-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  height: 32px;
+  padding: 0 8px 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  outline: none;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+.ui-select-btn > svg {
+  flex: none;
+  color: var(--text-faint);
+}
+.ui-select-btn[data-hovered],
+.ui-date-group[data-hovered] {
+  border-color: var(--border-strong);
+}
+.ui-select-btn[data-focus-visible],
+.ui-select-btn[data-pressed],
+.ui-date-group[data-focus-within] {
+  border-color: var(--accent);
+  box-shadow: var(--ring);
+}
+.ui-select-value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ui-pop {
+  z-index: 200;
+  min-width: var(--trigger-width);
+  max-height: min(360px, 60vh);
+  overflow: auto;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--raised);
+  color: var(--text);
+  box-shadow: var(--shadow);
+  outline: none;
+}
+.ui-pop[data-entering] {
+  animation: pop-in 120ms cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+.ui-list {
+  outline: none;
+}
+.ui-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: 6px;
+  outline: none;
+  font-size: 13px;
+  cursor: pointer;
+}
+.ui-item[data-focused],
+.ui-item[data-hovered] {
+  background: var(--hover);
+}
+.ui-item[data-selected] {
+  color: var(--accent);
+  font-weight: 550;
+}
+
+/* Date picker */
+.ui-date {
+  display: inline-flex;
+  min-width: 0;
+}
+.ui-date-group {
+  gap: 2px;
+  padding: 0 2px 0 8px;
+  cursor: text;
+}
+.ui-date-input {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  font-variant-numeric: tabular-nums;
+}
+.ui-date-seg {
+  padding: 0 1px;
+  border-radius: 3px;
+  outline: none;
+}
+.ui-date-seg[data-type='literal'] {
+  color: var(--text-faint);
+}
+.ui-date-seg[data-placeholder] {
+  color: var(--text-faint);
+}
+.ui-date-seg[data-focused] {
+  background: var(--accent);
+  color: #fff;
+}
+.ui-date-placeholder {
+  flex: 1;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-faint);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.ui-date-btn,
+.ui-date-clear {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  outline: none;
+  background: none;
+  color: var(--text-faint);
+  cursor: pointer;
+}
+.ui-date-btn[data-hovered],
+.ui-date-clear:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+.repeat-until .ui-date-btn,
+.repeat-until .ui-date-clear {
+  width: 20px;
+  height: 20px;
+}
+.ui-cal-dialog {
+  outline: none;
+}
+.ui-cal {
+  padding: 6px;
+}
+.ui-cal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.ui-cal-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+.ui-cal-nav {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  outline: none;
+  background: none;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.ui-cal-nav[data-hovered],
+.ui-cal-nav[data-focus-visible] {
+  background: var(--hover);
+  color: var(--text);
+}
+.ui-cal-grid {
+  border-collapse: collapse;
+}
+.ui-cal-grid th {
+  padding-bottom: 4px;
+  color: var(--text-faint);
+  font-size: 11px;
+  font-weight: 550;
+}
+.ui-cal-cell {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 30px;
+  border-radius: 6px;
+  outline: none;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.ui-cal-cell[data-outside-month] {
+  display: none;
+}
+.ui-cal-cell[data-hovered],
+.ui-cal-cell[data-focus-visible] {
+  background: var(--hover);
+}
+.ui-cal-cell[data-selected] {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+.ui-cal-cell[data-disabled] {
+  color: var(--text-faint);
+}
+@media (pointer: coarse) {
+  .ui-select-btn,
+  .ui-item,
+  .ui-date-group {
+    font-size: 16px;
+  }
 }
