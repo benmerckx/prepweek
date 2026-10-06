@@ -1508,6 +1508,471 @@ html:has(.lp) {
   font-style: normal;
 }
 
+/* --- Mobile section: a phone running PrepWeek --- */
+.lp-mobile-stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  padding: 20px 0;
+}
+.lp-mobile-glow {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(40% 45% at 50% 40%, color-mix(in oklab, var(--accent) 24%, transparent), transparent 70%),
+    radial-gradient(30% 35% at 62% 70%, color-mix(in oklab, #06b6d4 14%, transparent), transparent 70%);
+  filter: blur(24px);
+  pointer-events: none;
+}
+.lp-phone {
+  --loop: 9s;
+  position: relative;
+  width: 300px;
+  height: 620px;
+  padding: 11px;
+  border-radius: 52px;
+  background: linear-gradient(160deg, #2a2d36, #0d0e12 40%, #1b1d24);
+  box-shadow:
+    0 0 0 1px rgb(255 255 255 / 0.08) inset,
+    0 0 0 2px #0b0c10,
+    0 50px 100px -30px rgb(0 0 0 / 0.6),
+    0 30px 60px -30px color-mix(in oklab, var(--accent) 40%, transparent);
+}
+.lp-phone::before {
+  /* Side buttons. */
+  content: '';
+  position: absolute;
+  top: 130px;
+  right: -3px;
+  width: 3px;
+  height: 64px;
+  border-radius: 0 2px 2px 0;
+  background: #22252d;
+}
+.lp-phone-screen {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 41px;
+  background: var(--bg);
+  font-size: 11px;
+}
+.lp-phone-screen::after {
+  /* Dim behind the sheet. */
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  background: rgb(0 0 0 / 0.35);
+  opacity: 0;
+  pointer-events: none;
+  animation: lp-phone-dim var(--loop) var(--lp-ease) infinite;
+}
+.lp-phone-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 40px;
+  padding: 4px 26px 0;
+  font-size: 12px;
+}
+.lp-phone-island {
+  width: 82px;
+  height: 24px;
+  border-radius: 14px;
+  background: #000;
+}
+.lp-phone-icons {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+}
+.lp-phone-icons i {
+  width: 3px;
+  height: 7px;
+  border-radius: 1px;
+  background: currentColor;
+}
+.lp-phone-icons i:nth-child(2) {
+  height: 9px;
+}
+.lp-phone-icons .bat {
+  width: 20px;
+  height: 9px;
+  margin-left: 3px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, currentColor 70%, transparent 70%);
+  box-shadow: 0 0 0 1px color-mix(in oklab, currentColor 50%, transparent);
+}
+.lp-phone-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--border);
+}
+.lp-phone-bar b {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 3px;
+  font-size: 13px;
+  font-weight: 650;
+}
+.lp-phone-today,
+.lp-phone-btn {
+  padding: 4px 9px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 550;
+}
+.lp-phone-head {
+  display: grid;
+  grid-template-columns: 36px repeat(5, 1fr);
+  height: 36px;
+  border-bottom: 1px solid var(--border);
+}
+.lp-phone-head span {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.1;
+}
+.lp-phone-head small {
+  color: var(--text-faint);
+  font-size: 8.5px;
+  font-weight: 650;
+  text-transform: uppercase;
+}
+.lp-phone-head b {
+  font-size: 11.5px;
+}
+.lp-phone-head .today b {
+  padding: 0 5px;
+  border-radius: 5px;
+  background: #ef4444;
+  color: #fff;
+}
+.lp-phone-rows {
+  position: relative;
+}
+.lp-phone-todaycol {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 36px;
+  width: calc((100% - 36px) / 5);
+  background: color-mix(in oklab, #ef4444 6%, transparent);
+}
+.lp-phone-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 36px 1fr;
+  align-items: center;
+  height: 52px;
+  border-bottom: 1px solid var(--border);
+}
+.lp-phone-row > .lp-avatar {
+  justify-self: center;
+}
+.lp-phone-lane {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  height: 100%;
+  align-items: center;
+  background-image: linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: 20% 100%;
+}
+.lp-phone-slot {
+  position: relative;
+  min-width: 0;
+  padding: 0 2px;
+}
+.lp .lp-phone .task.lp-task {
+  height: 36px;
+  border-radius: 6px;
+}
+.lp-phone .task-label {
+  padding: 0 6px;
+}
+.lp-phone .task-title {
+  font-size: 10.5px;
+}
+.lp-phone .task-label.tall .task-title {
+  font-size: 10.5px;
+  line-height: 14px;
+}
+.lp-phone .task-meta {
+  font-size: 9px;
+}
+.lp-phone-scrub {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  border-top: 1px solid var(--border);
+}
+.lp-phone-scrub .lp-scrub {
+  height: 64px;
+  padding-bottom: 14px;
+}
+
+/* Long press, then drag a day on (Mila's "Interviews" moves to Wednesday). */
+.lp-phone-drag {
+  z-index: 3;
+  animation: lp-phone-drag var(--loop) var(--lp-ease) infinite;
+}
+.lp-phone-drag .task {
+  animation: lp-phone-lift var(--loop) var(--lp-ease) infinite;
+}
+@keyframes lp-phone-drag {
+  0%,
+  12% {
+    transform: translate(0, 0);
+  }
+  26%,
+  86% {
+    transform: translate(100%, 0);
+  }
+  90% {
+    transform: translate(100%, 0);
+    opacity: 1;
+  }
+  93% {
+    transform: translate(100%, 0);
+    opacity: 0;
+  }
+  94% {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+  100% {
+    transform: translate(0, 0);
+    opacity: 1;
+  }
+}
+@keyframes lp-phone-lift {
+  0%,
+  5%,
+  30%,
+  100% {
+    scale: 1;
+    box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.14);
+  }
+  9%,
+  26% {
+    scale: 1.08;
+    box-shadow:
+      0 0 0 2px var(--bg),
+      0 0 0 3.5px #8b5cf6,
+      0 12px 24px -8px rgb(0 0 0 / 0.5);
+  }
+}
+/* A fingertip. */
+.lp-touch {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 4;
+  width: 30px;
+  height: 30px;
+  margin: -15px 0 0 -15px;
+  border: 2px solid rgb(255 255 255 / 0.8);
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.28);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.3);
+  opacity: 0;
+  pointer-events: none;
+}
+.lp-phone-drag .lp-touch {
+  animation: lp-touch-hold var(--loop) var(--lp-ease) infinite;
+}
+@keyframes lp-touch-hold {
+  0%,
+  3% {
+    opacity: 0;
+    scale: 1.4;
+  }
+  6%,
+  26% {
+    opacity: 1;
+    scale: 1;
+  }
+  32%,
+  100% {
+    opacity: 0;
+    scale: 0.8;
+  }
+}
+/* Tap "Website": it's selected and its sheet slides up. */
+.lp-phone-tap .lp-touch {
+  animation: lp-touch-tap var(--loop) ease-out infinite;
+}
+@keyframes lp-touch-tap {
+  0%,
+  40% {
+    opacity: 0;
+    scale: 0.6;
+  }
+  42% {
+    opacity: 1;
+    scale: 1;
+  }
+  48%,
+  100% {
+    opacity: 0;
+    scale: 1.8;
+  }
+}
+.lp-phone-tap .task {
+  animation: lp-phone-select var(--loop) var(--lp-ease) infinite;
+}
+@keyframes lp-phone-select {
+  0%,
+  42%,
+  92%,
+  100% {
+    box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.14);
+  }
+  44%,
+  88% {
+    box-shadow:
+      0 0 0 2px var(--bg),
+      0 0 0 3.5px #4f7cff;
+  }
+}
+.lp-phone-sheet {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 10px 18px 30px;
+  border-top: 1px solid var(--border);
+  border-radius: 22px 22px 0 0;
+  background: var(--raised);
+  box-shadow: 0 -12px 40px rgb(0 0 0 / 0.35);
+  transform: translateY(105%);
+  animation: lp-phone-sheet var(--loop) var(--lp-ease) infinite;
+}
+@keyframes lp-phone-sheet {
+  0%,
+  45% {
+    transform: translateY(105%);
+  }
+  52%,
+  86% {
+    transform: translateY(0);
+  }
+  93%,
+  100% {
+    transform: translateY(105%);
+  }
+}
+@keyframes lp-phone-dim {
+  0%,
+  45%,
+  93%,
+  100% {
+    opacity: 0;
+  }
+  52%,
+  86% {
+    opacity: 1;
+  }
+}
+.lp-phone-grab {
+  align-self: center;
+  width: 36px;
+  height: 4px;
+  margin-bottom: 4px;
+  border-radius: 2px;
+  background: var(--border-strong);
+}
+.lp-phone-sheet > b {
+  font-size: 16px;
+  font-weight: 650;
+}
+.lp-phone-sheet > small {
+  margin-top: -6px;
+  color: var(--text-dim);
+  font-size: 11px;
+}
+.lp-phone-done,
+.lp-phone-field {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--bg);
+  font-size: 11.5px;
+}
+.lp-phone-done {
+  align-self: flex-start;
+  border-radius: 999px;
+}
+.lp-phone-done i {
+  width: 13px;
+  height: 13px;
+  border: 1.5px solid var(--text-faint);
+  border-radius: 50%;
+}
+.lp-phone-swatches {
+  display: flex;
+  justify-content: space-between;
+  padding-top: 2px;
+}
+.lp-phone-swatches i {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+}
+.lp-phone-swatches i.on {
+  box-shadow:
+    0 0 0 2px var(--raised),
+    0 0 0 3.5px var(--text-dim);
+}
+.lp-mobile-points {
+  display: grid;
+  gap: 4px;
+  margin: 26px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.lp-mobile-points li {
+  padding: 12px 0 12px 16px;
+  border-left: 2px solid var(--lp-line);
+  color: var(--text-dim);
+  font-size: 15px;
+  transition: border-color 200ms;
+}
+.lp-mobile-points li:hover {
+  border-left-color: var(--accent);
+}
+.lp-mobile-points b {
+  color: var(--text);
+  font-weight: 600;
+}
+@media (max-width: 960px) {
+  .lp-mobile .lp-split-copy {
+    order: -1;
+  }
+}
+@media (max-width: 380px) {
+  .lp-phone {
+    zoom: 0.9;
+  }
+}
+
 /* --- Steps --- */
 .lp-steps {
   display: grid;

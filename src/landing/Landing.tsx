@@ -393,6 +393,9 @@ function Hero() {
             <Tick /> No sign-up needed
           </span>
           <span>
+            <Tick /> Great on mobile
+          </span>
+          <span>
             <Tick /> Works offline
           </span>
           <span>
@@ -649,6 +652,128 @@ function Features() {
   );
 }
 
+// --- Mobile ------------------------------------------------------------------------------------------
+
+const PHONE_ROWS: { name: string; color: string; blocks: { col: number; span: number; title: string; meta: string; color: string; pattern?: string; role?: 'drag' | 'tap'; done?: boolean }[] }[] = [
+  { name: 'Ava Peeters', color: C.blue, blocks: [{ col: 0, span: 2, title: 'Brand refresh', meta: '2d', color: C.red }, { col: 3, span: 2, title: 'Website', meta: '2d', color: C.blue, role: 'tap' }] },
+  { name: 'Noah Goossens', color: C.green, blocks: [{ col: 0, span: 3, title: 'API v3', meta: '3d', color: C.amber }] },
+  { name: 'Mila Mertens', color: C.red, blocks: [{ col: 1, span: 1, title: 'Interviews', meta: '1d', color: C.violet, pattern: 'dots', role: 'drag' }, { col: 3, span: 2, title: 'Holiday', meta: '2d', color: C.pink, pattern: 'stripes' }] },
+  { name: 'Lucas Janssens', color: C.amber, blocks: [{ col: 0, span: 1, title: 'Support', meta: '1d', color: C.lime, done: true }, { col: 2, span: 3, title: 'Data migration', meta: '3d', color: C.cyan }] },
+  { name: 'Emma Wouters', color: C.violet, blocks: [{ col: 1, span: 3, title: 'Analytics', meta: '3d', color: C.cyan, pattern: 'grid' }] },
+  { name: 'Sem Goossens', color: C.cyan, blocks: [{ col: 0, span: 2, title: 'Onboarding', meta: '2d', color: C.violet }, { col: 3, span: 1, title: 'Review', meta: '1d', color: C.slate, pattern: 'dots' }] },
+  { name: 'Lotte Peeters', color: C.pink, blocks: [{ col: 2, span: 3, title: 'Mobile app', meta: '3d', color: C.green }] },
+];
+
+function Phone() {
+  return (
+    <div className="lp-phone" role="img" aria-label="PrepWeek on a phone: a block is moved with a long press, then tapping another opens its details in a sheet from the bottom.">
+      <div className="lp-phone-screen">
+        <div className="lp-phone-status">
+          <b>9:41</b>
+          <span className="lp-phone-island" />
+          <span className="lp-phone-icons">
+            <i />
+            <i />
+            <i className="bat" />
+          </span>
+        </div>
+        <div className="lp-phone-bar">
+          <b>
+            Q4 roadmap
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+              <path d="M4 6.25 8 10l4-3.75" />
+            </svg>
+          </b>
+          <span className="lp-phone-today">Today</span>
+          <span className="lp-phone-btn">⋯</span>
+        </div>
+        <div className="lp-phone-head">
+          <span />
+          {['Mo 12', 'Tu 13', 'We 14', 'Th 15', 'Fr 16'].map((d, i) => (
+            <span key={d} className={i === 0 ? 'today' : ''}>
+              <small>{d.slice(0, 2)}</small>
+              <b>{d.slice(3)}</b>
+            </span>
+          ))}
+        </div>
+        <div className="lp-phone-rows">
+          <span className="lp-phone-todaycol" />
+          {PHONE_ROWS.map((r) => (
+            <div key={r.name} className="lp-phone-row">
+              <Avatar name={r.name} color={r.color} size={26} />
+              <div className="lp-phone-lane">
+                {r.blocks.map((b) => (
+                  <div
+                    key={b.title}
+                    className={'lp-phone-slot' + (b.role ? ` lp-phone-${b.role}` : '')}
+                    style={{ gridColumn: `${b.col + 1} / span ${b.span}` }}
+                  >
+                    <Block title={b.title} meta={b.meta} color={b.color} pattern={b.pattern} done={b.done} />
+                    {b.role && <span className="lp-touch" />}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="lp-phone-scrub">
+          <Scrubber handle />
+        </div>
+        <div className="lp-phone-sheet">
+          <span className="lp-phone-grab" />
+          <b>Website</b>
+          <small>Thu 15 – Fri 16 Oct · 2 workdays</small>
+          <span className="lp-phone-done">
+            <i /> Mark as done
+          </span>
+          <span className="lp-phone-field">
+            <span className="pattern-swatch chip" data-pattern="dots" style={{ ['--c' as string]: C.blue }} /> Website relaunch · Acme
+          </span>
+          <span className="lp-phone-swatches">
+            {[C.blue, C.green, C.red, C.amber, C.violet, C.cyan, C.pink].map((c, i) => (
+              <i key={c} className={i === 0 ? 'on' : ''} style={{ background: c }} />
+            ))}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Mobile() {
+  const points = [
+    ['Pinch to zoom', 'from a few days to a whole quarter'],
+    ['Press and hold', 'to pick up a block and move it'],
+    ['Edit in a sheet', 'that slides up under your thumb'],
+    ['Install it', 'on your home screen; it works offline'],
+  ];
+  return (
+    <section className="lp-section lp-mobile" id="mobile">
+      <div className="lp-wrap lp-split">
+        <Reveal className="lp-mobile-stage">
+          <div className="lp-mobile-glow" aria-hidden />
+          <Phone />
+        </Reveal>
+        <Reveal className="lp-split-copy" delay={100}>
+          <span className="lp-eyebrow">On your phone</span>
+          <h2>The whole plan, in your pocket.</h2>
+          <p>
+            Built for small screens, not squeezed onto them. See who is on what from the train, and move things the moment plans
+            change.
+          </p>
+          <ul className="lp-mobile-points">
+            {points.map(([b, t]) => (
+              <li key={b}>
+                <b>{b}</b> {t}
+              </li>
+            ))}
+          </ul>
+        </Reveal>
+      </div>
+    </section>
+  );
+}
+
 // --- Steps -----------------------------------------------------------------------------------------
 
 function Steps() {
@@ -801,6 +926,7 @@ export function Landing() {
           </a>
           <span className="lp-nav-links">
             <a href="#features">Features</a>
+            <a href="#mobile">Mobile</a>
             <a href="#import">Import</a>
             <a href="/s/demo">Demo</a>
           </span>
@@ -835,6 +961,7 @@ export function Landing() {
 
       <Hero />
       <Features />
+      <Mobile />
       <Steps />
       <Import />
 
