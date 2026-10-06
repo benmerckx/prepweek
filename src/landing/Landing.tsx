@@ -958,6 +958,61 @@ function Import() {
   );
 }
 
+// --- The honest bit ----------------------------------------------------------------------
+
+/** What Teamweek / Toggl Plan users asked for, and what PrepWeek does about it. */
+const ASKED: { ask: string; answer: string; color: string }[] = [
+  { ask: 'Can one task have two people on it?', answer: 'Put anyone on a task. A block in each row, edits in sync, one conversation.', color: C.blue },
+  { ask: 'Who’s off next week?', answer: 'Time off and public holidays sit right in the timeline, and never count as booked.', color: C.slate },
+  { ask: 'This can’t start until that’s done.', answer: 'Dependencies with arrows. Push one task back and everything waiting for it moves along.', color: C.violet },
+  { ask: 'I need a real checklist.', answer: 'Checklists on every task, with the progress right on the block.', color: C.green },
+  { ask: 'Let me get my data out.', answer: 'Export to CSV whenever you like, in the same columns you import.', color: C.amber },
+  { ask: 'Put it in my calendar.', answer: 'A live calendar link for Google, Apple or Outlook: yours, or the whole team’s.', color: C.cyan },
+  { ask: 'Years of history make it crawl.', answer: 'It opens straight away and works offline, because your plan lives on your device and syncs live.', color: C.orange },
+  { ask: 'The phone app can’t do much.', answer: 'The whole planner on your phone: drag, stretch, comment, done.', color: C.pink },
+  { ask: 'Someone deleted half the board.', answer: 'Undo for every change, plus a history of who changed what.', color: C.red },
+];
+
+function Honest() {
+  return (
+    <section className="lp-section lp-honest" id="why">
+      <div className="lp-wrap">
+        <Reveal className="lp-heading">
+          <span className="lp-eyebrow" style={{ ['--c' as string]: C.violet }}>The honest bit</span>
+          <h2>Yes, it’s a Teamweek clone.</h2>
+          <p>
+            Teamweek got planning right: people down the side, weeks across the top, work you can grab and drag. Then it became Toggl Plan,
+            the wish list kept growing, and now Toggl is moving Plan users to a newer, broader product. So we kept everything people loved and
+            worked through the wish list.
+          </p>
+        </Reveal>
+        <Reveal className="lp-asked">
+          <div className="lp-asked-head" aria-hidden>
+            <span>You kept asking</span>
+            <span>So PrepWeek does it</span>
+          </div>
+          <ul>
+            {ASKED.map((a) => (
+              <li key={a.ask} style={{ ['--c' as string]: a.color }}>
+                <q>{a.ask}</q>
+                <span className="lp-asked-answer">
+                  <span className="lp-asked-tick">
+                    <Tick />
+                  </span>
+                  {a.answer}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Reveal>
+        <p className="lp-honest-note">
+          Teamweek and Toggl are trademarks of Toggl. PrepWeek isn’t affiliated with them. We’re fans who wanted a bit more.
+        </p>
+      </div>
+    </section>
+  );
+}
+
 /** Next week, planned: the closing card's little timeline. */
 const FINAL_WEEK: { title: string; meta: string; color: string; pattern?: string; col: number; span: number; row: number }[] = [
   { title: 'Kickoff', meta: 'Mon', color: C.blue, col: 1, span: 1, row: 1 },
@@ -1024,6 +1079,7 @@ export function Landing() {
       <Mobile />
       <Steps />
       <Import />
+      <Honest />
 
       <section className="lp-section lp-final">
         <div className="lp-wrap">

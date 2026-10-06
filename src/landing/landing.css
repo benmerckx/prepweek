@@ -2499,3 +2499,85 @@ html:has(.lp) {
     font-size: 13px;
   }
 }
+
+/* --- The honest bit: what people asked for, and what PrepWeek does --- */
+.lp-asked {
+  max-width: 940px;
+  margin: 0 auto;
+  overflow: hidden;
+  border: 1px solid var(--lp-line);
+  border-radius: 20px;
+  background: var(--lp-card);
+}
+.lp-asked-head,
+.lp-asked li {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  align-items: center;
+  gap: 24px;
+  padding: 16px 26px;
+}
+.lp-asked-head {
+  padding-top: 18px;
+  padding-bottom: 12px;
+  color: var(--text-faint);
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.lp-asked ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.lp-asked li {
+  border-top: 1px solid var(--lp-line);
+  transition: background 160ms;
+}
+.lp-asked li:hover {
+  background: color-mix(in oklab, var(--c) 6%, transparent);
+}
+.lp-asked q {
+  color: var(--text-dim);
+  font-size: 15px;
+  font-style: italic;
+  line-height: 1.45;
+  quotes: '“' '”';
+}
+.lp-asked-answer {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 15px;
+  font-weight: 520;
+  line-height: 1.5;
+}
+.lp-asked-tick {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  margin-top: 0;
+  border-radius: 7px;
+  background: var(--c);
+  color: #fff;
+}
+.lp-honest-note {
+  max-width: 940px;
+  margin: 16px auto 0;
+  color: var(--text-faint);
+  font-size: 12.5px;
+  text-align: center;
+}
+@media (max-width: 720px) {
+  .lp-asked-head {
+    display: none;
+  }
+  .lp-asked li {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 16px 18px;
+  }
+}
