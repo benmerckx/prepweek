@@ -4442,14 +4442,16 @@ a.brand,
 .task.untitled[data-pattern] .task-label {
   text-shadow: none;
 }
+/* A shade lighter than the fill and a little toned down, so the white text
+   on top stays readable. */
 [data-pattern] {
-  --pc: color-mix(in oklab, var(--c) 70%, #fff);
-  --pat-op: 0.85;
+  --pc: color-mix(in oklab, var(--c) 82%, #fff);
+  --pat-op: 0.65;
 }
 @supports (color: oklch(from red l c h)) {
   [data-pattern] {
-    --pc: oklch(from var(--c) calc(l + 0.14) calc(c * 1.15) h);
-    --pat-op: 1;
+    --pc: oklch(from var(--c) calc(l + 0.08) calc(c * 1.1) h);
+    --pat-op: 0.7;
   }
 }
 .task.untitled[data-pattern],
