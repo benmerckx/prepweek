@@ -12,7 +12,7 @@ import { parseTags, type ProjectRow, type TaskRow, type UserRow } from '../data/
 // and each RowLayout is an immutable object, so React.memo'd rows re-render
 // only when their own content changed.
 
-/** Row geometry. Comfortable rows leave room for ~10 stacked blocks; compact fits many more people. */
+/** Row geometry; 'compact' fits many more people on screen. */
 export interface Dims {
   laneH: number; // block height + gap
   blockH: number;
@@ -21,7 +21,7 @@ export interface Dims {
   /** Height of a team header row. */
   teamH: number;
 }
-export const COMFORTABLE: Dims = { laneH: 48, blockH: 44, pad: 8, minLanes: 10, teamH: 34 };
+export const COMFORTABLE: Dims = { laneH: 48, blockH: 44, pad: 8, minLanes: 3, teamH: 34 };
 export const COMPACT: Dims = { laneH: 30, blockH: 26, pad: 5, minLanes: 3, teamH: 28 };
 /** Key prefix of team header rows (can't collide with generated ids). */
 export const TEAM_ROW = 'team:';
@@ -100,6 +100,19 @@ export interface Preview {
 const EMPTY_ROW = { tasks: [], maxSpan: 0, laneCount: 0, clusters: [], color: '' };
 
 export const rowHeight = (lanes: number, d: Dims) => d.pad * 2 + Math.max(lanes, d.minLanes) * d.laneH;
+
+/** Free lanes every row keeps on top of its busiest stretch near today. */
+export const FREE_LANES = 2;
+/** "Near today": two months either side. */
+const AROUND = 61;
+
+/**
+ * Lanes a row needs: its busiest moment within ~4 months around today plus
+ * two free lanes (so each person's row is sized to their own workload), and
+ * never less than what the rendered window needs to show every block.
+ */
+const lanesFor = (clusters: Cluster[], d0: number, d1: number, today: number) =>
+  Math.max(lanesIn(clusters, d0, d1), lanesIn(clusters, today - AROUND, today + AROUND) + FREE_LANES);
 
 /** Max lanes among clusters intersecting [d0, d1]. */
 export const lanesIn = (clusters: Cluster[], d0: number, d1: number): number => {
@@ -389,7 +402,8 @@ export class TimelineModel {
 
   /** Derived occurrence ids per recurring task. */
   private occIds = new Map<string, string[]>();
-  private horizon = today() + HORIZON_DAYS;
+  private today = today();
+  private horizon = this.today + HORIZON_DAYS;
 
   private dropView(id: string) {
     const u = this.taskUser.get(id);
@@ -506,7 +520,7 @@ export class TimelineModel {
     // Keep the canonical view objects in sync so findTask() reports lanes.
     const m = this.byUser.get(userId);
     if (m) for (const t of tasks) if (m.has(t.id) && !(p && p.id === t.id)) m.set(t.id, t);
-    const height = rowHeight(lanesIn(clusters, this.heightWindow[0], this.heightWindow[1]), this.dims);
+    const height = rowHeight(lanesFor(clusters, this.heightWindow[0], this.heightWindow[1], this.today), this.dims);
     return { kind: 'person', team: user.team ?? '', userId, name: user.name, color: user.color, tasks, maxSpan, laneCount, clusters, height };
   }
 
@@ -516,7 +530,7 @@ export class TimelineModel {
     this.heightWindow = [d0, d1];
     let changed = false;
     this.rows = this.rows.map((r) => {
-      const height = r.kind === 'team' ? this.dims.teamH : rowHeight(lanesIn(r.clusters, d0, d1), this.dims);
+      const height = r.kind === 'team' ? this.dims.teamH : rowHeight(lanesFor(r.clusters, d0, d1, this.today), this.dims);
       if (height === r.height) return r;
       changed = true;
       return { ...r, height };

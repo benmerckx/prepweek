@@ -336,17 +336,21 @@ export function Minimap({ model, vp, today }: Props) {
       if (vp.scroller) vp.scroller.scrollLeft = f * vp.maxScrollLeft();
     };
     const localX = (e: PointerEvent) => e.clientX - canvas.getBoundingClientRect().left;
+    /** Over the handle (with a little slack so a thin one is still grabbable). */
+    const onHandle = (x: number, g = geo()) => x >= g.sliderX - 4 && x <= g.sliderX + g.sliderW + 4;
     const down = (e: PointerEvent) => {
       if (e.button !== 0) return;
       e.preventDefault();
-      canvas.setPointerCapture(e.pointerId);
       const x = localX(e);
-      let g = geo();
-      if (x < g.sliderX || x > g.sliderX + g.sliderW) {
-        // Jump: centre the clicked day, then keep dragging from there.
-        vp.scrollToDay(g.mmStart + x / g.scale, 0.5);
-        g = geo();
+      const g = geo();
+      if (!onHandle(x, g)) {
+        // Outside the handle: glide there so the handle ends up centred
+        // under the pointer. No drag starts here.
+        const f = Math.min(1, Math.max(0, (x - g.sliderW / 2) / g.travel));
+        vp.scroller?.scrollTo({ left: f * vp.maxScrollLeft(), behavior: 'smooth' });
+        return;
       }
+      canvas.setPointerCapture(e.pointerId);
       st.dragging = true;
       wrap.classList.add('scrubbing');
       st.grabDx = x - g.sliderX;
@@ -356,6 +360,8 @@ export function Minimap({ model, vp, today }: Props) {
       const x = localX(e);
       st.hoverX = x;
       if (st.dragging) setFromSlider(x - st.grabDx);
+      // A hand only over the handle; elsewhere a click glides there.
+      canvas.style.cursor = st.dragging ? 'grabbing' : onHandle(x) ? 'grab' : 'default';
       schedule();
     };
     const up = (e: PointerEvent) => {
