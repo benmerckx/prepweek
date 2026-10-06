@@ -145,8 +145,8 @@ const PEOPLE: { name: string; color: string; load: number; blocks: HeroBlock[] }
     blocks: [
       { lane: 0, col: 0, span: 3, title: 'Brand refresh', meta: 'Globex · 3d', color: C.red },
       { lane: 0, col: 4, span: 5, title: 'Website relaunch', meta: 'Acme · 5d', color: C.blue },
-      { lane: 1, col: 1, span: 1, title: 'Workshop', meta: '1d', color: C.slate, pattern: 'dots' },
-      { lane: 1, col: 6, span: 2, title: 'Q4 planning', meta: '2d', color: C.slate, pattern: 'rings' },
+      { lane: 1, col: 1, span: 1, title: 'Workshop', meta: '1d', color: C.cyan, pattern: 'dots' },
+      { lane: 1, col: 6, span: 2, title: 'Q4 planning', meta: '2d', color: C.violet, pattern: 'rings' },
     ],
   },
   {
@@ -156,7 +156,7 @@ const PEOPLE: { name: string; color: string; load: number; blocks: HeroBlock[] }
     blocks: [
       { lane: 0, col: 0, span: 4, title: 'API v3', meta: 'Initech · 4d', color: C.amber },
       { lane: 0, col: 5, span: 3, title: 'Billing revamp', meta: '3d', color: C.orange, role: 'stretch' },
-      { lane: 1, col: 2, span: 1, title: 'Code review', meta: '1d', color: C.violet, pattern: 'stripes' },
+      { lane: 1, col: 2, span: 1, title: 'Code review', meta: '1d', color: C.green, pattern: 'triangles' },
     ],
   },
   {
@@ -336,10 +336,10 @@ function HeroApp() {
 const FLOATERS: { title: string; meta: string; color: string; pattern?: string; w: number; pos: CSSProperties }[] = [
   { title: 'Kickoff', meta: 'Mon', color: C.blue, w: 132, pos: { top: 120, left: '6%' } },
   { title: 'Holiday', meta: '5d', color: C.pink, pattern: 'stripes', w: 170, pos: { top: 250, left: '3%' } },
-  { title: 'Review', meta: '1d', color: C.amber, w: 104, pos: { top: 390, left: '9%' } },
+  { title: 'Review', meta: '1d', color: C.amber, pattern: 'rings', w: 104, pos: { top: 390, left: '9%' } },
   { title: 'Launch', meta: 'Fri', color: C.green, pattern: 'zigzag', w: 120, pos: { top: 104, right: '7%' } },
   { title: 'Workshop', meta: '2d', color: C.violet, pattern: 'dots', w: 156, pos: { top: 236, right: '3%' } },
-  { title: 'Stand-up', meta: '9:30', color: C.cyan, w: 118, pos: { top: 378, right: '10%' } },
+  { title: 'Stand-up', meta: '9:30', color: C.cyan, pattern: 'waves', w: 118, pos: { top: 378, right: '10%' } },
 ];
 
 function Hero() {
@@ -455,7 +455,7 @@ function DragVisual() {
           <Avatar name="Ava Peeters" color={C.blue} size={22} />
           <div className="lp-mini-lane">
             <Block title="Website relaunch" meta="3d" color={C.blue} style={{ gridColumn: '1 / span 3' }} />
-            <Block title="Review" meta="1d" color={C.slate} pattern="dots" style={{ gridColumn: '5 / span 1' }} />
+            <Block title="Review" meta="1d" color={C.violet} pattern="triangles" style={{ gridColumn: '5 / span 1' }} />
           </div>
         </div>
         <div className="lp-mini-row">
@@ -678,7 +678,7 @@ const PHONE_ROWS: { name: string; color: string; blocks: { col: number; span: nu
   { name: 'Mila Mertens', color: C.red, blocks: [{ col: 1, span: 1, title: 'Interviews', meta: '1d', color: C.violet, pattern: 'dots', role: 'drag' }, { col: 3, span: 2, title: 'Holiday', meta: '2d', color: C.pink, pattern: 'stripes' }] },
   { name: 'Lucas Janssens', color: C.amber, blocks: [{ col: 0, span: 1, title: 'Support', meta: '1d', color: C.lime, done: true }, { col: 2, span: 3, title: 'Data migration', meta: '3d', color: C.cyan }] },
   { name: 'Emma Wouters', color: C.violet, blocks: [{ col: 1, span: 3, title: 'Analytics', meta: '3d', color: C.cyan, pattern: 'waves' }] },
-  { name: 'Sem Goossens', color: C.cyan, blocks: [{ col: 0, span: 2, title: 'Onboarding', meta: '2d', color: C.violet }, { col: 3, span: 1, title: 'Review', meta: '1d', color: C.slate, pattern: 'dots' }] },
+  { name: 'Sem Goossens', color: C.cyan, blocks: [{ col: 0, span: 2, title: 'Onboarding', meta: '2d', color: C.violet }, { col: 3, span: 1, title: 'Review', meta: '1d', color: C.orange, pattern: 'zigzag' }] },
   { name: 'Lotte Peeters', color: C.pink, blocks: [{ col: 2, span: 3, title: 'Mobile app', meta: '3d', color: C.green }] },
 ];
 
