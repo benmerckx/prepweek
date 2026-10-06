@@ -34,7 +34,7 @@ class_name = "DirectoryDurableObject"
 #   GOOGLE_CLIENT_SECRET    "Continue with Google"
 [vars]
 EMAIL_FROM = "no-reply@prepweek.com"
-GOOGLE_CLIENT_ID = "344349983847-0o6bekkso8nj7folhue8v4q2cpvdp164.apps.googleusercontent.com"
+GOOGLE_CLIENT_ID = "536583470323-hurodoi9k3c7voaik9i3fjbvjgk1amh3.apps.googleusercontent.com"
 
 # Attachment storage (served by the worker at /files/<sheet>/<id>).
 # Disabled until the bucket exists. To enable: run
