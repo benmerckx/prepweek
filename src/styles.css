@@ -502,6 +502,7 @@ svg {
   top: 50px;
   right: 10px;
   z-index: 60;
+  max-width: calc(100vw - 16px);
   display: flex;
   flex-direction: column;
   gap: 2px;

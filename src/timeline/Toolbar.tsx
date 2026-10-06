@@ -98,7 +98,30 @@ export const Toolbar = memo(function Toolbar(props: Props) {
         if (!d.contains(e.target as Node)) d.removeAttribute('open');
     };
     document.addEventListener('pointerdown', away, true);
-    return () => document.removeEventListener('pointerdown', away, true);
+    // Menus open under their own button: left edges aligned, or right
+    // edges when that would run off the screen.
+    const place = (e: Event) => {
+      const d = e.target;
+      if (!(d instanceof HTMLDetailsElement) || !d.open || !d.closest('.toolbar')) return;
+      const menu = d.querySelector<HTMLElement>(':scope > .tb-menu');
+      const btn = d.querySelector(':scope > summary')?.getBoundingClientRect();
+      if (!menu || !btn) return;
+      const fit = () => {
+        const w = menu.offsetWidth;
+        const left = btn.left + w > innerWidth - 8 ? Math.max(8, btn.right - w) : btn.left;
+        menu.style.top = `${Math.round(btn.bottom + 6)}px`;
+        menu.style.left = `${Math.round(left)}px`;
+        menu.style.right = 'auto';
+      };
+      fit();
+      // Content that renders once open can change the width.
+      requestAnimationFrame(fit);
+    };
+    document.addEventListener('toggle', place, true);
+    return () => {
+      document.removeEventListener('pointerdown', away, true);
+      document.removeEventListener('toggle', place, true);
+    };
   }, []);
   const hist = useSyncExternalStore(onHistoryChange, historySnapshot);
   const installable = useSyncExternalStore(onInstallChange, canInstall);
