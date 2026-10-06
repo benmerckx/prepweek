@@ -9,6 +9,8 @@
 
 :root {
   --font: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  /* Titles: rounder and friendlier than the text face. */
+  --font-title: 'Nunito Variable', var(--font);
 
   /* Surfaces */
   --bg: #ffffff;
@@ -6181,4 +6183,17 @@ a.menu-item {
 .editor.readonly .ui-day {
   background: none;
   cursor: default;
+}
+/* Titles in Nunito, a touch heavier than Inter needs to hold the same weight. */
+.page h1,
+.page-title,
+.page-h2,
+.modal-head h2,
+.lock-card h1,
+.empty-card h2,
+.notes-signup-title,
+.editor-title {
+  font-family: var(--font-title);
+  font-weight: 800;
+  letter-spacing: -0.01em;
 }

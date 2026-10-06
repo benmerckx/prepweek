@@ -288,10 +288,11 @@ html:has(.lp) {
 .lp h1 {
   max-width: 900px;
   margin: 26px 0 0;
+  font-family: var(--font-title);
   font-size: clamp(42px, 7vw, 76px);
-  font-weight: 680;
-  line-height: 1.02;
-  letter-spacing: -0.045em;
+  font-weight: 850;
+  line-height: 1.04;
+  letter-spacing: -0.025em;
   text-wrap: balance;
 }
 .lp-accent {
@@ -918,10 +919,11 @@ html:has(.lp) {
 }
 .lp h2 {
   margin: 0;
+  font-family: var(--font-title);
   font-size: clamp(30px, 4.4vw, 48px);
-  font-weight: 670;
-  line-height: 1.08;
-  letter-spacing: -0.035em;
+  font-weight: 850;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
   text-wrap: balance;
 }
 .lp-heading p,
@@ -975,9 +977,10 @@ html:has(.lp) {
 .lp-card h3,
 .lp-step h3 {
   margin: 0;
-  font-size: 17px;
-  font-weight: 640;
-  letter-spacing: -0.02em;
+  font-family: var(--font-title);
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
 }
 .lp-card p,
 .lp-step p {
