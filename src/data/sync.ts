@@ -62,7 +62,9 @@ export const getServerHttp = () => serverHttp;
 
 /** `served`: the app is known to be served by the worker (its API answered). */
 export const startSync = async (sheetId: string, served = false) => {
-  const server = syncUrl(served);
+  // The demo is everyone's own: local only, so it always starts with the
+  // sample data and one visitor's edits never show up for the next.
+  const server = sheetId === 'demo' ? null : syncUrl(served);
   currentSheet = sheetId;
   // wss://host/sync → https://host (files are served next to the sync route).
   serverHttp = server ? server.replace(/^ws/, 'http').replace(/\/sync\/?$/, '') : null;

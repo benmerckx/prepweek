@@ -135,6 +135,9 @@
           <span>Opening your sheet…</span>
         </div>
       </div>
+      <script>
+        if (location.pathname === '/s/demo') document.querySelector('.boot span').textContent = 'Setting up the demo…';
+      </script>
     </div>
     <script type="module" src="./main.tsx"></script>
   </body>
