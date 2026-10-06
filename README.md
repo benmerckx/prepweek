@@ -41,6 +41,7 @@ Open `/s/<anything>` for a separate sheet. The default sheet seeds demo data;
 | Teams | click a name → **Team**. Team headers collapse; double-click one to rename the team |
 | Reorder people | drag a name up or down (long-press on touch); drop it under another team to move it there |
 | Hide weekends / compact rows / dark mode | **⋯ → View**; the moon/sun button in the toolbar toggles dark mode |
+| Patterns | in a task's panel, under the colors: dots, stripes, zigzag, waves, grid or crosses, drawn in the block's color |
 | Comments | in a task's editor; type **@** to mention someone |
 | Activity | **⋯ → Activity**: every change, by whom; each task's editor has its own **History** |
 | Notifications | the bell: mentions, comments on your tasks and changes others make to your work |

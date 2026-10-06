@@ -51,6 +51,8 @@ export interface TaskView {
   repeat: string;
   /** The stored task id (differs from `id` for occurrences n > 0). */
   series: string;
+  /** Fill pattern ('' = solid). */
+  pattern: string;
 }
 
 export interface Project extends ProjectRow {
@@ -445,6 +447,7 @@ export class TimelineModel {
       tags: parseTags(r.tags),
       repeat: isRule(r.repeat) ? r.repeat : '',
       series: id,
+      pattern: r.pattern ?? '',
     };
     let m = this.byUser.get(r.userId);
     if (!m) this.byUser.set(r.userId, (m = new Map()));
@@ -504,6 +507,7 @@ export class TimelineModel {
         tags: base?.tags ?? [],
         repeat: base?.repeat ?? '',
         series: base?.series ?? p.id,
+        pattern: base?.pattern ?? '',
       };
       views.push(v);
       items.push({ id: v.id, start: v.start, end: v.end, lane: p.lane ?? this.prevLane.get(p.id) });

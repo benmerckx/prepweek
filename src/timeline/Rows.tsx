@@ -33,6 +33,7 @@ export const TaskBlock = memo(function TaskBlock({ task, scale, dims, selected, 
       ref={ref}
       className={cls}
       data-task={task.id}
+      data-pattern={task.pattern || undefined}
       title={[task.title || 'Untitled', task.project, formatRange(task.start, task.end), task.tags.map((t) => `#${t}`).join(' ')].filter(Boolean).join(' · ')}
       style={{
         transform: `translate(${left}px, ${dims.pad + task.lane * dims.laneH}px)`,

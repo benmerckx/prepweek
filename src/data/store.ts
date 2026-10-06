@@ -26,6 +26,8 @@ export type TaskRow = {
   tags?: string;
   /** Recurrence rule ('' = none), see lib/recur.ts. */
   repeat?: string;
+  /** Fill pattern ('' = solid), see PATTERNS. */
+  pattern?: string;
   /** Last day an occurrence may start on (0 = open-ended). */
   repeatUntil?: number;
   /** Comma-separated occurrence numbers that were deleted or detached. */
@@ -53,6 +55,7 @@ store.setTablesSchema({
     projectId: { type: 'string', default: '' },
     tags: { type: 'string', default: '' },
     repeat: { type: 'string', default: '' },
+    pattern: { type: 'string', default: '' },
     repeatUntil: { type: 'number', default: 0 },
     skip: { type: 'string', default: '' },
   },
@@ -148,6 +151,9 @@ export type AttachmentRow = {
   size: number;
   created: number;
 };
+
+/** Optional fills for blocks, drawn in the block's own color. */
+export const PATTERNS = ['dots', 'stripes', 'zigzag', 'waves', 'grid', 'plus'] as const;
 
 /** First is the default; not red, so milestones don't read as "today". */
 export const MILESTONE_COLORS = ['#8b5cf6', '#4f5bd5', '#06b6d4', '#22a06b', '#f59e0b', '#ef4444', '#ec4899', '#64748b'] as const;

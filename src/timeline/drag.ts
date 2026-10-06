@@ -307,6 +307,7 @@ export class DragController {
           notes: orig.notes,
           projectId: orig.projectId,
           tags: orig.tags.join(','),
+          pattern: orig.pattern,
         });
         this.model.rememberLane(id, lane);
         this.end();

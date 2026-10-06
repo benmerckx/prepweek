@@ -4411,3 +4411,89 @@ button.tag-chip {
 .app.compact .brand.switcher {
   max-width: 150px;
 }
+
+
+/* =============================================================================
+   Block patterns: an optional fill, drawn in the block's own color
+   ========================================================================== */
+
+.task[data-pattern]::before,
+.pattern-swatch::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--c);
+  opacity: var(--pattern-opacity);
+  -webkit-mask: var(--pat) repeat;
+  mask: var(--pat) repeat;
+  pointer-events: none;
+}
+.task[data-pattern] .task-label {
+  /* Keep text crisp over the pattern. */
+  text-shadow:
+    0 0 3px color-mix(in oklab, var(--c) var(--block-tint), var(--bg)),
+    0 0 1px color-mix(in oklab, var(--c) var(--block-tint), var(--bg));
+}
+[data-pattern="dots"] {
+  --pat: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%228%22%20height%3D%228%22%3E%3Ccircle%20cx%3D%224%22%20cy%3D%224%22%20r%3D%221.35%22/%3E%3C/svg%3E");
+}
+[data-pattern="stripes"] {
+  --pat: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%228%22%20height%3D%228%22%3E%3Cpath%20d%3D%22M-2%202l4-4M0%208l8-8M6%2010l4-4%22%20stroke%3D%22%23000%22%20stroke-width%3D%221.7%22/%3E%3C/svg%3E");
+}
+[data-pattern="zigzag"] {
+  --pat: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2212%22%20height%3D%228%22%3E%3Cpath%20d%3D%22M0%206l3-4%203%204%203-4%203%204%22%20fill%3D%22none%22%20stroke%3D%22%23000%22%20stroke-width%3D%221.4%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E");
+}
+[data-pattern="waves"] {
+  --pat: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2216%22%20height%3D%228%22%3E%3Cpath%20d%3D%22M0%204q4-4%208%200t8%200%22%20fill%3D%22none%22%20stroke%3D%22%23000%22%20stroke-width%3D%221.4%22/%3E%3C/svg%3E");
+}
+[data-pattern="grid"] {
+  --pat: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%228%22%20height%3D%228%22%3E%3Cpath%20d%3D%22M0%20.5h8M.5%200v8%22%20stroke%3D%22%23000%22%20stroke-width%3D%221%22/%3E%3C/svg%3E");
+}
+[data-pattern="plus"] {
+  --pat: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2210%22%20height%3D%2210%22%3E%3Cpath%20d%3D%22M5%202.6v4.8M2.6%205h4.8%22%20stroke%3D%22%23000%22%20stroke-width%3D%221.4%22%20stroke-linecap%3D%22round%22/%3E%3C/svg%3E");
+}
+:root {
+  --pattern-opacity: 0.3;
+}
+:root[data-theme='dark'] {
+  --pattern-opacity: 0.38;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --pattern-opacity: 0.38;
+  }
+}
+
+/* Picker in the task panel */
+.patterns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.pattern-swatch {
+  position: relative;
+  width: 38px;
+  height: 26px;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklab, var(--c) 30%, transparent);
+  border-radius: 7px;
+  background: color-mix(in oklab, var(--c) var(--block-tint), var(--bg));
+  cursor: pointer;
+}
+.pattern-swatch:hover {
+  border-color: var(--c);
+}
+.pattern-swatch.on {
+  border-color: var(--c);
+  box-shadow: 0 0 0 2px var(--raised), 0 0 0 3.5px var(--c);
+}
+.pattern-swatch.solid::after {
+  content: '';
+  position: absolute;
+  inset: 4px 6px;
+  border-radius: 3px;
+  background: var(--c);
+  opacity: 0.18;
+}

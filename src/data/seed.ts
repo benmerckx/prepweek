@@ -18,6 +18,10 @@ const CLIENTS: Record<string, string> = {
 };
 const NO_PROJECT = new Set(['Holiday', 'Conference']);
 const TAGS = ['billable', 'onsite', 'remote', 'urgent', 'review'];
+/** A few kinds of work get a fill pattern in the demo. */
+const PATTERN_OF: Record<string, string> = {
+  Holiday: 'stripes', Conference: 'dots', 'Support rotation': 'zigzag', 'Q-planning': 'grid', 'Customer interviews': 'waves',
+};
 
 /** Small deterministic PRNG so the demo looks the same everywhere. */
 const mulberry32 = (seed: number) => () => {
@@ -58,6 +62,7 @@ export const seed = (people = 24, density = 1, seedValue = 7) => {
     });
     const extra = (title: string) => ({
       projectId: projectId.get(title) ?? '',
+      pattern: PATTERN_OF[title] ?? '',
       tags: rnd() < 0.22 ? joinTags(rnd() < 0.2 ? [pick(TAGS), pick(TAGS)] : [pick(TAGS)]) : '',
     });
     for (let u = 0; u < people; u++) {
