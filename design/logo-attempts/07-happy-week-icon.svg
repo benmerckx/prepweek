@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="256" height="256">
+  <title>PrepWeek</title>
+  <rect x="0" y="0" width="64" height="64" rx="15" fill="#171a23"/>
+  <g transform="matrix(0.85 0 0 0.85 4.92 4.92)"><rect x="7" y="12" width="50" height="46" rx="13" fill="#4f5bd5"/><rect x="18" y="6" width="7" height="13" rx="3.5" fill="#f59e0b"/><rect x="39" y="6" width="7" height="13" rx="3.5" fill="#f59e0b"/><rect x="22.5" y="26" width="6" height="10" rx="3" fill="#ffffff"/><rect x="35.5" y="26" width="6" height="10" rx="3" fill="#ffffff"/><path d="M41.71 40.16A11 11 0 0 1 22.29 40.16" fill="none" stroke="#ec4899" stroke-width="5.5" stroke-linecap="round"/></g>
+</svg>
