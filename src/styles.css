@@ -503,7 +503,19 @@ svg {
   border: 1px solid var(--border);
   border-radius: 12px;
   box-shadow: var(--shadow);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   animation: pop-in 120ms cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+/* Items keep their size; a tall menu scrolls instead of squashing them. */
+.tb-more-menu > *,
+.sheet-menu > * {
+  flex-shrink: 0;
+}
+/* Toolbar menus wait until they're placed under their button (Toolbar.tsx). */
+.toolbar details > .tb-menu:not([data-placed]) {
+  visibility: hidden;
+  animation: none;
 }
 @keyframes pop-in {
   from {
@@ -589,8 +601,47 @@ svg {
   max-height: min(70vh, 520px);
   min-width: 240px;
 }
-.focus-section .tb-people-list {
-  max-height: 220px;
+/* "…" → Focus on people: the list replaces the menu, with a way back. */
+.focus-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 4px 6px 2px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+.focus-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 8px 0 2px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.focus-back:hover {
+  background: var(--hover);
+}
+.focus-head .link-btn {
+  font-size: 12px;
+}
+.tb-more-menu {
+  min-width: 250px;
+}
+.menu-next {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+  color: var(--text-faint);
+  font-size: 12px;
 }
 .tb-people-list {
   display: flex;
@@ -3975,6 +4026,11 @@ button.tag-chip {
 .editor.side .editor-actions {
   margin-top: auto;
   padding-top: 4px;
+}
+/* Switching to another block: the panel just updates, no slide. */
+.editor.side:not(.enter),
+.editor.sheet:not(.enter) {
+  animation: none;
 }
 @keyframes side-in {
   from {

@@ -10,7 +10,9 @@ import {
   forgetLastSheet,
   forgetMySheet,
   getMe,
+  cachedPeople,
   getPeople,
+  prefetchPeople,
   googleUrl,
   inviteInfo,
   inviteToWorkspace,
@@ -144,6 +146,14 @@ export function SheetSwitcher({ onSignIn, onWorkspace }: { onSignIn(): void; onW
     }
   };
 
+  // Window title: the sheet's name. An installed app's window already shows
+  // "PrepWeek - …" in front of it; a browser tab gets it appended.
+  const titleName = me ? me.workspaces.flatMap((w) => w.sheets).find((x) => x.id === current)?.name || access?.name || '' : '';
+  useEffect(() => {
+    const standalone = matchMedia('(display-mode: standalone), (display-mode: window-controls-overlay)').matches;
+    document.title = !titleName ? 'PrepWeek' : standalone ? titleName : `${titleName} – PrepWeek`;
+  }, [titleName]);
+
   // No accounts here (dev server, offline): just the brand.
   if (!me) {
     return (
@@ -176,7 +186,13 @@ export function SheetSwitcher({ onSignIn, onWorkspace }: { onSignIn(): void; onW
   return (
     <div className="brand switcher">
       <Logo />
-      <details className="tb-dd sheet-dd" ref={ref} onToggle={(e) => !e.currentTarget.open && (setRenaming(null), setError(''))}>
+      <details className="tb-dd sheet-dd" ref={ref} onToggle={(e) => {
+          if (e.currentTarget.open) me.workspaces.forEach((w) => prefetchPeople(w.id));
+          else {
+            setRenaming(null);
+            setError('');
+          }
+        }}>
         <summary className="sheet-btn" title="Sheets and workspaces">
           <span className="sheet-name">{name}</span>
           <span className="sheet-ws">{ws ? ws.name : me.user ? 'Not in a workspace' : 'Not saved to an account'}</span>
@@ -358,7 +374,7 @@ export function AccountButton({ onSignIn, onWorkspace }: { onSignIn(): void; onW
   const u = me.user;
   const ws = access?.workspace ?? me.workspaces[0];
   return (
-    <details className="tb-dd tb-account" ref={ref}>
+    <details className="tb-dd tb-account" ref={ref} onToggle={(e) => e.currentTarget.open && me?.workspaces.forEach((w) => prefetchPeople(w.id))}>
       <summary className="acct-btn" aria-label="Account" title={u.email}>
         <Avatar name={u.name} src={u.avatar} />
       </summary>
@@ -518,8 +534,14 @@ export function WorkspaceDialog({ workspaceId, onClose }: { workspaceId: string;
   useEscape(onClose);
   const me = useAccount();
   const ws = me?.workspaces.find((w) => w.id === workspaceId);
-  const [people, setPeople] = useState<People | null>(null);
+  const [people, setPeople] = useState<People | null>(() => cachedPeople(workspaceId));
   const [error, setError] = useState('');
+  // Not fetched yet: wait a moment before showing, so the list doesn't jump in.
+  const [waited, setWaited] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setWaited(true), 700);
+    return () => clearTimeout(t);
+  }, []);
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<'member' | 'admin'>('member');
   const [link, setLink] = useState<{ link: string; sent: boolean; email: string } | null>(null);
@@ -538,6 +560,8 @@ export function WorkspaceDialog({ workspaceId, onClose }: { workspaceId: string;
       setError(e instanceof Error ? e.message : String(e));
     }
   };
+
+  if (!people && !error && !waited) return null;
 
   return createPortal(
     <div className="modal-backdrop" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>

@@ -25,9 +25,11 @@ interface Props {
   /** View-only link: show, don't edit. */
   readOnly?: boolean;
   onClose(): void;
+  /** Play the open animation (not when switching between blocks). */
+  enter?: boolean;
 }
 
-export function Editor({ task, model, sheet, side, readOnly, onClose }: Props) {
+export function Editor({ task, model, sheet, side, readOnly, onClose, enter = true }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
   /** The text field that last had focus, so picking a color can keep it. */
@@ -125,7 +127,7 @@ export function Editor({ task, model, sheet, side, readOnly, onClose }: Props) {
   return (
     <div
       ref={ref}
-      className={'editor' + (sheet ? ' sheet' : '') + (side ? ' side' : '') + (dropping ? ' dropping' : '') + (readOnly ? ' readonly' : '')}
+      className={'editor' + (enter ? ' enter' : '') + (sheet ? ' sheet' : '') + (side ? ' side' : '') + (dropping ? ' dropping' : '') + (readOnly ? ' readonly' : '')}
       data-no-drag
       onPointerDown={(e) => e.stopPropagation()}
       // Drop or paste files to attach them (and keep the drop away from the

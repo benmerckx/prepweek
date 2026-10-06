@@ -6,7 +6,7 @@
 //    their content does);
 //  - sync, presence, files, sharing and the account API go straight to the network.
 
-const CACHE = 'prepweek-v2';
+const CACHE = 'prepweek-v3';
 const SHELL = '/';
 const LIVE = /^\/(sync|presence|files|share|api|auth)\//;
 
@@ -33,17 +33,19 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(req.url);
   if (req.method !== 'GET' || url.origin !== location.origin || LIVE.test(url.pathname)) return;
 
-  if (req.mode === 'navigate') {
+  // Pages and the manifest (the installed app's name and icons): network
+  // first, so changes arrive; the cached copy is the offline fallback.
+  if (req.mode === 'navigate' || url.pathname === '/manifest.webmanifest') {
     event.respondWith(
       fetch(req)
         .then((res) => {
           if (res.ok) {
             const copy = res.clone();
-            caches.open(CACHE).then((c) => c.put(SHELL, copy));
+            caches.open(CACHE).then((c) => c.put(req.mode === 'navigate' ? SHELL : req, copy));
           }
           return res;
         })
-        .catch(() => caches.match(SHELL).then((r) => r ?? Response.error())),
+        .catch(() => caches.match(req.mode === 'navigate' ? SHELL : req).then((r) => r ?? Response.error())),
     );
     return;
   }

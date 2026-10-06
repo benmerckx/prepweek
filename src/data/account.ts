@@ -111,7 +111,16 @@ export const deleteWorkspace = async (id: string) => {
   await api('DELETE', `/api/workspaces/${encodeURIComponent(id)}`);
   await loadMe();
 };
-export const getPeople = (workspaceId: string) => api<People>('GET', `/api/workspaces/${encodeURIComponent(workspaceId)}/people`);
+/** Last known people per workspace, so the People dialog opens complete. */
+const peopleCache = new Map<string, People>();
+export const cachedPeople = (workspaceId: string) => peopleCache.get(workspaceId) ?? null;
+export const getPeople = async (workspaceId: string) => {
+  const p = await api<People>('GET', `/api/workspaces/${encodeURIComponent(workspaceId)}/people`);
+  peopleCache.set(workspaceId, p);
+  return p;
+};
+/** Fetch ahead (e.g. when the sheet menu opens); errors are ignored here. */
+export const prefetchPeople = (workspaceId: string) => void getPeople(workspaceId).catch(() => {});
 export const setMemberRole = (workspaceId: string, userId: string, role: 'admin' | 'member') =>
   api('PATCH', `/api/workspaces/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(userId)}`, { role });
 export const removeMember = async (workspaceId: string, userId: string) => {

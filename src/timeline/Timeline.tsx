@@ -828,9 +828,15 @@ export function Timeline({ model }: { model: TimelineModel }) {
   useBackToClose(!!editTask, closeEditor);
   // Phones: a bottom sheet. Desktop: a panel on the right. Both live
   // outside the scroller so they stay put while the timeline scrolls.
+  // Slide in only when the panel opens, not when switching to another block
+  // (the panel remounts per block so its fields start fresh).
+  const enterId = useRef<string | null>(null);
+  if (!editTask) enterId.current = null;
+  else if (enterId.current === null) enterId.current = editTask.id;
+  else if (enterId.current !== editTask.id) enterId.current = '';
   const editor = editTask
     ? createPortal(
-        <Editor key={editTask.id} task={editTask} model={model} sheet={compact} side={!compact} readOnly={readOnly} onClose={closeEditor} />,
+        <Editor key={editTask.id} enter={enterId.current === editTask.id} task={editTask} model={model} sheet={compact} side={!compact} readOnly={readOnly} onClose={closeEditor} />,
         document.body,
       )
     : null;

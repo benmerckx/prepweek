@@ -2,7 +2,6 @@ import { memo, useCallback, useEffect, useRef, useState, useSyncExternalStore } 
 import { flushSync } from 'react-dom';
 import { canRedo, canUndo, isHistoryBusy, onHistoryChange, redo, store, undo } from '../data/store.ts';
 import { getSyncStatus, onSyncStatus } from '../data/sync.ts';
-import { seed } from '../data/seed.ts';
 import type { TimelineModel } from './model.ts';
 import { FilterMenu, ViewsMenu, type FilterState } from './Filters.tsx';
 import { NotificationsMenu } from './Discussion.tsx';
@@ -14,7 +13,7 @@ import type { Peer } from '../data/presence.ts';
 import type { ViewConfig } from '../data/store.ts';
 import { navigate, useRoute, type Section } from '../lib/route.ts';
 import { isPopoverOpen } from '../ui/Select.tsx';
-import { Briefcase, Check, ChevronLeft, ChevronRight, Close, Download, Eye, Folder, History, LinkIcon, Moon, More, Redo, Search as SearchIc, Sun, Undo, Upload } from '../ui/icons.tsx';
+import { Briefcase, Check, People, ChevronLeft, ChevronRight, Close, Download, Eye, Folder, History, LinkIcon, Moon, More, Redo, Search as SearchIc, Sun, Undo, Upload } from '../ui/icons.tsx';
 
 interface Props {
   colW: number;
@@ -91,6 +90,8 @@ export function SectionTabs({ current }: { current: Section }) {
 export const Toolbar = memo(function Toolbar(props: Props) {
   const { model, onToday, onPage } = props;
   const [searchOpen, setSearchOpen] = useState(false);
+  /** The "…" menu: its main list, or the focus-on-people list in its place. */
+  const [moreView, setMoreView] = useState<'main' | 'focus'>('main');
 
   // Close dropdown menus on any press outside them.
   useEffect(() => {
@@ -105,16 +106,23 @@ export const Toolbar = memo(function Toolbar(props: Props) {
     // edges when that would run off the screen.
     const place = (e: Event) => {
       const d = e.target;
-      if (!(d instanceof HTMLDetailsElement) || !d.open || !d.closest('.toolbar')) return;
+      if (!(d instanceof HTMLDetailsElement) || !d.closest('.toolbar')) return;
       const menu = d.querySelector<HTMLElement>(':scope > .tb-menu');
+      if (!menu) return;
+      // Hidden (CSS) until placed, so it never shows at a default spot first.
+      if (!d.open) return void delete menu.dataset.placed;
       const btn = d.querySelector(':scope > summary')?.getBoundingClientRect();
-      if (!menu || !btn) return;
+      if (!btn) return;
       const fit = () => {
         const w = menu.offsetWidth;
         const left = btn.left + w > innerWidth - 8 ? Math.max(8, btn.right - w) : btn.left;
-        menu.style.top = `${Math.round(btn.bottom + 6)}px`;
+        const top = Math.round(btn.bottom + 6);
+        menu.style.top = `${top}px`;
         menu.style.left = `${Math.round(left)}px`;
         menu.style.right = 'auto';
+        // Taller than the screen: it scrolls.
+        menu.style.maxHeight = `${innerHeight - top - 10}px`;
+        menu.dataset.placed = '';
       };
       fit();
       // Content that renders once open can change the width.
@@ -189,12 +197,16 @@ export const Toolbar = memo(function Toolbar(props: Props) {
         {theme === 'dark' ? <Sun /> : <Moon />}
       </button>
       <AccountButton onSignIn={props.onSignIn} onWorkspace={props.onWorkspace} />
-      <details className="tb-more">
+      <details className="tb-more" onToggle={(e) => !e.currentTarget.open && setMoreView('main')}>
         <summary className={'btn icon' + (model.getFocus() ? ' active' : '')} aria-label="More" title="More">
           <More />
           {model.getFocus() && <span className="tb-badge">{model.getFocus()!.size}</span>}
         </summary>
-        <div className="tb-menu" onClick={(e) => (e.currentTarget.parentElement as HTMLDetailsElement).removeAttribute('open')}>
+        <div className="tb-menu tb-more-menu" onClick={(e) => (e.currentTarget.parentElement as HTMLDetailsElement).removeAttribute('open')}>
+          {moreView === 'focus' ? (
+            <FocusSection {...props} onBack={() => setMoreView('main')} />
+          ) : (
+          <>
           <div className="tb-menu-stats">
             {model.personCount === 1 ? '1 person' : `${model.personCount} people`} · {taskCount.toLocaleString()} tasks
             <div className={`sync sync-${sync}`}>
@@ -226,7 +238,23 @@ export const Toolbar = memo(function Toolbar(props: Props) {
               </button>
             </>
           )}
-          {plan && <FocusSection {...props} />}
+          {plan && model.allUsers().length > 0 && (
+            <button
+              className="menu-item"
+              onClick={(e) => {
+                // Opens the people list in place; the menu stays open.
+                e.stopPropagation();
+                setMoreView('focus');
+              }}
+            >
+              <People />
+              Focus on people
+              <span className="menu-next">
+                {model.getFocus() ? model.getFocus()!.size : ''}
+                <ChevronRight />
+              </span>
+            </button>
+          )}
           <button className="menu-item" onClick={props.onPalette}>
             <SearchIc />
             Command palette
@@ -255,20 +283,7 @@ export const Toolbar = memo(function Toolbar(props: Props) {
           <Toggle label="Hide weekends" on={props.hideWeekends} onToggle={props.onToggleWeekends} />
           <Toggle label="Compact rows" on={props.dense} onToggle={props.onToggleDense} />
           <Toggle label="Dark mode" on={theme === 'dark'} onToggle={toggleTheme} />
-          <div className="menu-sep" />
-          {!props.readOnly && (
-            <>
-              <button className="menu-item" onClick={() => confirm('Replace everything with fresh demo data?') && seed()}>
-                Reset demo data
-              </button>
-              <button
-                className="menu-item"
-                title="Load 120 people × 2 years (~25k tasks)"
-                onClick={() => confirm('Replace everything with a large stress-test dataset?') && seed(120, 1.6, 11)}
-              >
-                Stress test (120 people)
-              </button>
-            </>
+          </>
           )}
         </div>
       </details>
@@ -358,18 +373,19 @@ function Search({ query, onQuery, matchCount, onNextMatch, open, setOpen }: Prop
 
 /** Pick who to focus on; works the same on touch, where avatars are small. */
 /** Focus on people: a checklist inside the "…" menu (clicks keep it open). */
-function FocusSection({ model, onFocusPerson, onClearFocus }: Props) {
+function FocusSection({ model, onFocusPerson, onClearFocus, onBack }: Props & { onBack(): void }) {
   const focus = model.getFocus();
   const people = model.allUsers();
-  if (!people.length) return null;
   return (
     <div className="focus-section" onClick={(e) => e.stopPropagation()}>
-      <div className="menu-sep" />
-      <div className="menu-label">
-        Focus on
+      <div className="focus-head">
+        <button className="focus-back" onClick={onBack} aria-label="Back">
+          <ChevronLeft />
+          Focus on
+        </button>
         {focus && (
           <button className="link-btn" onClick={onClearFocus}>
-            Everyone
+            Show everyone
           </button>
         )}
       </div>
