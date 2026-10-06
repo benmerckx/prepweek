@@ -332,6 +332,16 @@ function HeroApp() {
   );
 }
 
+/** Flat, colorful blocks around the hero copy (wide screens). */
+const FLOATERS: { title: string; meta: string; color: string; pattern?: string; w: number; pos: CSSProperties }[] = [
+  { title: 'Kickoff', meta: 'Mon', color: C.blue, w: 132, pos: { top: 120, left: '6%' } },
+  { title: 'Holiday', meta: '5d', color: C.pink, pattern: 'stripes', w: 170, pos: { top: 250, left: '3%' } },
+  { title: 'Review', meta: '1d', color: C.amber, w: 104, pos: { top: 390, left: '9%' } },
+  { title: 'Launch', meta: 'Fri', color: C.green, w: 120, pos: { top: 104, right: '7%' } },
+  { title: 'Workshop', meta: '2d', color: C.violet, pattern: 'dots', w: 156, pos: { top: 236, right: '3%' } },
+  { title: 'Stand-up', meta: '9:30', color: C.cyan, w: 118, pos: { top: 378, right: '10%' } },
+];
+
 function Hero() {
   // The app window leans back and straightens as you scroll into the page.
   const ref = useRef<HTMLDivElement>(null);
@@ -364,7 +374,13 @@ function Hero() {
   }, []);
   return (
     <header className="lp-hero">
-      <div className="lp-hero-glow" aria-hidden />
+      <div className="lp-floaters" aria-hidden>
+        {FLOATERS.map((f, i) => (
+          <div key={f.title} className="lp-floater" style={{ ...f.pos, width: f.w, ['--i' as string]: i } as CSSProperties}>
+            <Block title={f.title} meta={f.meta} color={f.color} pattern={f.pattern} />
+          </div>
+        ))}
+      </div>
       <div className="lp-wrap lp-hero-copy">
         <a className="lp-pill lp-in" href="#import" style={{ ['--d' as string]: '0ms' }}>
           <span className="lp-pill-dot" />
@@ -373,7 +389,7 @@ function Hero() {
         </a>
         <h1 className="lp-in" style={{ ['--d' as string]: '60ms' }}>
           Your team’s weeks, <br className="lp-br" />
-          <span className="lp-grad">at a glance.</span>
+          <span className="lp-accent">at a glance.</span>
         </h1>
         <p className="lp-lede lp-in" style={{ ['--d' as string]: '120ms' }}>
           PrepWeek is a fast, visual planner for teams. Drag work onto people, stretch it across days, and everyone sees the change the
@@ -414,10 +430,12 @@ function Hero() {
 
 // --- Features -----------------------------------------------------------------------------------
 
-function Card({ title, text, children, className = '', delay = 0 }: { title: string; text: string; children: ReactNode; className?: string; delay?: number }) {
+function Card({ title, text, children, className = '', delay = 0, tint }: { title: string; text: string; children: ReactNode; className?: string; delay?: number; tint: string }) {
   return (
     <Reveal className={'lp-card ' + className} delay={delay}>
-      <div className="lp-card-visual">{children}</div>
+      <div className="lp-card-visual" style={{ ['--tint' as string]: tint }}>
+        {children}
+      </div>
       <div className="lp-card-copy">
         <h3>{title}</h3>
         <p>{text}</p>
@@ -617,33 +635,33 @@ function Features() {
     <section className="lp-section" id="features">
       <div className="lp-wrap">
         <Reveal className="lp-heading">
-          <span className="lp-eyebrow">Everything in one view</span>
+          <span className="lp-eyebrow" style={{ ['--c' as string]: C.blue }}>Everything in one view</span>
           <h2>Planning that keeps up with your team.</h2>
           <p>For studios, agencies and product teams who plan people, not tickets.</p>
         </Reveal>
         <div className="lp-bento">
-          <Card className="wide" title="Drag, stretch, done" text="Move work between people and days with one drag. Blocks pack themselves into lanes, so nothing hides behind anything else.">
+          <Card className="wide" tint={C.blue} title="Drag, stretch, done" text="Move work between people and days with one drag. Blocks pack themselves into lanes, so nothing hides behind anything else.">
             <DragVisual />
           </Card>
-          <Card title="Live, together" text="See who is looking at what. Edits, comments and @mentions reach everyone on the sheet instantly." delay={80}>
+          <Card tint={C.pink} title="Live, together" text="See who is looking at what. Edits, comments and @mentions reach everyone on the sheet instantly." delay={80}>
             <LiveVisual />
           </Card>
-          <Card title="Months at a glance" text="The scrubber charts your team’s workload. Filter on a project and its busy weeks light up." delay={0}>
+          <Card tint={C.amber} title="Months at a glance" text="The scrubber charts your team’s workload. Filter on a project and its busy weeks light up." delay={0}>
             <ScrubVisual />
           </Card>
-          <Card title="Projects and clients" text="Every project gets a color and a pattern, and its own page with people, dates and notes." delay={80}>
+          <Card tint={C.red} title="Projects and clients" text="Every project gets a color and a pattern, and its own page with people, dates and notes." delay={80}>
             <ProjectsVisual />
           </Card>
-          <Card title="Offline first" text="Your plan lives on your device. Keep planning on the train; it syncs the moment you’re back." delay={160}>
+          <Card tint={C.green} title="Offline first" text="Your plan lives on your device. Keep planning on the train; it syncs the moment you’re back." delay={160}>
             <OfflineVisual />
           </Card>
-          <Card title="Set it once" text="Weekly stand-ups, monthly reviews, yearly renewals. Repeating work fills itself in." delay={0}>
+          <Card tint={C.cyan} title="Set it once" text="Weekly stand-ups, monthly reviews, yearly renewals. Repeating work fills itself in." delay={0}>
             <RepeatVisual />
           </Card>
-          <Card title="Notes that format themselves" text="Type / for headings and lists, or select text to style it. Mention a teammate and they’ll know." delay={80}>
+          <Card tint={C.violet} title="Notes that format themselves" text="Type / for headings and lists, or select text to style it. Mention a teammate and they’ll know." delay={80}>
             <NotesVisual />
           </Card>
-          <Card title="Everything from the keyboard" text="Press ⌘K to jump to a person, filter on a project or run any command." delay={160}>
+          <Card tint={C.slate} title="Everything from the keyboard" text="Press ⌘K to jump to a person, filter on a project or run any command." delay={160}>
             <PaletteVisual />
           </Card>
         </div>
@@ -751,11 +769,11 @@ function Mobile() {
     <section className="lp-section lp-mobile" id="mobile">
       <div className="lp-wrap lp-split">
         <Reveal className="lp-mobile-stage">
-          <div className="lp-mobile-glow" aria-hidden />
+          <div className="lp-mobile-backdrop" aria-hidden />
           <Phone />
         </Reveal>
         <Reveal className="lp-split-copy" delay={100}>
-          <span className="lp-eyebrow">On your phone</span>
+          <span className="lp-eyebrow" style={{ ['--c' as string]: C.green }}>On your phone</span>
           <h2>The whole plan, in your pocket.</h2>
           <p>
             Built for small screens, not squeezed onto them. See who is on what from the train, and move things the moment plans
@@ -786,13 +804,15 @@ function Steps() {
     <section className="lp-section">
       <div className="lp-wrap">
         <Reveal className="lp-heading">
-          <span className="lp-eyebrow">Getting started</span>
+          <span className="lp-eyebrow" style={{ ['--c' as string]: C.amber }}>Getting started</span>
           <h2>Planned before your coffee cools.</h2>
         </Reveal>
         <ol className="lp-steps">
           {steps.map((s, i) => (
             <Reveal key={s.n} as="li" className="lp-step" delay={i * 90}>
-              <span className="lp-step-n">{s.n}</span>
+              <span className="lp-step-n" style={{ ['--c' as string]: [C.blue, C.amber, C.green][i] }}>
+                {s.n}
+              </span>
               <h3>{s.title}</h3>
               <p>{s.text}</p>
             </Reveal>
@@ -879,7 +899,7 @@ function Import() {
     <section className="lp-section lp-import" id="import">
       <div className="lp-wrap lp-split">
         <Reveal className="lp-split-copy">
-          <span className="lp-eyebrow">Moving from Teamweek?</span>
+          <span className="lp-eyebrow" style={{ ['--c' as string]: C.pink }}>Moving from Teamweek?</span>
           <h2>Bring your whole history along.</h2>
           <p>Drop in a Teamweek export and your planning is back where you left it, with the details intact.</p>
           <ul className="lp-checks">
@@ -968,7 +988,7 @@ export function Landing() {
       <section className="lp-section lp-final">
         <div className="lp-wrap">
         <Reveal className="lp-final-inner">
-          <div className="lp-final-glow" aria-hidden />
+
           <h2>Plan next week in the next five minutes.</h2>
           <p>No account needed to start. Sign up when you want to keep your plan and invite the team.</p>
           <div className="lp-ctas">

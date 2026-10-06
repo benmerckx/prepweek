@@ -217,34 +217,38 @@ html:has(.lp) {
 }
 
 /* --- Hero --- */
+.lp-floaters {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 520px;
+  max-width: 1440px;
+  margin: 0 auto;
+  pointer-events: none;
+}
+.lp-floater {
+  position: absolute;
+  animation:
+    lp-pop 700ms var(--lp-ease) both,
+    lp-bob 7s ease-in-out infinite;
+  animation-delay: calc(350ms + var(--i) * 70ms), calc(var(--i) * -1.1s);
+}
+.lp .lp-floater .task.lp-task {
+  box-shadow: 0 10px 24px -14px rgb(0 0 0 / 0.5);
+}
+@keyframes lp-bob {
+  50% {
+    translate: 0 -6px;
+  }
+}
+@media (max-width: 1180px) {
+  .lp-floaters {
+    display: none;
+  }
+}
 .lp-hero {
   position: relative;
   padding: 72px 0 40px;
   text-align: center;
-}
-.lp-hero-glow {
-  position: absolute;
-  inset: -120px 0 auto;
-  height: 820px;
-  pointer-events: none;
-  background:
-    radial-gradient(40% 50% at 30% 30%, color-mix(in oklab, var(--accent) 26%, transparent), transparent 70%),
-    radial-gradient(35% 45% at 72% 26%, color-mix(in oklab, #ec4899 16%, transparent), transparent 70%),
-    radial-gradient(50% 40% at 50% 62%, color-mix(in oklab, #06b6d4 10%, transparent), transparent 70%);
-  filter: blur(20px);
-  mask-image: linear-gradient(to bottom, #000 40%, transparent);
-}
-.lp-hero-glow::after {
-  /* A faint grid, fading out from the center. */
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(var(--lp-line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--lp-line) 1px, transparent 1px);
-  background-size: 56px 56px;
-  mask-image: radial-gradient(60% 55% at 50% 35%, #000, transparent 75%);
-  opacity: 0.55;
 }
 .lp-hero-copy {
   position: relative;
@@ -293,11 +297,8 @@ html:has(.lp) {
   letter-spacing: -0.045em;
   text-wrap: balance;
 }
-.lp-grad {
-  background: linear-gradient(100deg, var(--accent) 10%, #8b5cf6 45%, #ec4899 90%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+.lp-accent {
+  color: var(--accent);
 }
 .lp-lede {
   max-width: 600px;
@@ -351,16 +352,6 @@ html:has(.lp) {
   transform: rotateX(calc(var(--tilt) * 14deg)) scale(calc(1 - var(--tilt) * 0.04));
   transform-origin: 50% 0;
   will-change: transform;
-}
-.lp-hero-frame::after {
-  /* The window fades into the page at the bottom. */
-  content: '';
-  position: absolute;
-  inset: auto -2px -2px;
-  height: 7%;
-  border-radius: 0 0 22px 22px;
-  background: linear-gradient(transparent, var(--bg));
-  pointer-events: none;
 }
 
 /* --- The mini app (hero) --- */
@@ -912,7 +903,10 @@ html:has(.lp) {
 .lp-eyebrow {
   display: inline-block;
   margin-bottom: 14px;
-  color: var(--accent);
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--c, var(--accent)) 14%, transparent);
+  color: color-mix(in oklab, var(--c, var(--accent)) 80%, var(--text));
   font-size: 13px;
   font-weight: 620;
   letter-spacing: 0.01em;
@@ -968,9 +962,7 @@ html:has(.lp) {
   height: 230px;
   overflow: hidden;
   border-bottom: 1px solid var(--lp-line);
-  background:
-    radial-gradient(70% 90% at 50% 0%, color-mix(in oklab, var(--accent) 7%, transparent), transparent 70%),
-    var(--bg);
+  background: color-mix(in oklab, var(--tint, var(--accent)) 9%, var(--bg));
 }
 .lp-card-copy {
   padding: 22px 24px 26px;
@@ -1515,13 +1507,11 @@ html:has(.lp) {
   place-items: center;
   padding: 20px 0;
 }
-.lp-mobile-glow {
+.lp-mobile-backdrop {
   position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(40% 45% at 50% 40%, color-mix(in oklab, var(--accent) 24%, transparent), transparent 70%),
-    radial-gradient(30% 35% at 62% 70%, color-mix(in oklab, #06b6d4 14%, transparent), transparent 70%);
-  filter: blur(24px);
+  inset: 8% 10%;
+  border-radius: 40px;
+  background: color-mix(in oklab, #22a06b 14%, var(--bg));
   pointer-events: none;
 }
 .lp-phone {
@@ -1531,12 +1521,11 @@ html:has(.lp) {
   height: 620px;
   padding: 11px;
   border-radius: 52px;
-  background: linear-gradient(160deg, #2a2d36, #0d0e12 40%, #1b1d24);
+  background: #16181e;
   box-shadow:
     0 0 0 1px rgb(255 255 255 / 0.08) inset,
     0 0 0 2px #0b0c10,
-    0 50px 100px -30px rgb(0 0 0 / 0.6),
-    0 30px 60px -30px color-mix(in oklab, var(--accent) 40%, transparent);
+    0 50px 100px -30px rgb(0 0 0 / 0.6);
 }
 .lp-phone::before {
   /* Side buttons. */
@@ -1996,8 +1985,8 @@ html:has(.lp) {
   height: 30px;
   margin-bottom: 18px;
   border-radius: 9px;
-  background: color-mix(in oklab, var(--accent) 16%, transparent);
-  color: var(--accent);
+  background: var(--c, var(--accent));
+  color: #fff;
   font-size: 13px;
   font-weight: 700;
 }
@@ -2064,7 +2053,7 @@ html:has(.lp) {
   width: 40px;
   height: 46px;
   border-radius: 8px;
-  background: linear-gradient(160deg, #22a06b, #157a50);
+  background: #22a06b;
   color: #fff;
   font-size: 10.5px;
   font-weight: 750;
@@ -2081,7 +2070,7 @@ html:has(.lp) {
   width: 100%;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--accent), #8b5cf6);
+  background: var(--accent);
   transform: scaleX(0);
   transform-origin: left;
   animation: lp-fill 2.1s 0.5s var(--lp-ease) forwards;
@@ -2139,23 +2128,68 @@ html:has(.lp) {
   position: relative;
   padding: 88px 24px;
   overflow: hidden;
-  border: 1px solid var(--lp-line);
   border-radius: 28px;
-  background: var(--lp-card);
+  background: var(--accent);
+  color: #fff;
   text-align: center;
 }
-.lp-final-glow {
+/* Flat blocks peeking in from the corners. */
+.lp-final-inner::before,
+.lp-final-inner::after {
+  content: '';
   position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(50% 80% at 50% 0%, color-mix(in oklab, var(--accent) 22%, transparent), transparent 70%),
-    radial-gradient(30% 50% at 85% 100%, color-mix(in oklab, #ec4899 12%, transparent), transparent 70%);
+  width: 220px;
+  height: 44px;
+  border-radius: 8px;
   pointer-events: none;
+}
+.lp-final-inner::before {
+  top: 38px;
+  left: -60px;
+  background: #f59e0b;
+}
+.lp-final-inner::after {
+  right: -50px;
+  bottom: 42px;
+  background: #ec4899;
+}
+@media (max-width: 640px) {
+  .lp-final-inner {
+    padding-top: 96px;
+  }
+  .lp-final-inner::before {
+    top: 26px;
+    width: 140px;
+    height: 32px;
+  }
+  .lp-final-inner::after {
+    bottom: 22px;
+    width: 140px;
+    height: 32px;
+  }
+}
+.lp-final .lp-btn.primary {
+  background: #fff;
+  color: var(--accent);
+  box-shadow: 0 8px 24px -10px rgb(0 0 0 / 0.35);
+}
+.lp-final .lp-btn.primary:hover {
+  background: #fff;
+}
+.lp-final .lp-btn.ghost {
+  border-color: rgb(255 255 255 / 0.35);
+  background: transparent;
+  color: #fff;
+}
+.lp-final .lp-btn.ghost:hover {
+  border-color: #fff;
+  background: rgb(255 255 255 / 0.1);
 }
 .lp-final-inner > :not(.lp-final-glow) {
   position: relative;
 }
 .lp-final p {
+  color: rgb(255 255 255 / 0.82);
   max-width: 520px;
   margin-right: auto;
   margin-left: auto;
