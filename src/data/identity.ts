@@ -7,7 +7,7 @@
 // Without accounts (the local dev server, offline): people say who they are
 // once per sheet, as before: a row, or just a display name.
 
-import { getUser, setActor, store } from './store.ts';
+import { getUser, isReadOnly, setActor, store } from './store.ts';
 import { getSheet } from './sync.ts';
 import { getMe as getAccount, onMe as onAccount } from './account.ts';
 
@@ -60,8 +60,22 @@ const apply = () => {
   if (sig === snapshot) return;
   snapshot = sig;
   me = next;
+  syncAvatar();
   setActor({ name: displayName(), id: me.personId && getUser(me.personId) ? me.personId : '' });
   listeners.forEach((l) => l());
+};
+
+/**
+ * Signed in and tied to a row: the row shows your account's picture (from
+ * Google). Written as data on the sheet, so everyone sees it; not an undo step.
+ */
+const syncAvatar = () => {
+  const avatar = identityMode() === 'account' ? getAccount()?.user?.avatar : '';
+  const id = me.personId;
+  if (!avatar || !id || isReadOnly() || getUser(id)?.avatar === avatar) return;
+  setTimeout(() => {
+    if (me.personId === id && store.hasRow('users', id) && !isReadOnly()) store.setCell('users', id, 'avatar', avatar);
+  });
 };
 
 /** Read the saved identity; call once the sheet is known. */

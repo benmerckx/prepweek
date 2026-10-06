@@ -60,13 +60,37 @@ const safeNext = (next: unknown) => (typeof next === 'string' && next.startsWith
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const isLocal = (url: URL) => ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
 
+/** Email is on when Mandrill has a key and a sender (a verified domain). */
+const canEmail = (env: Env) => !!(env.MANDRILL_API_KEY && env.EMAIL_FROM);
+
+const escapeHtml = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+
+/** Send through Mandrill (Mailchimp Transactional). */
 const sendEmail = async (env: Env, to: string, subject: string, html: string) => {
-  const res = await fetch('https://api.resend.com/emails', {
+  // EMAIL_FROM: "prepweek <login@yourdomain.com>" or just the address.
+  const from = /^\s*(.*?)\s*<([^>]+)>\s*$/.exec(env.EMAIL_FROM ?? '');
+  const res = await fetch('https://mandrillapp.com/api/1.0/messages/send', {
     method: 'POST',
-    headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, 'content-type': 'application/json' },
-    body: JSON.stringify({ from: env.EMAIL_FROM ?? 'prepweek <onboarding@resend.dev>', to, subject, html }),
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      key: env.MANDRILL_API_KEY,
+      message: {
+        from_email: from ? from[2] : env.EMAIL_FROM?.trim(),
+        from_name: from?.[1] || 'prepweek',
+        to: [{ email: to, type: 'to' }],
+        subject,
+        html,
+        auto_text: true,
+        track_opens: false,
+        track_clicks: false, // a rewritten sign-in link would break
+      },
+    }),
   });
-  if (!res.ok) throw new Error(`Email failed (${res.status})`);
+  const out = (await res.json().catch(() => null)) as { status?: string; reject_reason?: string; message?: string }[] | { message?: string } | null;
+  if (!res.ok) throw new Error(`Email failed: ${(out as { message?: string } | null)?.message ?? res.status}`);
+  // 200 with a per-recipient status; "rejected"/"invalid" didn't go out.
+  const r = Array.isArray(out) ? out[0] : undefined;
+  if (r && (r.status === 'rejected' || r.status === 'invalid')) throw new Error(`Email not sent (${r.reject_reason ?? r.status})`);
 };
 
 const button = (href: string, label: string) =>
@@ -86,7 +110,7 @@ export async function handleAuth(req: Request, env: Env, url: URL): Promise<Resp
   if (req.method !== 'GET' && req.headers.get('origin') && req.headers.get('origin') !== url.origin) return fail('Bad origin', 403);
 
   if (path === '/auth/config') {
-    return json({ email: !!env.RESEND_API_KEY || isLocal(url), google: !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET), devLinks: !env.RESEND_API_KEY && isLocal(url) });
+    return json({ email: canEmail(env) || isLocal(url), google: !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET), devLinks: !canEmail(env) && isLocal(url) });
   }
 
   if (path === '/auth/email' && req.method === 'POST') {
@@ -94,8 +118,13 @@ export async function handleAuth(req: Request, env: Env, url: URL): Promise<Resp
     if (!email || !EMAIL.test(email)) return fail('That doesn’t look like an email address');
     const token = await directory(env).createLogin(email, safeNext(next));
     const link = `${url.origin}/auth/verify?token=${encodeURIComponent(token)}`;
-    if (env.RESEND_API_KEY) {
-      await sendEmail(env, email, 'Your prepweek sign-in link', `<p>Click to sign in to prepweek:</p>${button(link, 'Sign in')}<p style="color:#888">The link works once, for 20 minutes. If you didn’t ask for it, ignore this email.</p>`);
+    if (canEmail(env)) {
+      try {
+        await sendEmail(env, email, 'Your prepweek sign-in link', `<p>Click to sign in to prepweek:</p>${button(link, 'Sign in')}<p style="color:#888">The link works once, for 20 minutes. If you didn’t ask for it, ignore this email.</p>`);
+      } catch (e) {
+        console.error('sign-in email', e);
+        return fail(`Couldn’t send the email: ${e instanceof Error ? e.message : e}`, 502);
+      }
       return json({ sent: true });
     }
     // No mail provider: only for local development, show the link instead.
@@ -208,10 +237,16 @@ export async function handleApi(req: Request, env: Env, url: URL): Promise<Respo
         const token = await dir.invite(user.id, ws, email, role);
         const link = `${url.origin}/invite/${token}`;
         let sent = false;
-        if (env.RESEND_API_KEY) {
+        if (canEmail(env)) {
           const info = await dir.inviteInfo(token);
-          await sendEmail(env, email, `${user.name} invited you to ${info?.workspace ?? 'a workspace'} on prepweek`, `<p>${user.name} invited you to plan together in <b>${info?.workspace ?? 'their workspace'}</b>.</p>${button(link, 'Join')}`);
-          sent = true;
+          const ws = info?.workspace ?? 'their workspace';
+          try {
+            await sendEmail(env, email, `${user.name} invited you to ${info?.workspace ?? 'a workspace'} on prepweek`, `<p>${escapeHtml(user.name)} invited you to plan together in <b>${escapeHtml(ws)}</b>.</p>${button(link, 'Join')}`);
+            sent = true;
+          } catch (e) {
+            // The invite exists either way; the dialog shows its link to copy.
+            console.error('invite email', e);
+          }
         }
         return json({ token, link, sent });
       }

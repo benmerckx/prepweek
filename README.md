@@ -231,7 +231,7 @@ with Worker secrets (`wrangler secret put …`):
 
 | Secret | For |
 | --- | --- |
-| `RESEND_API_KEY`, `EMAIL_FROM` | sending magic links and invites via [Resend](https://resend.com) (EMAIL_FROM like `prepweek <login@yourdomain.com>`, from a verified domain) |
+| `MANDRILL_API_KEY`, `EMAIL_FROM` | sending magic links and invites via [Mandrill](https://mandrillapp.com) (Mailchimp Transactional). EMAIL_FROM like `prepweek <login@yourdomain.com>`, on a sending domain verified in Mandrill |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | "Continue with Google". Create an OAuth client (web) in Google Cloud and add `https://<your host>/auth/google/callback` as a redirect URI |
 
 Without a mail provider, `wrangler dev` on localhost shows the magic link on

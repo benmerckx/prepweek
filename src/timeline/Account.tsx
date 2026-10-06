@@ -382,7 +382,7 @@ function SignInForm({ next, compact, email: initialEmail = '' }: { next: string;
       )}
       {state.error && <p className="editor-error">{state.error}</p>}
       {!cfg.email && !cfg.google && (
-        <p className="editor-error">This server has no sign-in set up yet: add Google or email (Resend) keys to the worker, see the README.</p>
+        <p className="editor-error">This server has no sign-in set up yet: add Google or email (Mandrill) keys to the worker, see the README.</p>
       )}
       {(cfg.email || cfg.google) && (
         <p className="signin-foot">New here? {cfg.email ? 'The same link creates your account.' : 'Signing in creates your account.'} No password needed.</p>

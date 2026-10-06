@@ -30,7 +30,7 @@ name = "DIRECTORY"
 class_name = "DirectoryDurableObject"
 
 # Optional secrets (wrangler secret put …):
-#   RESEND_API_KEY, EMAIL_FROM          magic-link and invite emails
+#   MANDRILL_API_KEY, EMAIL_FROM        magic-link and invite emails (Mandrill)
 #   GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET   "Continue with Google"
 
 # Attachment storage (served by the worker at /files/<sheet>/<id>).

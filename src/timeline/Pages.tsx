@@ -72,7 +72,7 @@ function Faces({ ids, max = 4 }: { ids: Iterable<string>; max?: number }) {
     <span className="faces" title={people.map((u) => u.name).join(', ')}>
       {people.slice(0, max).map((u) => (
         <span key={u.name + u.color} className="avatar" style={{ ['--c' as string]: u.color }}>
-          {initials(u.name)}
+          {u.avatar ? <img src={u.avatar} alt="" referrerPolicy="no-referrer" /> : initials(u.name)}
         </span>
       ))}
       {people.length > max && <span className="faces-more">+{people.length - max}</span>}
@@ -323,7 +323,7 @@ function WorkList({ tasks, onOpenTask }: { tasks: (TaskRow & { id: string })[]; 
           <span className="work-who">
             {u && (
               <span className="avatar" style={{ ['--c' as string]: u.color }}>
-                {initials(u.name)}
+                {u.avatar ? <img src={u.avatar} alt="" referrerPolicy="no-referrer" /> : initials(u.name)}
               </span>
             )}
             <span className="hide-sm">{u?.name ?? '—'}</span>
@@ -368,7 +368,7 @@ function PeopleCard({ tasks }: { tasks: TaskRow[] }) {
         {rows.map((r) => (
           <li key={r.id}>
             <span className="avatar" style={{ ['--c' as string]: r.u!.color }}>
-              {initials(r.u!.name)}
+              {r.u!.avatar ? <img src={r.u!.avatar} alt="" referrerPolicy="no-referrer" /> : initials(r.u!.name)}
             </span>
             <span className="people-name">{r.u!.name}</span>
             <span className="dim">{r.upcoming ? `${r.upcoming}d ahead · ` : ''}{r.days}d total</span>

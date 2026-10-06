@@ -10,7 +10,7 @@ export const PALETTE = [
   '#06b6d4', '#ec4899', '#64748b', '#84cc16', '#f97316',
 ] as const;
 
-export type UserRow = { name: string; color: string; order: number; email: string; team?: string };
+export type UserRow = { name: string; color: string; order: number; email: string; team?: string; avatar?: string };
 export type TaskRow = {
   userId: string;
   start: number; // day number, inclusive
@@ -47,6 +47,8 @@ store.setTablesSchema({
     order: { type: 'number', default: 0 },
     email: { type: 'string', default: '' },
     team: { type: 'string', default: '' },
+    /** Profile picture URL, from the account tied to this row (see identity.ts). */
+    avatar: { type: 'string', default: '' },
   },
   tasks: {
     userId: { type: 'string', default: '' },

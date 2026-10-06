@@ -32,7 +32,7 @@
   /* Timeline grid */
   --grid-day: rgba(15, 23, 42, 0.045);
   --grid-week: rgba(15, 23, 42, 0.1);
-  --weekend: rgba(15, 23, 42, 0.022);
+  --weekend: rgba(15, 23, 42, 0.055);
   --row-line: #eef0f3;
 
   /* Blocks: tint of the task color on the canvas, ink in the same hue. */
@@ -89,7 +89,7 @@
 
     --grid-day: rgba(255, 255, 255, 0.035);
     --grid-week: rgba(255, 255, 255, 0.085);
-    --weekend: rgba(255, 255, 255, 0.018);
+    --weekend: rgba(255, 255, 255, 0.045);
     --row-line: #1d2027;
 
     --block-tint: 26%;
@@ -139,7 +139,7 @@
 
   --grid-day: rgba(255, 255, 255, 0.035);
   --grid-week: rgba(255, 255, 255, 0.085);
-  --weekend: rgba(255, 255, 255, 0.018);
+  --weekend: rgba(255, 255, 255, 0.045);
   --row-line: #1d2027;
 
   --block-tint: 26%;
@@ -1112,14 +1112,16 @@ svg {
    ========================================================================== */
 
 .task {
+  /* To do: the block's own color, a touch deeper so white text reads. */
+  --fill: color-mix(in oklab, var(--c) 84%, #000);
   position: absolute;
   top: 0;
   left: 0;
   border-radius: var(--radius-sm);
-  background: color-mix(in oklab, var(--c) var(--block-tint), var(--bg));
-  color: color-mix(in oklab, var(--c) var(--block-ink-mix), var(--block-ink-base));
-  box-shadow:
-    inset 0 0 0 1px color-mix(in oklab, var(--c) 22%, transparent);
+  background: var(--fill);
+  color: #fff;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.14);
   cursor: grab;
   user-select: none;
   -webkit-user-select: none;
@@ -1176,11 +1178,13 @@ svg {
 .task-meta {
   font-size: 11px;
   font-weight: 500;
-  opacity: 0.65;
+  opacity: 0.82;
   font-variant-numeric: tabular-nums;
 }
 .task.untitled {
   background: color-mix(in oklab, var(--c) 8%, var(--bg));
+  color: color-mix(in oklab, var(--c) var(--block-ink-mix), var(--block-ink-base));
+  text-shadow: none;
   box-shadow:
     inset 0 0 0 1px color-mix(in oklab, var(--c) 45%, transparent);
 }
@@ -1191,16 +1195,15 @@ svg {
 }
 .task.selected {
   z-index: 1;
-  background: color-mix(in oklab, var(--c) var(--block-tint-strong), var(--bg));
   box-shadow:
-    0 0 0 1.5px var(--c),
-    0 0 0 4px color-mix(in oklab, var(--c) 22%, transparent);
+    0 0 0 2px var(--bg),
+    0 0 0 3.5px var(--c);
 }
 .task.dragging {
   z-index: 5;
-  background: color-mix(in oklab, var(--c) var(--block-tint-strong), var(--bg));
   box-shadow:
-    0 0 0 1.5px var(--c),
+    0 0 0 2px var(--bg),
+    0 0 0 3.5px var(--c),
     var(--shadow-lift);
   transition:
     transform 70ms ease-out,
@@ -1238,7 +1241,7 @@ svg {
   bottom: 8px;
   width: 2px;
   border-radius: 1px;
-  background: color-mix(in oklab, var(--c) 70%, var(--block-ink-base));
+  background: rgba(255, 255, 255, 0.85);
   opacity: 0;
   transition: opacity 120ms;
 }
@@ -1250,11 +1253,11 @@ svg {
 }
 @media (hover: hover) {
   .task:hover {
-    background: color-mix(in oklab, var(--c) var(--block-tint-hover), var(--bg));
+    background: color-mix(in oklab, var(--fill) 90%, #fff);
   }
-  .task.selected:hover,
-  .task.dragging:hover {
-    background: color-mix(in oklab, var(--c) var(--block-tint-strong), var(--bg));
+  .task.done:hover,
+  .task.untitled:hover {
+    background: color-mix(in oklab, var(--c) var(--block-tint), var(--bg));
   }
   .task:hover .handle::after {
     opacity: 0.6;
@@ -4398,10 +4401,19 @@ button.tag-chip {
 .task[data-pattern] .task-label {
   /* Keep text crisp over the pattern. */
   text-shadow:
-    0 0 3px color-mix(in oklab, var(--c) var(--block-tint), var(--bg)),
-    0 0 1px color-mix(in oklab, var(--c) var(--block-tint), var(--bg));
+    0 0 3px var(--fill),
+    0 0 1px var(--fill);
 }
+.task.done[data-pattern] .task-label,
+.task.untitled[data-pattern] .task-label {
+  text-shadow: none;
+}
+/* Patterns are white over a filled block, in its color over a pale one. */
 [data-pattern] {
+  --pc: #fff;
+}
+.task.untitled[data-pattern],
+.task.done[data-pattern] {
   --pc: var(--c);
 }
 [data-pattern='dots'] {
@@ -4452,9 +4464,10 @@ button.tag-chip {
   height: 26px;
   padding: 0;
   overflow: hidden;
-  border: 1px solid color-mix(in oklab, var(--c) 30%, transparent);
+  border: 1px solid rgba(0, 0, 0, 0.14);
   border-radius: 7px;
-  background: color-mix(in oklab, var(--c) var(--block-tint), var(--bg));
+  /* Like a block: its color, a touch deeper, with a white pattern. */
+  background: color-mix(in oklab, var(--c) 84%, #000);
   cursor: pointer;
 }
 .pattern-swatch:hover {
@@ -4546,10 +4559,14 @@ button.tag-chip {
 
 /* Done tasks: quieter, with a check before the title. */
 .task.done {
-  background: color-mix(in oklab, var(--c) 8%, var(--bg));
+  --pc: var(--c);
+  background: color-mix(in oklab, var(--c) 10%, var(--bg));
+  color: color-mix(in oklab, var(--c) 45%, var(--text-dim));
+  text-shadow: none;
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--c) 22%, transparent);
 }
 .task.done .task-title {
-  opacity: 0.7;
+  opacity: 0.8;
   text-decoration: line-through;
   text-decoration-color: color-mix(in oklab, currentColor 45%, transparent);
 }
@@ -5310,4 +5327,18 @@ button.tag-chip {
   width: auto;
   max-width: 30px;
   height: 22px;
+}
+
+/* Profile pictures (from Google) in place of initials. */
+.avatar > img,
+.face > img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.avatar:has(> img),
+.face:has(> img) {
+  overflow: hidden;
+  padding: 0;
 }

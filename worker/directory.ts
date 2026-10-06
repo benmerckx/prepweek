@@ -121,9 +121,17 @@ export class DirectoryDurableObject extends DurableObject<Env> {
       const ws = randomId();
       this.sql.exec('INSERT INTO workspaces VALUES (?, ?, ?)', ws, `${user.name.split(' ')[0]}'s workspace`, Date.now());
       this.sql.exec('INSERT INTO members VALUES (?, ?, ?, ?)', ws, user.id, 'admin', Date.now());
-    } else if (profile.avatar && !user.avatar) {
-      this.sql.exec('UPDATE users SET avatar = ? WHERE id = ?', profile.avatar, user.id);
-      user.avatar = profile.avatar;
+    } else {
+      // Google: keep the picture current, and replace a name that was only
+      // guessed from the email address.
+      if (profile.avatar && profile.avatar !== user.avatar) {
+        this.sql.exec('UPDATE users SET avatar = ? WHERE id = ?', profile.avatar, user.id);
+        user.avatar = profile.avatar;
+      }
+      if (profile.name && user.name === nameFromEmail(email) && profile.name !== user.name) {
+        this.sql.exec('UPDATE users SET name = ? WHERE id = ?', profile.name, user.id);
+        user.name = profile.name;
+      }
     }
     const token = randomId(32);
     this.sql.exec('INSERT INTO sessions VALUES (?, ?, ?)', await sha256(token), user.id, Date.now() + SESSION_MS);

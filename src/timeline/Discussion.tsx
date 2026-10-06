@@ -43,10 +43,13 @@ const people = () =>
 
 const colorOf = (byId: string) => (byId && store.hasRow('users', byId) ? (store.getCell('users', byId, 'color') as string) : '#8b93a3');
 
+const avatarOf = (byId: string) => (byId && store.hasRow('users', byId) ? (store.getCell('users', byId, 'avatar') as string) : '');
+
 function Face({ name, byId, size = 24 }: { name: string; byId: string; size?: number }) {
+  const src = avatarOf(byId);
   return (
     <span className="face" style={{ ['--c' as string]: colorOf(byId), width: size, height: size, fontSize: size * 0.4 }}>
-      {initials(name)}
+      {src ? <img src={src} alt="" referrerPolicy="no-referrer" /> : initials(name)}
     </span>
   );
 }

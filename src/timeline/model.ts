@@ -94,6 +94,8 @@ export interface RowLayout {
   userId: string;
   name: string;
   color: string;
+  /** Profile picture URL ('' = initials). */
+  avatar?: string;
   tasks: TaskView[]; // sorted by start
   /** Longest task duration in days; bounds the binary search window. */
   maxSpan: number;
@@ -583,7 +585,7 @@ export class TimelineModel {
     const m = this.byUser.get(userId);
     if (m) for (const t of tasks) if (m.has(t.id) && !(p && p.id === t.id)) m.set(t.id, t);
     const height = rowHeight(lanesFor(clusters, this.heightWindow[0], this.heightWindow[1], this.today), this.dims);
-    return { kind: 'person', team: user.team ?? '', userId, name: user.name, color: user.color, tasks, maxSpan, laneCount, clusters, height };
+    return { kind: 'person', team: user.team ?? '', userId, name: user.name, color: user.color, avatar: user.avatar ?? '', tasks, maxSpan, laneCount, clusters, height };
   }
 
   setHeightWindow(d0: number, d1: number) {
@@ -614,7 +616,7 @@ export class TimelineModel {
         const prev = old.get(id);
         if (prev && !this.dirtyUsers.has(id)) {
           const team = u.team ?? '';
-          return prev.name === u.name && prev.color === u.color && prev.team === team ? prev : { ...prev, name: u.name, color: u.color, team };
+          return prev.name === u.name && prev.color === u.color && prev.team === team && (prev.avatar ?? '') === (u.avatar ?? '') ? prev : { ...prev, name: u.name, color: u.color, team, avatar: u.avatar ?? '' };
         }
         return this.layoutRow(id, u);
       };

@@ -320,7 +320,7 @@ const SidebarRow = memo(function SidebarRow({ row, top, lifted, focused, today, 
         aria-pressed={focused}
         onClick={(e) => onFocusPerson(row.userId, e.metaKey || e.ctrlKey || e.shiftKey)}
       >
-        {initials(row.name)}
+        {row.avatar ? <img src={row.avatar} alt="" referrerPolicy="no-referrer" /> : initials(row.name)}
       </button>
       <button className="person-name" onClick={(e) => onEdit(row.userId, e.currentTarget.parentElement!)} title={`${row.name} · click to edit, drag to reorder`}>
         <span className="person-full">{row.name}</span>
@@ -464,7 +464,7 @@ function PersonEditor({ id, anchor, model, sheet, onClose }: { id: string; ancho
     >
       <div className="pe-head">
         <span className="avatar big" style={{ ['--c' as string]: u.color }}>
-          {initials(u.name)}
+          {u.avatar ? <img src={u.avatar} alt="" referrerPolicy="no-referrer" /> : initials(u.name)}
         </span>
         <input
           className="editor-title"
