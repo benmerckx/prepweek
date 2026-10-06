@@ -1,8 +1,8 @@
-// Fields in the task details panel: dates, time of day, and the block's look
-// (color + pattern).
+// Fields in the task details panel: who it's for, dates, time of day, and
+// the block's look (color + pattern).
 
-import { Button, Dialog, DialogTrigger, Popover } from 'react-aria-components';
-import { PALETTE, PATTERNS, updateTask } from '../data/store.ts';
+import { Button, Dialog, DialogTrigger, Menu, MenuItem, MenuTrigger, Popover } from 'react-aria-components';
+import { PALETTE, PATTERNS, groupMembers, setAssignees, store, updateTask, type UserRow } from '../data/store.ts';
 import { workdays } from '../lib/dates.ts';
 import { DAY_END, TIME_STEP, defaultTime, formatClock, formatDuration, joinTime, moveStart, parseTime } from '../lib/times.ts';
 import { DayButton, Select, type Option } from '../ui/Select.tsx';
@@ -12,6 +12,79 @@ import type { TaskView } from './model.ts';
 
 /** Moving an occurrence of a series detaches it under a new id. */
 type Retarget = (id: string) => void;
+
+const initials = (name: string) =>
+  name
+    .split(/\s+/)
+    .map((w) => w[0] ?? '')
+    .join('')
+    .slice(0, 2)
+    .toUpperCase() || '?';
+
+function Face({ user }: { user: UserRow }) {
+  return user.avatar ? (
+    <img className="person-face" src={user.avatar} alt="" referrerPolicy="no-referrer" />
+  ) : (
+    <span className="person-face" style={{ ['--c' as string]: user.color }}>
+      {initials(user.name)}
+    </span>
+  );
+}
+
+/**
+ * Who the task is for. Several people means a block in each of their rows,
+ * one task: the same title, dates, notes and comments for all of them.
+ */
+export function PeopleField({ task, onRetarget, readOnly }: { task: TaskView; onRetarget: Retarget; readOnly?: boolean }) {
+  const assigned = groupMembers(task.series).map((t) => store.getCell('tasks', t, 'userId') as string);
+  const users = store
+    .getRowIds('users')
+    .map((id) => ({ id, ...(store.getRow('users', id) as UserRow) }))
+    .sort((a, b) => a.order - b.order);
+  const byId = new Map(users.map((u) => [u.id, u]));
+  const others = users.filter((u) => !assigned.includes(u.id));
+  const set = (ids: string[]) => {
+    const id = setAssignees(task.series, ids);
+    if (id !== task.series) onRetarget(id);
+  };
+  return (
+    <div className="people-field">
+      {assigned.map((u) => {
+        const user = byId.get(u);
+        if (!user) return null;
+        return (
+          <span key={u} className="person-chip">
+            <Face user={user} />
+            <span className="person-chip-name">{user.name || 'Unnamed'}</span>
+            {assigned.length > 1 && !readOnly && (
+              <button type="button" className="person-chip-x" aria-label={`Remove ${user.name}`} onClick={() => set(assigned.filter((a) => a !== u))}>
+                <Close size={11} />
+              </button>
+            )}
+          </span>
+        );
+      })}
+      {!readOnly && others.length > 0 && (
+        <MenuTrigger>
+          <Button className="person-add" aria-label="Add a person">
+            <Plus />
+            {assigned.length > 1 ? null : <span>Add</span>}
+          </Button>
+          <Popover className="ui-pop" offset={4} placement="bottom start">
+            <Menu className="ui-list people-menu" onAction={(key) => set([...assigned, String(key)])}>
+              {others.map((u) => (
+                <MenuItem key={u.id} id={u.id} textValue={u.name} className="ui-item ui-action">
+                  <Face user={u} />
+                  <span>{u.name || 'Unnamed'}</span>
+                </MenuItem>
+              ))}
+            </Menu>
+          </Popover>
+        </MenuTrigger>
+      )}
+    </div>
+  );
+}
 
 export function DateField({ task, onRetarget }: { task: TaskView; onRetarget: Retarget }) {
   const days = workdays(task.start, task.end);

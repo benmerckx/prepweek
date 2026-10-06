@@ -40,6 +40,11 @@ export type TaskRow = {
   repeatUntil?: number;
   /** Comma-separated occurrence numbers that were deleted or detached. */
   skip?: string;
+  /**
+   * One task for several people is a row per person, linked by this id (the
+   * first row's): content and dates are shared, comments and files too.
+   */
+  group?: string;
 };
 
 export const store = createMergeableStore();
@@ -70,6 +75,7 @@ store.setTablesSchema({
     time: { type: 'string', default: '' },
     repeatUntil: { type: 'number', default: 0 },
     skip: { type: 'string', default: '' },
+    group: { type: 'string', default: '' },
   },
   // Projects group tasks across people; a client groups projects.
   // `client` is the client's name as text (from before clients were their
@@ -207,6 +213,19 @@ export const getTask = (id: string): TaskRow | undefined => {
   if (!isRule(row.repeat)) return undefined;
   const start = occurrenceStart(row.start, row.repeat, n);
   return { ...row, ...NOT_RECURRING, start, end: start + (row.end - row.start) };
+};
+
+/** The rows of a task assigned to several people (just itself otherwise). */
+export const groupMembers = (id: string): string[] => {
+  const { base } = splitOccurrence(id);
+  if (!store.hasRow('tasks', base)) return [];
+  const g = store.getCell('tasks', base, 'group') as string;
+  return g ? store.getRowIds('tasks').filter((t) => store.getCell('tasks', t, 'group') === g) : [base];
+};
+/** Where a task's comments and files live: shared by everyone it's assigned to. */
+export const threadOf = (id: string): string => {
+  const { base } = splitOccurrence(id);
+  return (store.getCell('tasks', base, 'group') as string) || base;
 };
 
 /** True for an occurrence id (`id~n`, n > 0). */
@@ -509,15 +528,46 @@ export const updateTask = (id: string, patch: Partial<TaskRow>, label = 'Edit ta
     });
     return nid;
   }
-  commit(label, [['tasks', id]], () => {
+  // Assigned to several people: everything but whose row it is (and where
+  // in that row) applies to all of them.
+  const shared = Object.entries(patch).filter(([k]) => k !== 'userId' && k !== 'lane' && k !== 'group');
+  const others = shared.length ? groupMembers(id).filter((t) => t !== id) : [];
+  commit(label, [['tasks', id], ...others.map((t) => ['tasks', t] as [TableId, string])], () => {
     for (const [k, v] of Object.entries(patch)) store.setCell('tasks', id, k, v as string | number);
+    for (const t of others) for (const [k, v] of shared) store.setCell('tasks', t, k, v as string | number);
   });
   return id;
 };
 
+/** A new task stands alone (a duplicate doesn't join the original's people). */
 export const createTask = (task: TaskRow, id = newId()): string => {
-  commit('Create task', [['tasks', id]], () => store.setRow('tasks', id, task));
+  commit('Create task', [['tasks', id]], () => store.setRow('tasks', id, { ...task, group: '' } as Row));
   return id;
+};
+
+/**
+ * Who a task is assigned to: a row per person, linked as one task. Returns
+ * the id to keep showing (the given one, unless its person was removed).
+ */
+export const setAssignees = (id: string, userIds: string[]): string => {
+  const { base } = splitOccurrence(id);
+  const want = [...new Set(userIds.filter(Boolean))];
+  if (!store.hasRow('tasks', base) || !want.length) return id;
+  const row = store.getRow('tasks', base) as TaskRow;
+  const lead = row.group || base;
+  const members = groupMembers(base);
+  const byUser = new Map(members.map((t) => [store.getCell('tasks', t, 'userId') as string, t]));
+  const drop = members.filter((t) => !want.includes(store.getCell('tasks', t, 'userId') as string));
+  const added = want.filter((u) => !byUser.has(u)).map((u) => [u, newId()] as const);
+  const kept = members.filter((t) => !drop.includes(t)).concat(added.map(([, t]) => t));
+  if (!drop.length && !added.length) return id;
+  const label = added.length && !drop.length ? 'Add person' : drop.length && !added.length ? 'Remove person' : 'Change people';
+  commit(label, [...members, ...added.map(([, t]) => t)].map((t) => ['tasks', t] as [TableId, string]), () => {
+    for (const t of drop) store.delRow('tasks', t);
+    for (const [u, t] of added) store.setRow('tasks', t, { ...row, userId: u, lane: -1, group: lead } as Row);
+    for (const t of kept) store.setCell('tasks', t, 'group', lead);
+  });
+  return kept.includes(base) ? id : kept[0]!;
 };
 
 export const attachmentsOf = (taskId: string): string[] =>
@@ -531,18 +581,22 @@ export const attachmentsOf = (taskId: string): string[] =>
 export const deleteTask = (id: string, scope: 'one' | 'series' = 'one') => {
   const { base, n } = splitOccurrence(id);
   const row = store.hasRow('tasks', base) ? (store.getRow('tasks', base) as TaskRow) : undefined;
+  // A task for several people goes for all of them.
+  const members = groupMembers(base);
   if (row && isRule(row.repeat) && scope === 'one') {
-    const skip = parseSkip(row.skip);
-    skip.add(n);
-    commit('Delete occurrence', [['tasks', base]], () =>
-      store.setCell('tasks', base, 'skip', [...skip].sort((a, b) => a - b).join(',')),
-    );
+    commit('Delete occurrence', members.map((t) => ['tasks', t] as [TableId, string]), () => {
+      for (const t of members) {
+        const skip = parseSkip(store.getCell('tasks', t, 'skip') as string);
+        skip.add(n);
+        store.setCell('tasks', t, 'skip', [...skip].sort((a, b) => a - b).join(','));
+      }
+    });
     return;
   }
-  id = base;
-  const atts = attachmentsOf(id);
-  commit('Delete task', [['tasks', id], ...atts.map((a) => ['attachments', a] as [TableId, string])], () => {
-    store.delRow('tasks', id);
+  const atts = attachmentsOf(threadOf(base));
+  const touched = [...members.map((t) => ['tasks', t] as [TableId, string]), ...atts.map((a) => ['attachments', a] as [TableId, string])];
+  commit('Delete task', touched, () => {
+    for (const t of members) store.delRow('tasks', t);
     for (const a of atts) store.delRow('attachments', a);
   });
 };
@@ -778,6 +832,7 @@ export const applyImport = async (
       links?: string[];
       repeat?: string;
       repeatUntil?: number;
+      group?: string;
     }[];
   },
   mode: ImportMode = 'add',
@@ -890,6 +945,7 @@ export const applyImport = async (
           time: t.time ?? '',
           repeat: t.repeat ?? '',
           repeatUntil: t.repeatUntil ?? 0,
+          group: t.group ?? '',
         });
       }
     }),

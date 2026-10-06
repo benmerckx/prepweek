@@ -6201,3 +6201,95 @@ a.menu-item {
   font-weight: 800;
   letter-spacing: -0.01em;
 }
+
+/* Who a task is for: a chip per person, + to add someone. */
+.people-field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 0;
+}
+.person-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 4px 0 3px;
+  border-radius: 14px;
+  background: var(--panel-2);
+  font-size: 12.5px;
+}
+.person-chip-name {
+  padding-right: 6px;
+}
+.person-chip-x + .person-chip-name,
+.person-chip:has(.person-chip-x) .person-chip-name {
+  padding-right: 0;
+}
+.person-face {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: color-mix(in oklab, var(--c, var(--accent)) 22%, var(--bg));
+  color: color-mix(in oklab, var(--c, var(--accent)) 75%, var(--text));
+  font-size: 9.5px;
+  font-weight: 700;
+  object-fit: cover;
+}
+.person-chip-x {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--text-faint);
+  cursor: pointer;
+}
+.person-chip-x:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+.person-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 10px 0 8px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 14px;
+  outline: none;
+  background: none;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.person-add svg {
+  width: 13px;
+  height: 13px;
+}
+.person-add[data-hovered],
+.person-add[data-pressed] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.people-menu {
+  max-height: 300px;
+  overflow-y: auto;
+}
+.people-menu .ui-item {
+  justify-content: flex-start;
+  gap: 8px;
+}
+.task-badges > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}

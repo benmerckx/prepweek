@@ -25,14 +25,26 @@ export const notifications = (): Note[] => {
   const me = getMe().personId;
   if (!me || !getUser(me)) return [];
   const out: Note[] = [];
-  const mine = (taskId: string) => store.hasRow('tasks', taskId) && store.getCell('tasks', taskId, 'userId') === me;
-  const title = (taskId: string, fallback = '') => (store.hasRow('tasks', taskId) ? (store.getCell('tasks', taskId, 'title') as string) : fallback);
+  // My tasks, and the threads of tasks I share with others (comments on a
+  // task for several people are filed under its group).
+  const myThreads = new Set<string>();
+  /** A thread's row to open: mine if I'm on the task, else any. */
+  const rowOf = new Map<string, string>();
+  for (const t of store.getRowIds('tasks')) {
+    const g = store.getCell('tasks', t, 'group') as string;
+    const isMine = store.getCell('tasks', t, 'userId') === me;
+    if (isMine) myThreads.add(g || t);
+    if (g && (isMine || !rowOf.has(g))) rowOf.set(g, t);
+  }
+  const open = (taskId: string) => rowOf.get(taskId) ?? taskId;
+  const mine = (taskId: string) => myThreads.has(taskId) || (store.hasRow('tasks', taskId) && store.getCell('tasks', taskId, 'userId') === me);
+  const title = (taskId: string, fallback = '') => (store.hasRow('tasks', open(taskId)) ? (store.getCell('tasks', open(taskId), 'title') as string) : fallback);
   for (const id of store.getRowIds('comments')) {
     const c = store.getRow('comments', id) as { taskId: string; at: number; by: string; byId: string; text: string; mentions: string };
     if (isMe(c.byId, c.by)) continue;
     const mentioned = c.mentions.split(',').includes(me);
     if (mentioned || mine(c.taskId))
-      out.push({ id, at: c.at, kind: mentioned ? 'mention' : 'comment', by: c.by || 'Someone', byId: c.byId, text: c.text, taskId: c.taskId, title: title(c.taskId) });
+      out.push({ id, at: c.at, kind: mentioned ? 'mention' : 'comment', by: c.by || 'Someone', byId: c.byId, text: c.text, taskId: open(c.taskId), title: title(c.taskId) });
   }
   for (const id of store.getRowIds('activity')) {
     const a = store.getRow('activity', id) as { at: number; by: string; byId: string; label: string; taskId: string; title: string; owner: string };

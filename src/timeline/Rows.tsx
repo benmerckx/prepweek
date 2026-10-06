@@ -1,7 +1,7 @@
 import { formatTime } from '../lib/times.ts';
 import { memo, useLayoutEffect, useRef } from 'react';
 import { labelPinner } from './pin.ts';
-import { Check, Comment, Notes, Paperclip, Repeat } from '../ui/icons.tsx';
+import { Check, Comment, Notes, Paperclip, Repeat, People as PeopleIcon } from '../ui/icons.tsx';
 import { CHUNK, visibleTasks, type Dims, type RowLayout, type TaskView } from './model.ts';
 import type { Scale } from './scale.ts';
 import { formatRange, workdays } from '../lib/dates.ts';
@@ -62,8 +62,14 @@ export const TaskBlock = memo(function TaskBlock({ task, scale, dims, selected, 
                   .filter(Boolean)
                   .join(' · ')}
               </span>
-              {width > 90 && (task.files > 0 || task.notes || task.repeat || task.comments > 0) && (
+              {width > 90 && (task.files > 0 || task.notes || task.repeat || task.comments > 0 || task.people > 1) && (
                 <span className="task-badges">
+                  {task.people > 1 && (
+                    <span title={`Shared by ${task.people} people`}>
+                      <PeopleIcon size={12} />
+                      {task.people}
+                    </span>
+                  )}
                   {task.repeat && <Repeat size={12} />}
                   {task.comments > 0 && (
                     <>

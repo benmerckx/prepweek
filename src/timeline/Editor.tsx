@@ -7,9 +7,9 @@ import type { TaskView, TimelineModel } from './model.ts';
 import { ProjectField, TagField } from './Projects.tsx';
 import { Discussion } from './Discussion.tsx';
 
-import { DateField, LookField, TimeField } from './TaskFields.tsx';
+import { DateField, LookField, PeopleField, TimeField } from './TaskFields.tsx';
 import { DatePicker, Select, isPopoverOpen, type Option } from '../ui/Select.tsx';
-import { Calendar, Check, Clock, Close, Folder, Repeat, Swatch, Tag, Trash } from '../ui/icons.tsx';
+import { Calendar, Check, Clock, Close, Folder, People as PeopleIcon, Repeat, Swatch, Tag, Trash } from '../ui/icons.tsx';
 import { loadChunk } from '../lib/chunks.ts';
 
 // Lexical loads on first use, not on page load.
@@ -38,7 +38,7 @@ export function Editor({ task, model, sheet, side, readOnly, onClose, onRetarget
   const [dropping, setDropping] = useState(false);
   const attach = async (files: File[]) => {
     if (!files.length) return;
-    setError((await attachFiles(task.id, files)) ?? '');
+    setError((await attachFiles(task.thread, files)) ?? '');
   };
 
   useEffect(() => {
@@ -119,9 +119,15 @@ export function Editor({ task, model, sheet, side, readOnly, onClose, onRetarget
     };
   }, [sheet]);
 
+  // What's typed, kept outside the input: saving on close runs after React
+  // has already let go of the input (its ref is null by then).
+  const typed = useRef(task.title);
+  const saved = useRef(task.title);
   const saveTitle = () => {
-    const v = titleRef.current?.value.trim() ?? '';
-    if (v !== task.title && getTask(task.id)) updateTask(task.id, { title: v }, 'Rename task');
+    const v = typed.current.trim();
+    if (v === saved.current || !getTask(task.id)) return;
+    saved.current = v;
+    updateTask(task.id, { title: v }, 'Rename task');
   };
   // Closing another way (Esc, clicking elsewhere) keeps what was typed too.
   const saveTitleRef = useRef(saveTitle);
@@ -183,6 +189,7 @@ export function Editor({ task, model, sheet, side, readOnly, onClose, onRetarget
             className="editor-title"
             placeholder="What's the plan?"
             defaultValue={task.title}
+            onChange={(e) => (typed.current = e.currentTarget.value)}
             onBlur={saveTitle}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
@@ -193,6 +200,9 @@ export function Editor({ task, model, sheet, side, readOnly, onClose, onRetarget
           />
         </div>
         <div className="editor-props">
+          <Prop icon={<PeopleIcon />} label="People">
+            <PeopleField task={task} onRetarget={onRetarget} readOnly={readOnly} />
+          </Prop>
           <Prop icon={<Calendar size={15} />} label="Dates">
             <DateField task={task} onRetarget={onRetarget} />
           </Prop>
@@ -225,9 +235,9 @@ export function Editor({ task, model, sheet, side, readOnly, onClose, onRetarget
           </Suspense>
         </section>
       </fieldset>
-      <Attachments taskId={task.series} onError={setError} />
+      <Attachments taskId={task.thread} onError={setError} />
       {error && <p className="editor-error">{error}</p>}
-      <Discussion taskId={task.series} collapsed={sheet && !task.comments} />
+      <Discussion taskId={task.thread} collapsed={sheet && !task.comments} />
       <div className="editor-actions">
         {!readOnly && (
           <button

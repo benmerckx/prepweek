@@ -51,6 +51,10 @@ export interface TaskView {
   repeat: string;
   /** The stored task id (differs from `id` for occurrences n > 0). */
   series: string;
+  /** Where comments and files live: shared by everyone the task is for. */
+  thread: string;
+  /** How many people the task is assigned to (a block in each row). */
+  people: number;
   /** Fill pattern ('' = solid). */
   pattern: string;
   done: boolean;
@@ -438,7 +442,7 @@ export class TimelineModel {
       this.commentCount.set(t, (this.commentCount.get(t) ?? 0) + 1);
       affected.push(t);
     }
-    return affected.filter((t) => this.store.hasRow('tasks', t));
+    return affected.flatMap((t) => [t, ...this.threadRows(t)]).filter((t) => this.store.hasRow('tasks', t));
   }
 
   /** Track which task an attachment belongs to; returns affected task ids. */
@@ -456,7 +460,7 @@ export class TimelineModel {
       this.fileCount.set(t, (this.fileCount.get(t) ?? 0) + 1);
       affected.push(t);
     }
-    return affected;
+    return affected.flatMap((t) => [t, ...this.threadRows(t)]);
   }
 
   /** Derived occurrence ids per recurring task. */
@@ -473,7 +477,33 @@ export class TimelineModel {
     this.taskUser.delete(id);
   }
 
+  /** Tasks assigned to several people: group id → its rows. */
+  private groups = new Map<string, Set<string>>();
+  private taskGroup = new Map<string, string>();
+  /** The rows sharing a thread (one task for several people), or none. */
+  private threadRows = (thread: string) => [...(this.groups.get(thread) ?? [])];
+
   private ingestTask(id: string) {
+    // Joining or leaving a group changes how many people its other rows show.
+    const prevGroup = this.taskGroup.get(id) ?? '';
+    const nextGroup = this.store.hasRow('tasks', id) ? ((this.store.getCell('tasks', id, 'group') as string) ?? '') : '';
+    if (prevGroup !== nextGroup) {
+      if (prevGroup) {
+        this.groups.get(prevGroup)?.delete(id);
+        if (!this.groups.get(prevGroup)?.size) this.groups.delete(prevGroup);
+      }
+      if (nextGroup) {
+        let g = this.groups.get(nextGroup);
+        if (!g) this.groups.set(nextGroup, (g = new Set()));
+        g.add(id);
+        this.taskGroup.set(id, nextGroup);
+      } else this.taskGroup.delete(id);
+      for (const g of [prevGroup, nextGroup]) if (g) for (const t of this.threadRows(g)) if (t !== id) this.ingestTaskView(t);
+    }
+    this.ingestTaskView(id);
+  }
+
+  private ingestTaskView(id: string) {
     this.dropView(id);
     for (const o of this.occIds.get(id) ?? []) {
       this.dropView(o);
@@ -497,13 +527,15 @@ export class TimelineModel {
       color: r.color,
       notes: r.notes,
       lane: -1,
-      files: this.fileCount.get(id) ?? 0,
-      comments: this.commentCount.get(id) ?? 0,
+      files: this.fileCount.get(r.group || id) ?? 0,
+      comments: this.commentCount.get(r.group || id) ?? 0,
       projectId: r.projectId ?? '',
       project: (r.projectId && this.projectById.get(r.projectId)?.name) || '',
       tags: parseTags(r.tags),
       repeat: isRule(r.repeat) ? r.repeat : '',
       series: id,
+      thread: r.group || id,
+      people: r.group ? (this.groups.get(r.group)?.size ?? 1) : 1,
       pattern: r.pattern ?? '',
       done: !!r.done,
       time: r.time ?? '',
@@ -566,6 +598,8 @@ export class TimelineModel {
         tags: base?.tags ?? [],
         repeat: base?.repeat ?? '',
         series: base?.series ?? p.id,
+        thread: base?.thread ?? p.id,
+        people: base?.people ?? 1,
         pattern: base?.pattern ?? '',
         done: base?.done ?? false,
         time: base?.time ?? '',

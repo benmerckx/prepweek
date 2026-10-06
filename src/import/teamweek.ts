@@ -190,6 +190,8 @@ export interface PlannedTask {
   repeat: Rule | '';
   /** Last day an occurrence may start (0 = open-ended). */
   repeatUntil: Day;
+  /** Shared by several people: the id of the first one's block ('' = not shared). */
+  group?: string;
 }
 
 export interface ImportPlan {
@@ -351,14 +353,18 @@ export const buildPlan = (rows: string[][], opts: ImportOptions, existing: Exist
     const taskId = cell(row, 'taskId');
     const client = cell(row, 'client');
 
-    for (const p of assignees) {
-      // Deterministic id from what the file says (not from who it matched
-      // on this sheet), so importing the same export again updates in place.
-      // With the export's task id, a task shared by several people becomes
-      // one block each, and re-importing updates them.
-      const id = taskId ? `tw${taskId}-${hash(who.get(p) ?? '')}` : `tw${hash(`${who.get(p)}|${title}|${project}|${start}|${end}`)}`;
+    // Deterministic ids from what the file says (not from who it matched on
+    // this sheet), so importing the same export again updates in place. A
+    // task shared by several people becomes a block each, linked as one
+    // task (its comments and links live with the first one).
+    const ids = assignees.map((p) =>
+      taskId ? `tw${taskId}-${hash(who.get(p) ?? '')}` : `tw${hash(`${who.get(p)}|${title}|${project}|${start}|${end}`)}`,
+    );
+    const group = ids.length > 1 ? ids[0]! : '';
+    for (const [i, p] of assignees.entries()) {
+      const id = ids[i]!;
       if (!tasks.has(id)) p.tasks++;
-      tasks.set(id, { id, personKey: p.key, start, end, title, color, notes, project, client, tags, done, time, links, repeat, repeatUntil: 0 });
+      tasks.set(id, { id, personKey: p.key, start, end, title, color, notes, project, client, tags, done, time, links: i ? [] : links, repeat, repeatUntil: 0, ...(group ? { group } : {}) });
       if (start < min) min = start;
       if (end > max) max = end;
     }

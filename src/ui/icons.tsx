@@ -58,8 +58,8 @@ export const Search = () => (
     <path d="m10.5 10.5 3 3" />
   </Svg>
 );
-export const People = () => (
-  <Svg>
+export const People = ({ size = 16 }: { size?: number }) => (
+  <Svg size={size}>
     <circle cx="6" cy="5.5" r="2.5" />
     <path d="M1.75 13.25c.5-2.3 2.1-3.5 4.25-3.5s3.75 1.2 4.25 3.5" />
     <path d="M10.75 3.1a2.4 2.4 0 0 1 0 4.8M12 9.9c1.2.5 2 1.6 2.25 3.35" />
