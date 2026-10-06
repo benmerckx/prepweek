@@ -13,9 +13,20 @@ export const onThemeChange = (fn: () => void) => {
   return () => void listeners.delete(fn);
 };
 
+/** Swap colors in one frame: no transition may animate the change. */
+const withoutTransitions = (fn: () => void) => {
+  const style = document.createElement('style');
+  style.textContent = '*, *::before, *::after { transition: none !important; }';
+  document.head.appendChild(style);
+  fn();
+  // Apply the new colors with transitions off, then let them back on.
+  void getComputedStyle(document.body).color;
+  requestAnimationFrame(() => requestAnimationFrame(() => style.remove()));
+};
+
 export const toggleTheme = () => {
   const next: Theme = getTheme() === 'dark' ? 'light' : 'dark';
-  document.documentElement.dataset.theme = next;
+  withoutTransitions(() => (document.documentElement.dataset.theme = next));
   try {
     if (next === 'dark') localStorage.removeItem(KEY);
     else localStorage.setItem(KEY, next);
