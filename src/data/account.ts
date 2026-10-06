@@ -82,6 +82,8 @@ export interface AuthConfig {
 export const authConfig = () => api<AuthConfig>('GET', '/auth/config');
 export const sendMagicLink = (email: string, next: string) => api<{ sent: boolean; devLink?: string }>('POST', '/auth/email', { email, next });
 export const googleUrl = (next: string) => `/auth/google?next=${encodeURIComponent(next)}`;
+/** Ask the app to show the sign-in dialog (from anywhere). */
+export const requestSignIn = () => window.dispatchEvent(new Event('prepweek:signin'));
 export const signOut = async () => {
   await api('POST', '/auth/logout');
   await loadMe();

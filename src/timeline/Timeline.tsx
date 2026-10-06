@@ -89,6 +89,10 @@ export function Timeline({ model }: { model: TimelineModel }) {
   // Accounts: sign in, workspace people, and saving a plan started here.
   const [signingIn, setSigningIn] = useState(false);
   const openSignIn = useCallback(() => setSigningIn(true), []);
+  useEffect(() => {
+    window.addEventListener('prepweek:signin', openSignIn);
+    return () => window.removeEventListener('prepweek:signin', openSignIn);
+  }, [openSignIn]);
   const [workspaceOpen, setWorkspaceOpen] = useState<string | null>(null);
   useAutoSave();
   const todayDay = useMemo(getToday, []);

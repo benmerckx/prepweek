@@ -1,7 +1,8 @@
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { addComment, deleteComment, isReadOnly, store, type CommentRow } from '../data/store.ts';
-import { displayName, getMe, isMe, onMeChange, setMe } from '../data/identity.ts';
+import { displayName, getMe, identityMode, isMe, onMeChange, setMe } from '../data/identity.ts';
+import { getMe as getAccount, requestSignIn } from '../data/account.ts';
 import { getSeen, markSeen, notifications, type Note } from '../data/notify.ts';
 import { ago, useTables } from '../lib/useTable.ts';
 import { useBackToClose, useEscape } from '../lib/useBackToClose.ts';
@@ -151,6 +152,27 @@ export function WhoAreYou({ compact, onDone }: { compact?: boolean; onDone?(): v
   );
 }
 
+/** Notifications need a row of your own: say how you get one. */
+function NotLinked() {
+  const mode = identityMode();
+  if (mode === 'local') return <WhoAreYou compact />;
+  if (mode === 'signedOut')
+    return (
+      <div className="who compact">
+        <p className="who-sub">Log in to get mentions and changes to your work here.</p>
+        <button className="btn primary small" onClick={requestSignIn}>
+          Log in
+        </button>
+      </div>
+    );
+  return (
+    <p className="fl-empty notes-empty">
+      None of the rows on this sheet is yours yet. Give your row your login email ({getAccount()?.user?.email}), or open it from the
+      sidebar and choose “This is me”.
+    </p>
+  );
+}
+
 // --- Comment composer with @mentions ---------------------------------------------------
 
 function Composer({ taskId }: { taskId: string }) {
@@ -273,7 +295,8 @@ export function Discussion({ taskId, collapsed: startCollapsed = false }: { task
   }, [v, taskId, showHistory]); // eslint-disable-line react-hooks/exhaustive-deps
   const end = useRef<HTMLDivElement>(null);
   useEffect(() => end.current?.scrollIntoView({ block: 'nearest' }), [items.length]);
-  const signedIn = !!displayName();
+  const mode = identityMode();
+  const signedIn = mode === 'account' || (mode === 'local' && !!displayName());
 
   if (collapsed)
     return (
@@ -336,6 +359,10 @@ export function Discussion({ taskId, collapsed: startCollapsed = false }: { task
       )}
       {isReadOnly() ? null : signedIn ? (
         <Composer taskId={taskId} />
+      ) : mode === 'signedOut' ? (
+        <button className="composer composer-ghost" onClick={requestSignIn}>
+          Log in to comment
+        </button>
       ) : asking ? (
         <WhoAreYou compact key={me.name} />
       ) : (
@@ -456,7 +483,7 @@ export function NotificationsMenu({ onOpenTask }: { onOpenTask(id: string): void
         {open && (
           <div className="fl-scroll">
             {!me.personId ? (
-              <WhoAreYou compact />
+              <NotLinked />
             ) : notes.length === 0 ? (
               <p className="fl-empty notes-empty">
                 You’re all caught up. Mentions, comments on your tasks and changes others make to your work show up here.
@@ -497,7 +524,7 @@ export function NotificationsMenu({ onOpenTask }: { onOpenTask(id: string): void
             Enable desktop notifications
           </button>
         )}
-        {me.personId && (
+        {me.personId && identityMode() === 'local' && (
           <div className="notes-foot">
             Signed as <b>{displayName()}</b> ·{' '}
             <button className="link-btn" onClick={() => setMe({ personId: '', name: '' })}>

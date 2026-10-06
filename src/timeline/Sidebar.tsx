@@ -1,9 +1,12 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { PALETTE, deleteUser, getUser, isReadOnly, renameTeam, reorderUsers, store, updateUser } from '../data/store.ts';
+import { PALETTE, commit, deleteUser, getUser, isReadOnly, renameTeam, reorderUsers, store, updateUser } from '../data/store.ts';
 import { isWeekend } from '../lib/dates.ts';
 import { useBackToClose } from '../lib/useBackToClose.ts';
 import { Check, ChevronDown, Trash } from '../ui/icons.tsx';
+import { getMe as getAccount, getPeople, type People } from '../data/account.ts';
+import { getAccess } from '../data/access.ts';
+import { identityMode, rowForEmail } from '../data/identity.ts';
 import type { RowLayout, TimelineModel } from './model.ts';
 
 interface SidebarProps {
@@ -338,6 +341,92 @@ const SidebarRow = memo(function SidebarRow({ row, top, lifted, focused, today, 
 
 const EDITOR_W = 300;
 
+/**
+ * The row's email ties it to the account that logs in with it: that person
+ * gets their mentions and notifications, and is "me" on this row.
+ */
+function AccountField({ id }: { id: string }) {
+  const u = getUser(id)!;
+  const [email, setEmail] = useState(u.email ?? '');
+  const [members, setMembers] = useState<People['members']>([]);
+  const signedIn = identityMode() === 'account';
+  const mine = getAccount()?.user?.email ?? '';
+  const ws = getAccess()?.workspace;
+  useEffect(() => {
+    if (!signedIn || !ws) return;
+    let live = true;
+    getPeople(ws.id)
+      .then((p) => live && setMembers(p.members))
+      .catch(() => {});
+    return () => void (live = false);
+  }, [signedIn, ws?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const save = (v: string) => {
+    v = v.trim();
+    if (v !== (u.email ?? '')) updateUser(id, { email: v }, 'Edit email');
+  };
+  const isMine = !!mine && email.trim().toLowerCase() === mine.toLowerCase();
+  const member = members.find((m) => m.email.toLowerCase() === email.trim().toLowerCase());
+  /** Tie this row to my login (and untie the row that had it). */
+  const thisIsMe = () => {
+    const prev = rowForEmail(mine);
+    commit('This is me', [['users', id], ...(prev && prev !== id ? [['users', prev] as ['users', string]] : [])], () => {
+      if (prev && prev !== id) store.setCell('users', prev, 'email', '');
+      store.setCell('users', id, 'email', mine);
+      // A row nobody named yet takes your name.
+      const name = getAccount()?.user?.name;
+      if (name && /^new person$/i.test(u.name)) store.setCell('users', id, 'name', name);
+    });
+    setEmail(mine);
+  };
+
+  return (
+    <>
+      <label className="pe-field">
+        <span>Email</span>
+        <input
+          type="email"
+          value={email}
+          placeholder="Their login email"
+          list={members.length ? 'pe-members' : undefined}
+          onChange={(e) => setEmail(e.currentTarget.value)}
+          onBlur={(e) => save(e.currentTarget.value)}
+          onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+        />
+        {members.length > 0 && (
+          <datalist id="pe-members">
+            {members.map((m) => (
+              <option key={m.id} value={m.email}>
+                {m.name}
+              </option>
+            ))}
+          </datalist>
+        )}
+      </label>
+      {signedIn && (
+        <div className="pe-account">
+          {isMine ? (
+            <span className="pe-linked">
+              <Check size={13} /> This is you
+            </span>
+          ) : member ? (
+            <span className="pe-linked">
+              <Check size={13} /> {member.name}’s account
+            </span>
+          ) : (
+            <span>{email.trim() ? 'No account with this email in the workspace yet' : 'Not tied to an account'}</span>
+          )}
+          {!isMine && !isReadOnly() && (
+            <button className="link-btn" onClick={thisIsMe}>
+              This is me
+            </button>
+          )}
+        </div>
+      )}
+    </>
+  );
+}
+
 function PersonEditor({ id, anchor, model, sheet, onClose }: { id: string; anchor: DOMRect; model: TimelineModel; sheet: boolean; onClose(): void }) {
   useBackToClose(true, onClose);
   const ref = useRef<HTMLDivElement>(null);
@@ -401,16 +490,7 @@ function PersonEditor({ id, anchor, model, sheet, onClose }: { id: string; ancho
           ))}
         </datalist>
       </label>
-      <label className="pe-field">
-        <span>Email</span>
-        <input
-          type="email"
-          defaultValue={u.email}
-          placeholder="name@company.com"
-          onBlur={(e) => save('email', e.currentTarget.value)}
-          onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-        />
-      </label>
+      <AccountField id={id} />
       <div className="swatches">
         {PALETTE.map((c) => (
           <button
