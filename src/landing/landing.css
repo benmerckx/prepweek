@@ -84,16 +84,14 @@ html:has(.lp) {
   color: #fff;
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.22),
-    0 1px 2px rgb(0 0 0 / 0.2),
-    0 8px 24px -8px color-mix(in oklab, var(--accent) 70%, transparent);
+    0 1px 2px rgb(0 0 0 / 0.2);
 }
 .lp-btn.primary:hover {
   background: color-mix(in oklab, var(--accent) 88%, #fff);
   transform: translateY(-1px);
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.25),
-    0 2px 4px rgb(0 0 0 / 0.2),
-    0 14px 30px -10px color-mix(in oklab, var(--accent) 80%, transparent);
+    0 2px 4px rgb(0 0 0 / 0.2);
 }
 .lp-btn.primary svg {
   transition: transform 160ms var(--lp-ease);
@@ -233,7 +231,7 @@ html:has(.lp) {
   animation-delay: calc(350ms + var(--i) * 70ms), calc(var(--i) * -1.1s);
 }
 .lp .lp-floater .task.lp-task {
-  box-shadow: 0 10px 24px -14px rgb(0 0 0 / 0.5);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.16);
 }
 @keyframes lp-bob {
   50% {
@@ -286,7 +284,6 @@ html:has(.lp) {
   height: 7px;
   border-radius: 50%;
   background: var(--accent);
-  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 25%, transparent);
 }
 .lp h1 {
   max-width: 900px;
@@ -356,8 +353,7 @@ html:has(.lp) {
   background: color-mix(in oklab, var(--text) 3%, transparent);
   box-shadow:
     0 1px 0 rgb(255 255 255 / 0.04) inset,
-    0 40px 120px -30px rgb(0 0 0 / 0.55),
-    0 0 0 1px rgb(0 0 0 / 0.04);
+    0 2px 6px rgb(0 0 0 / 0.08);
   transform: rotateX(calc(var(--tilt) * 14deg)) scale(calc(1 - var(--tilt) * 0.04));
   transform-origin: 50% 0;
   will-change: transform;
@@ -1125,7 +1121,7 @@ html:has(.lp) {
   border: 1px solid var(--border);
   border-radius: 12px 12px 12px 4px;
   background: var(--raised);
-  box-shadow: 0 10px 30px -12px rgb(0 0 0 / 0.4);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.14);
   font-size: 12.5px;
   line-height: 1.45;
   animation: lp-comment 6s var(--lp-ease) infinite;
@@ -1283,7 +1279,6 @@ html:has(.lp) {
 }
 .lp-status i.on {
   background: #22a06b;
-  box-shadow: 0 0 0 3px color-mix(in oklab, #22a06b 25%, transparent);
 }
 .lp-status-a {
   animation: lp-swap-a 5s infinite;
@@ -1397,7 +1392,7 @@ html:has(.lp) {
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--raised);
-  box-shadow: 0 16px 40px -14px rgb(0 0 0 / 0.5);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.14);
   font-size: 12px;
   animation: lp-pop 500ms 600ms var(--lp-ease) both;
 }
@@ -1432,7 +1427,7 @@ html:has(.lp) {
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--raised);
-  box-shadow: 0 20px 50px -20px rgb(0 0 0 / 0.5);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.14);
   font-size: 12.5px;
 }
 .lp-palette-input {
@@ -1536,7 +1531,7 @@ html:has(.lp) {
   box-shadow:
     0 0 0 1px rgb(255 255 255 / 0.08) inset,
     0 0 0 2px #0b0c10,
-    0 50px 100px -30px rgb(0 0 0 / 0.6);
+    0 4px 12px rgb(0 0 0 / 0.18);
 }
 .lp-phone::before {
   /* Side buttons. */
@@ -2039,7 +2034,7 @@ html:has(.lp) {
   border: 1px solid var(--lp-line);
   border-radius: 20px;
   background: var(--lp-card);
-  box-shadow: 0 40px 80px -40px rgb(0 0 0 / 0.5);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.14);
 }
 .lp-file {
   display: flex;
@@ -2183,7 +2178,7 @@ html:has(.lp) {
 .lp-final .lp-btn.primary {
   background: #fff;
   color: #3f4bc4;
-  box-shadow: 0 8px 24px -10px rgb(0 0 0 / 0.35);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.2);
 }
 .lp-final .lp-btn.primary:hover {
   background: #fff;
@@ -2197,7 +2192,7 @@ html:has(.lp) {
   border-color: #fff;
   background: rgb(255 255 255 / 0.1);
 }
-.lp-final-inner > :not(.lp-final-glow) {
+.lp-final-inner > * {
   position: relative;
 }
 .lp-final p {
