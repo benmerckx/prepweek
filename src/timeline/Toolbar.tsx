@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { flushSync } from 'react-dom';
-import { canRedo, canUndo, onHistoryChange, redo, store, undo } from '../data/store.ts';
+import { canRedo, canUndo, isHistoryBusy, onHistoryChange, redo, store, undo } from '../data/store.ts';
 import { getSyncStatus, onSyncStatus } from '../data/sync.ts';
 import { seed } from '../data/seed.ts';
 import { ZOOM_MAX, ZOOM_MIN } from './viewport.ts';
@@ -57,7 +57,7 @@ const SYNC_HELP = {
   offline: 'Offline: changes are kept and sync when the connection is back',
 } as const;
 
-const historySnapshot = () => (canUndo() ? 1 : 0) | (canRedo() ? 2 : 0);
+const historySnapshot = () => (canUndo() ? 1 : 0) | (canRedo() ? 2 : 0) | (isHistoryBusy() ? 4 : 0);
 
 export const Toolbar = memo(function Toolbar(props: Props) {
   const { colW, model, onZoom, onToday, onPage } = props;
@@ -115,10 +115,10 @@ export const Toolbar = memo(function Toolbar(props: Props) {
         </button>
       </div>
       <div className="seg">
-        <button className="btn icon" disabled={!(hist & 1)} onClick={undo} aria-label="Undo" title="Undo (⌘Z)">
-          <Undo />
+        <button className="btn icon" disabled={!(hist & 1) || !!(hist & 4)} onClick={() => void undo()} aria-label="Undo" title="Undo (⌘Z)">
+          {hist & 4 ? <span className="spinner" aria-label="Undoing" /> : <Undo />}
         </button>
-        <button className="btn icon redo" disabled={!(hist & 2)} onClick={redo} aria-label="Redo" title="Redo (⇧⌘Z)">
+        <button className="btn icon redo" disabled={!(hist & 2)} onClick={() => void redo()} aria-label="Redo" title="Redo (⇧⌘Z)">
           <Redo />
         </button>
       </div>

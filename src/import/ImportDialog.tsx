@@ -24,7 +24,15 @@ const SHOWN_FIELDS: Field[] = ['title', 'assignee', 'email', 'start', 'end', 'pr
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
 
-export function ImportDialog({ initialFile, onClose, onImported }: Props) {
+const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => setTimeout(resolve)));
+
+export function ImportDialog({ initialFile, onClose: close, onImported }: Props) {
+  /** Reading and parsing the file. */
+  const [reading, setReading] = useState(false);
+  /** Writing the import: 0..1, null when not importing. */
+  const [progress, setProgress] = useState<number | null>(null);
+  // Can't be closed halfway through writing.
+  const onClose = () => progress === null && close();
   useBackToClose(true, onClose);
   const [file, setFile] = useState<Loaded | null>(null);
   const [error, setError] = useState('');
@@ -40,8 +48,11 @@ export function ImportDialog({ initialFile, onClose, onImported }: Props) {
 
   const load = async (f: File) => {
     setError('');
+    setReading(true);
     try {
-      const rows = parseCsv(await f.text());
+      const text = await f.text();
+      await nextFrame(); // show "Reading…" before parsing a big file
+      const rows = parseCsv(text);
       if (rows.length < 2) throw new Error('That file has no data rows.');
       const [header, ...data] = rows;
       const m = guessMapping(header!);
@@ -56,6 +67,8 @@ export function ImportDialog({ initialFile, onClose, onImported }: Props) {
       setAmbiguous(d.ambiguous);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setReading(false);
     }
   };
 
@@ -112,9 +125,10 @@ export function ImportDialog({ initialFile, onClose, onImported }: Props) {
               <span className="source-logo" aria-hidden>
                 <Upload />
               </span>
-              <p className="dz-title">Drop your CSV export here</p>
-              <button className="btn primary big" onClick={() => input.current?.click()}>
-                Choose CSV file
+              <p className="dz-title">{reading ? 'Reading your file…' : 'Drop your CSV export here'}</p>
+              <button className="btn primary big" disabled={reading} onClick={() => input.current?.click()}>
+                {reading ? <span className="spinner" aria-hidden /> : null}
+                {reading ? 'Reading…' : 'Choose CSV file'}
               </button>
               <input
                 ref={input}
@@ -272,21 +286,39 @@ export function ImportDialog({ initialFile, onClose, onImported }: Props) {
             )}
 
             <footer className="modal-foot">
-              {mode === 'replace' && <span className="foot-note">You can undo this.</span>}
-              <button className="btn" onClick={onClose}>
+              {progress !== null ? (
+                <div className="import-progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress * 100)}>
+                  <span>
+                    Importing {plural(Math.round(progress * (plan?.tasks.length ?? 0)), 'task')} of {(plan?.tasks.length ?? 0).toLocaleString()}…
+                  </span>
+                  <span className="import-bar">
+                    <span style={{ width: `${Math.max(3, progress * 100)}%` }} />
+                  </span>
+                </div>
+              ) : (
+                mode === 'replace' && <span className="foot-note">You can undo this.</span>
+              )}
+              <button className="btn" onClick={onClose} disabled={progress !== null}>
                 Cancel
               </button>
               <button
                 className={'btn ' + (mode === 'replace' ? 'destructive' : 'primary')}
-                disabled={!plan || plan.tasks.length === 0}
-                onClick={() => {
+                disabled={!plan || plan.tasks.length === 0 || progress !== null}
+                onClick={async () => {
                   if (!plan) return;
-                  applyImport(plan, mode);
+                  setProgress(0);
+                  await nextFrame(); // paint the progress bar first
+                  try {
+                    await applyImport(plan, mode, setProgress);
+                  } finally {
+                    setProgress(null);
+                  }
                   onImported(plan.range);
                 }}
               >
-                {mode === 'replace' ? 'Replace with ' : 'Import '}
-                {plural(plan?.tasks.length ?? 0, 'task')}
+                {progress !== null && <span className="spinner" aria-hidden />}
+                {progress !== null ? 'Importing…' : mode === 'replace' ? 'Replace with ' : 'Import '}
+                {progress === null && plural(plan?.tasks.length ?? 0, 'task')}
               </button>
             </footer>
           </div>

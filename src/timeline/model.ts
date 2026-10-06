@@ -209,22 +209,26 @@ export class TimelineModel {
     this.flush();
     store.addDidFinishTransactionListener(() => {
       const [tables] = store.getTransactionChanges();
-      const tasks = tables.tasks;
-      const touched = new Set(tasks ? Object.keys(tasks) : []);
+      const has = (t: string) => t in tables;
+      // Changed row ids. A table that was emptied is reported without rows (the
+      // whole table deleted), so then every row we knew is affected.
+      const ids = (t: string, known: () => Iterable<string>): Iterable<string> =>
+        !has(t) ? [] : tables[t] == null ? [...known()] : Object.keys(tables[t]!);
+      const touched = new Set(ids('tasks', () => this.storedLane.keys()));
       // Attachment changes re-ingest their task so the block's badge updates.
-      if (tables.attachments) for (const id of Object.keys(tables.attachments)) for (const t of this.ingestAttachment(id)) touched.add(t);
-      if (tables.comments) for (const id of Object.keys(tables.comments)) for (const t of this.ingestComment(id)) touched.add(t);
+      for (const id of ids('attachments', () => this.attachmentTask.keys())) for (const t of this.ingestAttachment(id)) touched.add(t);
+      for (const id of ids('comments', () => this.commentTask.keys())) for (const t of this.ingestComment(id)) touched.add(t);
       // A renamed project relabels its blocks.
-      if (tables.projects) {
+      if (has('projects')) {
+        const changed = new Set(ids('projects', () => this.projectById.keys()));
         this.readProjects();
-        const changed = new Set(Object.keys(tables.projects));
-        for (const [id, u] of this.taskUser) if (changed.has(this.byUser.get(u)?.get(id)?.projectId ?? '')) touched.add(id);
+        for (const [id, u] of this.taskUser) if (changed.has(this.byUser.get(u)?.get(id)?.projectId ?? '')) touched.add(this.byUser.get(u)!.get(id)!.series);
       }
       for (const id of touched) this.ingestTask(id);
-      if (tables.users) this.usersDirty = true;
-      if (tables.milestones) this.readMilestones();
-      if (touched.size || tables.users) this.flush();
-      else if (tables.milestones || tables.projects || tables.views) this.finish();
+      if (has('users')) this.usersDirty = true;
+      if (has('milestones')) this.readMilestones();
+      if (touched.size || has('users')) this.flush();
+      else if (has('milestones') || has('projects') || has('views')) this.finish();
     });
   }
 
@@ -596,7 +600,8 @@ export class TimelineModel {
     } else if (this.dirtyUsers.size) {
       for (const id of this.dirtyUsers) {
         const i = this.rowIndex.get(id);
-        if (i === undefined) continue;
+        // Gone, or the index is stale (person removed in this transaction).
+        if (i === undefined || !this.store.hasRow('users', id) || this.rows[i]?.userId !== id) continue;
         this.rows[i] = this.layoutRow(id, this.store.getRow('users', id) as UserRow);
       }
       this.dirtyUsers.clear();

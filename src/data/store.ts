@@ -153,7 +153,7 @@ export type AttachmentRow = {
 };
 
 /** Optional fills for blocks, drawn in the block's own color. */
-export const PATTERNS = ['dots', 'stripes', 'zigzag', 'waves', 'grid', 'plus'] as const;
+export const PATTERNS = ['dots', 'stripes', 'zigzag', 'waves', 'grid', 'checks'] as const;
 
 /** First is the default; not red, so milestones don't read as "today". */
 export const MILESTONE_COLORS = ['#8b5cf6', '#4f5bd5', '#06b6d4', '#22a06b', '#f59e0b', '#ef4444', '#ec4899', '#64748b'] as const;
@@ -338,26 +338,84 @@ export const commit = (label: string, touches: [TableId, string][], mutate: () =
   emitHistory();
 };
 
-export const undo = () => {
+/** Let the browser paint (and handle input) between chunks of work. */
+const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => setTimeout(resolve)));
+
+/**
+ * Like `commit`, for big changes (imports): the mutation runs as several
+ * transactions with a frame in between, so the page stays responsive and can
+ * show progress. It is still one undo step and one activity entry.
+ */
+export const commitInChunks = async (
+  label: string,
+  touches: [TableId, string][],
+  steps: (() => void)[],
+  onProgress?: (done: number) => void,
+) => {
   if (readOnly) return;
+  const before = touches.map(([t, id]) => snap(t, id));
+  for (let i = 0; i < steps.length; i++) {
+    store.transaction(steps[i]!);
+    onProgress?.((i + 1) / steps.length);
+    await nextFrame();
+  }
+  const after = touches.map(([t, id]) => snap(t, id));
+  if (!before.some((b, i) => JSON.stringify(b.row) !== JSON.stringify(after[i]!.row))) return;
+  store.transaction(() => logActivity(label, before, after));
+  undoStack.push({ label, before, after });
+  if (undoStack.length > 200) undoStack.shift();
+  redoStack.length = 0;
+  emitHistory();
+};
+
+/** Rows written per transaction by chunked commands (~0.2 ms each). */
+const CHUNK_ROWS = 250;
+const chunks = <T,>(items: T[], size = CHUNK_ROWS): T[][] => {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+};
+
+/** A big undo/redo is running in chunks; further ones wait for it. */
+let historyBusy = false;
+export const isHistoryBusy = () => historyBusy;
+
+const replay = async (snaps: Snap[], other: Snap[], label: string) => {
+  if (snaps.length <= CHUNK_ROWS) {
+    store.transaction(() => {
+      restore(snaps, other);
+      logActivity(label, other, snaps);
+    });
+    return;
+  }
+  // Large (an import): restore in chunks so the page keeps responding.
+  historyBusy = true;
+  emitHistory();
+  try {
+    for (let i = 0; i < snaps.length; i += CHUNK_ROWS) {
+      restore(snaps.slice(i, i + CHUNK_ROWS), other.slice(i, i + CHUNK_ROWS));
+      await nextFrame();
+    }
+    store.transaction(() => logActivity(label, other, snaps));
+  } finally {
+    historyBusy = false;
+  }
+};
+
+export const undo = async () => {
+  if (readOnly || historyBusy) return;
   const e = undoStack.pop();
   if (!e) return;
-  store.transaction(() => {
-    restore(e.before, e.after);
-    logActivity(`Undo: ${e.label}`, e.after, e.before);
-  });
+  await replay(e.before, e.after, `Undo: ${e.label}`);
   redoStack.push(e);
   emitHistory();
 };
 
-export const redo = () => {
-  if (readOnly) return;
+export const redo = async () => {
+  if (readOnly || historyBusy) return;
   const e = redoStack.pop();
   if (!e) return;
-  store.transaction(() => {
-    restore(e.after, e.before);
-    logActivity(`Redo: ${e.label}`, e.before, e.after);
-  });
+  await replay(e.after, e.before, `Redo: ${e.label}`);
   undoStack.push(e);
   emitHistory();
 };
@@ -520,12 +578,13 @@ export type ImportMode = 'add' | 'replace';
  * Apply an import plan as one undoable command. 'replace' first removes all
  * people, tasks and their attachments (milestones stay).
  */
-export const applyImport = (
+export const applyImport = async (
   plan: {
     people: { key: string; name: string; email: string; existingId?: string }[];
     tasks: { id: string; personKey: string; start: number; end: number; title: string; color: string; notes: string; project?: string; tags?: string }[];
   },
   mode: ImportMode = 'add',
+  onProgress?: (done: number) => void,
 ) => {
   const ids = new Map<string, string>();
   const replace = mode === 'replace';
@@ -557,32 +616,41 @@ export const applyImport = (
   }
   for (const t of plan.tasks) touches.push(['tasks', t.id]);
   for (const p of newProjects) touches.push(['projects', p.id]);
-  commit(`${replace ? 'Replace with' : 'Import'} ${plan.tasks.length} tasks`, touches, () => {
-    for (const [table, id] of removed) store.delRow(table, id);
-    for (const p of newProjects) store.setRow('projects', p.id, { name: p.name, color: p.color, client: '', archived: false });
-    for (const p of plan.people) {
-      const id = ids.get(p.key)!;
-      if (p.existingId) {
-        if (p.email && !getUser(id)!.email) store.setCell('users', id, 'email', p.email);
-      } else {
-        store.setRow('users', id, { name: p.name, email: p.email, color: PALETTE[order % PALETTE.length]!, order });
-        order++;
+  // Big imports take seconds to write (TinyBase's mergeable store does real
+  // work per cell), so they go in chunks with progress instead of freezing.
+  const steps: (() => void)[] = [
+    ...chunks(removed).map((part) => () => {
+      for (const [table, id] of part) store.delRow(table, id);
+    }),
+    () => {
+      for (const p of newProjects) store.setRow('projects', p.id, { name: p.name, color: p.color, client: '', archived: false });
+      for (const p of plan.people) {
+        const id = ids.get(p.key)!;
+        if (p.existingId) {
+          if (p.email && !getUser(id)!.email) store.setCell('users', id, 'email', p.email);
+        } else {
+          store.setRow('users', id, { name: p.name, email: p.email, color: PALETTE[order % PALETTE.length]!, order });
+          order++;
+        }
       }
-    }
-    for (const t of plan.tasks) {
-      store.setRow('tasks', t.id, {
-        userId: ids.get(t.personKey)!,
-        start: t.start,
-        end: t.end,
-        title: t.title,
-        color: t.color,
-        notes: t.notes,
-        lane: -1,
-        projectId: t.project ? (projectIds.get(t.project.trim().toLowerCase()) ?? '') : '',
-        tags: joinTags(parseTags(t.tags)),
-      });
-    }
-  });
+    },
+    ...chunks(plan.tasks).map((part) => () => {
+      for (const t of part) {
+        store.setRow('tasks', t.id, {
+          userId: ids.get(t.personKey)!,
+          start: t.start,
+          end: t.end,
+          title: t.title,
+          color: t.color,
+          notes: t.notes,
+          lane: -1,
+          projectId: t.project ? (projectIds.get(t.project.trim().toLowerCase()) ?? '') : '',
+          tags: joinTags(parseTags(t.tags)),
+        });
+      }
+    }),
+  ];
+  await commitInChunks(`${replace ? 'Replace with' : 'Import'} ${plan.tasks.length} tasks`, touches, steps, onProgress);
   return { people: plan.people.filter((p) => !p.existingId).length, tasks: plan.tasks.length };
 };
 

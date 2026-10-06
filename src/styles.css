@@ -4425,19 +4425,18 @@ button.tag-chip {
 
 
 /* =============================================================================
-   Block patterns: an optional fill, drawn in the block's own color
+   Block patterns: an optional fill, drawn in the block's own color with
+   plain CSS gradients (no masks, so every browser shows them).
    ========================================================================== */
 
 .task[data-pattern]::before,
-.pattern-swatch::before {
+.pattern-swatch[data-pattern]::before {
   content: '';
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: var(--c);
+  background: var(--pat);
   opacity: var(--pattern-opacity);
-  -webkit-mask: var(--pat) repeat;
-  mask: var(--pat) repeat;
   pointer-events: none;
 }
 .task[data-pattern] .task-label {
@@ -4446,33 +4445,42 @@ button.tag-chip {
     0 0 3px color-mix(in oklab, var(--c) var(--block-tint), var(--bg)),
     0 0 1px color-mix(in oklab, var(--c) var(--block-tint), var(--bg));
 }
-[data-pattern="dots"] {
-  --pat: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%228%22%20height%3D%228%22%3E%3Ccircle%20cx%3D%224%22%20cy%3D%224%22%20r%3D%221.35%22/%3E%3C/svg%3E");
+[data-pattern] {
+  --pc: var(--c);
 }
-[data-pattern="stripes"] {
-  --pat: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%228%22%20height%3D%228%22%3E%3Cpath%20d%3D%22M-2%202l4-4M0%208l8-8M6%2010l4-4%22%20stroke%3D%22%23000%22%20stroke-width%3D%221.7%22/%3E%3C/svg%3E");
+[data-pattern='dots'] {
+  --pat: radial-gradient(circle, var(--pc) 1.4px, transparent 1.9px) 0 0 / 8px 8px;
 }
-[data-pattern="zigzag"] {
-  --pat: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2212%22%20height%3D%228%22%3E%3Cpath%20d%3D%22M0%206l3-4%203%204%203-4%203%204%22%20fill%3D%22none%22%20stroke%3D%22%23000%22%20stroke-width%3D%221.4%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E");
+[data-pattern='stripes'] {
+  --pat: repeating-linear-gradient(-45deg, var(--pc) 0 2px, transparent 2px 7px);
 }
-[data-pattern="waves"] {
-  --pat: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2216%22%20height%3D%228%22%3E%3Cpath%20d%3D%22M0%204q4-4%208%200t8%200%22%20fill%3D%22none%22%20stroke%3D%22%23000%22%20stroke-width%3D%221.4%22/%3E%3C/svg%3E");
+[data-pattern='zigzag'] {
+  --pat:
+    linear-gradient(135deg, var(--pc) 25%, transparent 25%) -5px 0 / 10px 10px,
+    linear-gradient(225deg, var(--pc) 25%, transparent 25%) -5px 0 / 10px 10px,
+    linear-gradient(315deg, var(--pc) 25%, transparent 25%) 0 0 / 10px 10px,
+    linear-gradient(45deg, var(--pc) 25%, transparent 25%) 0 0 / 10px 10px;
 }
-[data-pattern="grid"] {
-  --pat: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%228%22%20height%3D%228%22%3E%3Cpath%20d%3D%22M0%20.5h8M.5%200v8%22%20stroke%3D%22%23000%22%20stroke-width%3D%221%22/%3E%3C/svg%3E");
+[data-pattern='waves'] {
+  --pat: radial-gradient(circle at 50% 0, transparent 4.6px, var(--pc) 5px 6.4px, transparent 6.8px) 0 0 / 12px 8px;
 }
-[data-pattern="plus"] {
-  --pat: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2210%22%20height%3D%2210%22%3E%3Cpath%20d%3D%22M5%202.6v4.8M2.6%205h4.8%22%20stroke%3D%22%23000%22%20stroke-width%3D%221.4%22%20stroke-linecap%3D%22round%22/%3E%3C/svg%3E");
+[data-pattern='grid'] {
+  --pat:
+    linear-gradient(var(--pc) 1.2px, transparent 1.2px) 0 0 / 9px 9px,
+    linear-gradient(90deg, var(--pc) 1.2px, transparent 1.2px) 0 0 / 9px 9px;
+}
+[data-pattern='checks'] {
+  --pat: conic-gradient(var(--pc) 25%, transparent 0 50%, var(--pc) 0 75%, transparent 0) 0 0 / 10px 10px;
 }
 :root {
-  --pattern-opacity: 0.3;
+  --pattern-opacity: 0.32;
 }
 :root[data-theme='dark'] {
-  --pattern-opacity: 0.38;
+  --pattern-opacity: 0.4;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --pattern-opacity: 0.38;
+    --pattern-opacity: 0.4;
   }
 }
 
@@ -4507,4 +4515,52 @@ button.tag-chip {
   border-radius: 3px;
   background: var(--c);
   opacity: 0.18;
+}
+
+/* Busy states */
+.spinner {
+  display: inline-block;
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  opacity: 0.85;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.import-progress {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  margin-right: 8px;
+  color: var(--text-dim);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+.import-bar {
+  position: relative;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--panel-2, var(--hover));
+}
+.import-bar span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 160ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 2s;
+  }
 }
