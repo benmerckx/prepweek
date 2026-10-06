@@ -434,7 +434,7 @@ svg {
 .brand {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 8px;
   width: 196px;
   flex: none;
   font-size: 15px;

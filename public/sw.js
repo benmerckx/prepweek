@@ -2,11 +2,11 @@
 // has to do is make the app itself load without a network:
 //  - pages: network first, falling back to the cached app shell (any
 //    /s/<sheet> URL is the same single-page app);
-//  - hashed bundles, fonts and icons: cache first (their names change when
-//    their content does);
+//  - hashed bundles, fonts and icons: cache first (bundle and font names change
+//    when their content does; icons keep theirs, so bump CACHE when they change);
 //  - sync, presence, files, sharing and the account API go straight to the network.
 
-const CACHE = 'prepweek-v3';
+const CACHE = 'prepweek-v4';
 const SHELL = '/';
 const LIVE = /^\/(sync|presence|files|share|api|auth)\//;
 

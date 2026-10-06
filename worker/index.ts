@@ -213,49 +213,59 @@ const sheetAccess = async (request: Request, env: Env, sheet: string, key: strin
 
 export default {
   async fetch(request: Request, env: Env) {
-    const url = new URL(request.url);
-    if (url.pathname.startsWith('/auth/')) return handleAuth(request, env, url);
-    if (url.pathname.startsWith('/api/')) return handleApi(request, env, url);
-    const route = /^\/(sync|files|presence|share)\/([^/]+)/.exec(url.pathname);
-    if (!route) return env.ASSETS.fetch(request);
-    const kind = route[1]!;
-    const sheet = decodeURIComponent(route[2]!);
-    const key = url.searchParams.get('k') ?? '';
-    const stub = sheetStub(env, sheet);
-    const { role, user, info, isPrivate } = await sheetAccess(request, env, sheet, key);
-
-    if (kind === 'share') {
-      if (request.method === 'GET') {
-        const keys = role === 'edit' && isPrivate ? await stub.shareKeys() : null;
-        return json({ role, private: isPrivate, ...keys, name: info.name, workspace: info.workspace, signedIn: !!user, deleted: info.deleted });
-      }
-      if (request.method === 'POST') {
-        if (role !== 'edit') return forbidden();
-        if (request.headers.get('origin') && request.headers.get('origin') !== url.origin) return forbidden();
-        const { action } = (await request.json().catch(() => ({}))) as { action?: string };
-        if (action !== 'enable' && action !== 'rotate' && action !== 'disable') return json({ error: 'Unknown action' }, 400);
-        const keys = await stub.setSharing(action);
-        return json({ role, private: !!keys, ...keys, name: info.name, workspace: info.workspace, signedIn: !!user });
-      }
-      return new Response('Method not allowed', { status: 405 });
+    try {
+      return await handle(request, env);
+    } catch (e) {
+      // Without this a failure is only Cloudflare's opaque 1101 page.
+      console.error(e);
+      return new Response(`Server error: ${e instanceof Error ? e.message : String(e)}`, { status: 500 });
     }
-
-    if (role === 'none') return forbidden();
-    if (kind === 'sync') {
-      if (request.headers.get('upgrade')?.toLowerCase() !== 'websocket') return new Response('Upgrade required', { status: 426 });
-      // The role is decided here, never by the client.
-      const headers = new Headers(request.headers);
-      headers.set('x-prepweek-role', role);
-      return stub.fetch(new Request(request, { headers }));
-    }
-    if (kind === 'files') {
-      if (request.method !== 'GET' && role !== 'edit') return forbidden();
-      return files(request, env, url);
-    }
-    // Presence: viewers are present too.
-    return env.PRESENCE.get(env.PRESENCE.idFromName(sheet)).fetch(request);
   },
 } satisfies ExportedHandler<Env>;
+
+async function handle(request: Request, env: Env): Promise<Response> {
+  const url = new URL(request.url);
+  if (url.pathname.startsWith('/auth/')) return handleAuth(request, env, url);
+  if (url.pathname.startsWith('/api/')) return handleApi(request, env, url);
+  const route = /^\/(sync|files|presence|share)\/([^/]+)/.exec(url.pathname);
+  if (!route) return env.ASSETS.fetch(request);
+  const kind = route[1]!;
+  const sheet = decodeURIComponent(route[2]!);
+  const key = url.searchParams.get('k') ?? '';
+  const stub = sheetStub(env, sheet);
+  const { role, user, info, isPrivate } = await sheetAccess(request, env, sheet, key);
+
+  if (kind === 'share') {
+    if (request.method === 'GET') {
+      const keys = role === 'edit' && isPrivate ? await stub.shareKeys() : null;
+      return json({ role, private: isPrivate, ...keys, name: info.name, workspace: info.workspace, signedIn: !!user, deleted: info.deleted });
+    }
+    if (request.method === 'POST') {
+      if (role !== 'edit') return forbidden();
+      if (request.headers.get('origin') && request.headers.get('origin') !== url.origin) return forbidden();
+      const { action } = (await request.json().catch(() => ({}))) as { action?: string };
+      if (action !== 'enable' && action !== 'rotate' && action !== 'disable') return json({ error: 'Unknown action' }, 400);
+      const keys = await stub.setSharing(action);
+      return json({ role, private: !!keys, ...keys, name: info.name, workspace: info.workspace, signedIn: !!user });
+    }
+    return new Response('Method not allowed', { status: 405 });
+  }
+
+  if (role === 'none') return forbidden();
+  if (kind === 'sync') {
+    if (request.headers.get('upgrade')?.toLowerCase() !== 'websocket') return new Response('Upgrade required', { status: 426 });
+    // The role is decided here, never by the client.
+    const headers = new Headers(request.headers);
+    headers.set('x-prepweek-role', role);
+    return stub.fetch(new Request(request, { headers }));
+  }
+  if (kind === 'files') {
+    if (request.method !== 'GET' && role !== 'edit') return forbidden();
+    return files(request, env, url);
+  }
+  // Presence: viewers are present too.
+  return env.PRESENCE.get(env.PRESENCE.idFromName(sheet)).fetch(request);
+}
 
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
 

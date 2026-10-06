@@ -9,6 +9,8 @@ const FONT = `-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial
 const ACCENT = '#4f5bd5';
 
 interface Email {
+  /** The app's address, where the logo image is served. */
+  origin: string;
   /** Shown as the preview line in the inbox. */
   preheader: string;
   heading: string;
@@ -19,7 +21,7 @@ interface Email {
   footer: string;
 }
 
-export const renderEmail = ({ preheader, heading, paragraphs, button, footer }: Email) => `<!doctype html>
+export const renderEmail = ({ origin, preheader, heading, paragraphs, button, footer }: Email) => `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -35,7 +37,7 @@ export const renderEmail = ({ preheader, heading, paragraphs, button, footer }: 
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;">
         <tr>
           <td style="padding:0 4px 18px;font-family:${FONT};font-size:17px;font-weight:700;color:#14161c;letter-spacing:-0.01em;">
-            <span style="display:inline-block;width:22px;height:22px;border-radius:6px;background:${ACCENT};vertical-align:-5px;margin-right:8px;"></span>PrepWeek
+            <img src="${origin}/icons/email-logo.png" width="160" height="26" alt="PrepWeek" style="display:block;width:160px;height:26px;border:0;outline:none;text-decoration:none;font-family:${FONT};font-size:17px;font-weight:700;color:#14161c;">
           </td>
         </tr>
         <tr>

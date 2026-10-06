@@ -36,7 +36,8 @@ import { store } from '../data/store.ts';
 import { useBackToClose, useEscape } from '../lib/useBackToClose.ts';
 import { Select, type Option } from '../ui/Select.tsx';
 import { ActionMenu } from '../ui/Menu.tsx';
-import { Check, ChevronDown, Close, LinkIcon, Logo, Pencil, People as PeopleIcon, Plus, Trash } from '../ui/icons.tsx';
+import { Check, ChevronDown, Close, LinkIcon, Pencil, People as PeopleIcon, Plus, Trash } from '../ui/icons.tsx';
+import { Logo, Wordmark } from '../ui/brand.tsx';
 
 export const useAccount = () => useSyncExternalStore(onMe, getMe);
 const useAccess = () => useSyncExternalStore(onAccess, getAccess);
@@ -169,9 +170,9 @@ export function SheetSwitcher({ onSignIn, onWorkspace }: { onSignIn(): void; onW
   // No accounts here (dev server, offline): just the brand.
   if (!me) {
     return (
-      <a className="brand" href="/" title="PrepWeek home">
+      <a className="brand" href="/" title="PrepWeek home" aria-label="PrepWeek home">
         <Logo />
-        <span className="brand-name">PrepWeek</span>
+        <Wordmark className="brand-name" />
       </a>
     );
   }
@@ -755,7 +756,7 @@ export function InviteScreen({ token }: { token: string }) {
     <div className="lock invite">
       <div className="lock-card">
         <span className="lock-icon">
-          <Logo size={26} />
+          <Logo size={24} />
         </span>
         {error ? (
           <>

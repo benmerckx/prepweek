@@ -104,16 +104,6 @@ export const Target = () => (
   </Svg>
 );
 
-/** The brand mark: a little week of blocks. */
-export const Logo = ({ size = 22 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden>
-    <rect width="24" height="24" rx="6.5" fill="var(--accent)" />
-    <rect x="5" y="6.5" width="9" height="3.2" rx="1.6" fill="#fff" />
-    <rect x="9" y="10.8" width="10" height="3.2" rx="1.6" fill="#fff" opacity=".8" />
-    <rect x="5" y="15.1" width="6.5" height="3.2" rx="1.6" fill="#fff" opacity=".6" />
-  </svg>
-);
-
 export const Paperclip = ({ size = 16 }: { size?: number }) => (
   <Svg size={size}>
     <path d="m13 7.25-5.4 5.4a3.25 3.25 0 0 1-4.6-4.6l5.6-5.6a2.15 2.15 0 0 1 3.05 3.05L6.1 11.05a1.07 1.07 0 0 1-1.5-1.5L9.75 4.4" />
