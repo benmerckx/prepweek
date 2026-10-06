@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { TimelineModel } from './model.ts';
+import type { TaskFilter } from './Rows.tsx';
 import type { Viewport } from './viewport.ts';
 import { getPeers, onPeers } from '../data/presence.ts';
 import { onThemeChange } from '../lib/theme.ts';
@@ -18,7 +19,11 @@ interface Props {
   model: TimelineModel;
   vp: Viewport;
   today: number;
+  /** Search/filters: the matching work is highlighted on the strip. */
+  filter?: TaskFilter;
 }
+
+type Series = { week0: number; weeks: number; max: number; lines: { color: string; values: Float32Array }[]; hits: Uint8Array };
 
 interface Geo {
   W: number;
@@ -30,7 +35,13 @@ interface Geo {
   travel: number; // px the slider can travel
 }
 
-export function Minimap({ model, vp, today }: Props) {
+export function Minimap({ model, vp, today, filter = null }: Props) {
+  const filterRef = useRef<TaskFilter>(filter);
+  const invalidateRef = useRef(() => {});
+  useEffect(() => {
+    filterRef.current = filter;
+    invalidateRef.current();
+  }, [filter]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const state = useRef({ hoverX: -1, dragging: false, grabDx: 0, raf: 0, rebuild: 0, colors: {} as Record<string, string>, shift: 0, lock: null as null | number, over: 0, glide: null as null | { from: number; to: number; s0: number; s1: number; timer: number } });
@@ -85,18 +96,37 @@ export function Minimap({ model, vp, today }: Props) {
     // The static part (month bands, labels, tasks, today) is rendered into
     // an offscreen tile 3× the visible width and only re-rendered when the
     // view leaves it or the data changes; a scroll frame is one drawImage.
-    const cache = { canvas: document.createElement('canvas'), start: 0, days: 0, scale: 0, version: -1, H: 0, dpr: 0, theme: 0 };
+    const cache = { canvas: document.createElement('canvas'), start: 0, days: 0, scale: 0, version: -1, H: 0, dpr: 0, theme: 0, filter: 0 };
     let themeGen = 0;
+    let filterGen = 0;
+    invalidateRef.current = () => {
+      filterGen++;
+      schedule();
+    };
 
-    // Weekly series per block color, rebuilt when the data changes.
-    let seriesCache: { version: number; week0: number; weeks: number; max: number; lines: { color: string; values: Float32Array }[] } | null = null;
+    // Weekly series per block color (of all work, or of what matches the
+    // filter), rebuilt when the data or the filter changes.
+    let seriesCache: (Series & { version: number }) | null = null;
+    let matchCache: (Series & { version: number; gen: number }) | null = null;
     const getSeries = () => {
-      if (seriesCache?.version === model.version) return seriesCache;
+      if (seriesCache?.version !== model.version) seriesCache = { ...buildSeries(null), version: model.version };
+      return seriesCache;
+    };
+    const getMatches = () => {
+      const f = filterRef.current;
+      if (!f) return null;
+      if (matchCache?.version !== model.version || matchCache.gen !== filterGen) matchCache = { ...buildSeries(f), version: model.version, gen: filterGen };
+      return matchCache;
+    };
+    const buildSeries = (pred: TaskFilter): Series => {
       const week0 = startOfWeek(vp.origin);
       const weeks = Math.ceil((vp.rangeDays + 7) / 7) + 1;
       const byColor = new Map<string, Float32Array>();
+      const hits = new Uint8Array(weeks);
       for (const row of model.rows)
         for (const t of row.tasks) {
+          if (pred && !pred(t)) continue;
+          for (let k = Math.max(0, ((t.start - week0) / 7) | 0); k <= Math.min(weeks - 1, ((t.end - week0) / 7) | 0); k++) hits[k] = 1;
           let a = byColor.get(t.color);
           if (!a) byColor.set(t.color, (a = new Float32Array(weeks)));
           for (let d = Math.max(t.start, week0); d <= t.end; d++) {
@@ -134,8 +164,7 @@ export function Minimap({ model, vp, today }: Props) {
       });
       // Biggest series first, so smaller ones draw on top.
       lines.sort((a, b) => b.total - a.total);
-      seriesCache = { version: model.version, week0, weeks, max: max * 1.08, lines };
-      return seriesCache;
+      return { week0, weeks, max: max * 1.08, lines, hits };
     };
 
     const renderCache = (g: Geo, dpr: number) => {
@@ -147,6 +176,7 @@ export function Minimap({ model, vp, today }: Props) {
       cache.H = g.H;
       cache.dpr = dpr;
       cache.theme = themeGen;
+      cache.filter = filterGen;
       const cw = Math.ceil(cache.days * g.scale);
       const oc = cache.canvas;
       oc.width = Math.ceil(cw * dpr);
@@ -190,7 +220,6 @@ export function Minimap({ model, vp, today }: Props) {
       const k0 = Math.max(0, Math.floor((s0 - series.week0) / 7) - 1);
       const k1 = Math.min(series.weeks - 1, Math.ceil((s1 - series.week0) / 7) + 1);
       const xOf = (k: number) => (series.week0 + k * 7 + 3.5 - s0) * g.scale;
-      const yOf = (v: number) => bottom - (v / series.max) * plotH;
       // Baseline.
       o.fillStyle = c.line!;
       o.globalAlpha = 0.6;
@@ -198,31 +227,55 @@ export function Minimap({ model, vp, today }: Props) {
       o.globalAlpha = 1;
       o.lineJoin = 'round';
       o.lineCap = 'round';
-      for (const { color, values } of series.lines) {
-        // Smooth curve through the weekly points (midpoint quadratics).
-        const path = new Path2D();
-        let px = xOf(k0);
-        let py = yOf(values[k0]!);
-        path.moveTo(px, py);
-        for (let k = k0 + 1; k <= k1; k++) {
-          const x = xOf(k);
-          const y = yOf(values[k]!);
-          path.quadraticCurveTo(px, py, (px + x) / 2, (py + y) / 2);
-          px = x;
-          py = y;
+      const matches = getMatches();
+      const drawLines = (ser: Series, faded: boolean) => {
+        const yOfS = (v: number) => bottom - (v / ser.max) * plotH;
+        for (const { color, values } of ser.lines) {
+          // Smooth curve through the weekly points (midpoint quadratics).
+          const path = new Path2D();
+          let px = xOf(k0);
+          let py = yOfS(values[k0]!);
+          path.moveTo(px, py);
+          for (let k = k0 + 1; k <= k1; k++) {
+            const x = xOf(k);
+            const y = yOfS(values[k]!);
+            path.quadraticCurveTo(px, py, (px + x) / 2, (py + y) / 2);
+            px = x;
+            py = y;
+          }
+          path.lineTo(px, py);
+          if (!faded) {
+            const area = new Path2D(path);
+            area.lineTo(px, bottom);
+            area.lineTo(xOf(k0), bottom);
+            area.closePath();
+            o.fillStyle = color;
+            o.globalAlpha = matches ? 0.14 : 0.07;
+            o.fill(area);
+          }
+          o.globalAlpha = faded ? 0.16 : 1;
+          o.strokeStyle = color;
+          o.lineWidth = faded ? 1 : 1.75;
+          o.stroke(path);
+          o.globalAlpha = 1;
         }
-        path.lineTo(px, py);
-        const area = new Path2D(path);
-        area.lineTo(px, bottom);
-        area.lineTo(xOf(k0), bottom);
-        area.closePath();
-        o.fillStyle = color;
-        o.globalAlpha = 0.07;
-        o.fill(area);
-        o.globalAlpha = 1;
-        o.strokeStyle = color;
-        o.lineWidth = 1.75;
-        o.stroke(path);
+      };
+      // Filtering: all work fades to context, what matches is drawn on its
+      // own scale (a small project still shows its shape), and a bar along
+      // the bottom marks every week with matches.
+      drawLines(series, !!matches);
+      if (matches) {
+        drawLines(matches, false);
+        o.fillStyle = c['slider-border']!;
+        for (let k = k0; k <= k1; k++) {
+          if (!matches.hits[k]) continue;
+          let e = k;
+          while (e + 1 <= k1 && matches.hits[e + 1]) e++;
+          const x0 = (series.week0 + k * 7 - s0) * g.scale;
+          const x1 = (series.week0 + (e + 1) * 7 - s0) * g.scale;
+          o.fillRect(x0, H - 3, Math.max(2, x1 - x0), 3);
+          k = e;
+        }
       }
 
       // Milestones: a marker in the label row and a thin line down.
@@ -264,6 +317,7 @@ export function Minimap({ model, vp, today }: Props) {
         cache.H !== H ||
         cache.dpr !== dpr ||
         cache.theme !== themeGen ||
+        cache.filter !== filterGen ||
         g.mmStart < cache.start ||
         mmEnd > cache.start + cache.days;
       if (mustRebuild) {

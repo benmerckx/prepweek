@@ -297,14 +297,17 @@ export function AccountButton({ onSignIn, onWorkspace }: { onSignIn(): void; onW
 // --- Sign in / sign up --------------------------------------------------------------------
 
 function SignInForm({ next, compact, email: initialEmail = '' }: { next: string; compact?: boolean; email?: string }) {
-  const [cfg, setCfg] = useState<AuthConfig | null>(null);
+  /** null while loading, 'error' when the server couldn't be asked. */
+  const [cfg, setCfg] = useState<AuthConfig | 'error' | null>(null);
   const [email, setEmail] = useState(initialEmail);
   const [state, setState] = useState<{ sent?: boolean; devLink?: string; error?: string; busy?: boolean }>({});
-  useEffect(() => {
+  const load = () => {
+    setCfg(null);
     authConfig()
-      .then(setCfg)
-      .catch(() => setCfg({ email: false, google: false, devLinks: false }));
-  }, []);
+      .then((c) => setCfg(typeof c?.google === 'boolean' && typeof c?.email === 'boolean' ? c : 'error'))
+      .catch(() => setCfg('error'));
+  };
+  useEffect(load, []);
 
   if (state.sent || state.devLink)
     return (
@@ -327,9 +330,25 @@ function SignInForm({ next, compact, email: initialEmail = '' }: { next: string;
       </div>
     );
 
+  if (cfg === null)
+    return (
+      <div className={'signin loading' + (compact ? ' compact' : '')}>
+        <span className="spinner" aria-label="Loading" />
+      </div>
+    );
+  if (cfg === 'error')
+    return (
+      <div className={'signin' + (compact ? ' compact' : '')}>
+        <p className="editor-error">Couldn’t reach the sign-in server. Check your connection and try again.</p>
+        <button className="btn" onClick={load}>
+          Try again
+        </button>
+      </div>
+    );
+
   return (
     <div className={'signin' + (compact ? ' compact' : '')}>
-      {cfg?.google && (
+      {cfg.google && (
         <>
           <a className="btn big google" href={googleUrl(next)}>
             <svg width="16" height="16" viewBox="0 0 48 48" aria-hidden>
@@ -340,9 +359,10 @@ function SignInForm({ next, compact, email: initialEmail = '' }: { next: string;
             </svg>
             Continue with Google
           </a>
-          <div className="signin-or">or</div>
+          {cfg.email && <div className="signin-or">or</div>}
         </>
       )}
+      {cfg.email && (
       <form
         onSubmit={async (e) => {
           e.preventDefault();
@@ -359,9 +379,14 @@ function SignInForm({ next, compact, email: initialEmail = '' }: { next: string;
           {state.busy ? 'Sending…' : 'Email me a sign-in link'}
         </button>
       </form>
+      )}
       {state.error && <p className="editor-error">{state.error}</p>}
-      {cfg && !cfg.email && !cfg.google && <p className="editor-error">Sign-in isn’t configured on this server yet (see the README).</p>}
-      <p className="signin-foot">New here? The same link creates your account. No password needed.</p>
+      {!cfg.email && !cfg.google && (
+        <p className="editor-error">This server has no sign-in set up yet: add Google or email (Resend) keys to the worker, see the README.</p>
+      )}
+      {(cfg.email || cfg.google) && (
+        <p className="signin-foot">New here? {cfg.email ? 'The same link creates your account.' : 'Signing in creates your account.'} No password needed.</p>
+      )}
     </div>
   );
 }

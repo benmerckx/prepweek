@@ -5254,3 +5254,9 @@ button.tag-chip {
   font-size: 12px;
   white-space: nowrap;
 }
+
+.signin.loading {
+  display: grid;
+  place-items: center;
+  min-height: 120px;
+}
