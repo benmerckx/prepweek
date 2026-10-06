@@ -51,62 +51,24 @@ const visitor = (): Visitor => {
   return { kind: returning ? 'returning' : 'new', name: '', avatar: '', accounts: me !== null };
 };
 
-interface Way {
-  label: string;
-  caption: ReactNode;
-  primary?: boolean;
-  href?: string;
-  onClick?(): void;
-}
-
-/** The ways in, each with a line on what it does: new sheet, demo, log in. */
-function WaysIn({ v, onSignIn, big = true }: { v: Visitor; onSignIn(): void; big?: boolean }) {
-  const demo: Way = { label: 'Try the demo', href: '/s/demo', caption: 'Play with a sample team. Nothing you change is saved.' };
-  const login: Way = { label: 'Log in', onClick: onSignIn, caption: 'Use your account to get to your sheets on any device.' };
-  const ways: Way[] =
-    v.kind === 'signedIn'
-      ? [
-          {
-            label: 'Open PrepWeek',
-            primary: true,
-            href: '/app',
-            caption: (
-              <>
-                {v.avatar ? <img className="lp-way-face" src={v.avatar} alt="" referrerPolicy="no-referrer" /> : null}
-                Signed in as {v.name}
-              </>
-            ),
-          },
-          demo,
-        ]
-      : v.kind === 'returning'
-        ? [{ label: 'Continue planning', primary: true, href: '/app', caption: 'Back to the sheet you last had open on this device.' }, ...(v.accounts ? [login] : []), demo]
-        : [{ label: 'Start planning', primary: true, onClick: startPlanning, caption: 'A fresh sheet, right away. No account needed.' }, demo, ...(v.accounts ? [{ ...login, caption: 'Already using PrepWeek? Get back to your sheets.' }] : [])];
+/** The main way in, and the demo next to it. Logging in lives in the nav. */
+function Ctas({ v }: { v: Visitor }) {
   return (
-    <div className="lp-ways">
-      {ways.map((w) => {
-        const cls = 'lp-btn ' + (w.primary ? 'primary' : 'ghost') + (big ? ' big' : '');
-        const body = (
-          <>
-            {w.label}
-            {w.primary && <Arrow />}
-          </>
-        );
-        return (
-          <div key={w.label} className={'lp-way' + (w.primary ? ' primary' : '')}>
-            {w.href ? (
-              <a className={cls} href={w.href}>
-                {body}
-              </a>
-            ) : (
-              <button className={cls} onClick={w.onClick}>
-                {body}
-              </button>
-            )}
-            <span className="lp-way-caption">{w.caption}</span>
-          </div>
-        );
-      })}
+    <div className="lp-ctas">
+      {v.kind === 'new' ? (
+        <button className="lp-btn primary big" onClick={startPlanning}>
+          Start planning
+          <Arrow />
+        </button>
+      ) : (
+        <a className="lp-btn primary big" href="/app">
+          Open PrepWeek
+          <Arrow />
+        </a>
+      )}
+      <a className="lp-btn ghost big" href="/s/demo">
+        Try the demo
+      </a>
     </div>
   );
 }
@@ -422,7 +384,7 @@ const FLOATERS: { title: string; meta: string; color: string; pattern?: string; 
   { title: 'Stand-up', meta: '9:30', color: C.cyan, pattern: 'waves', w: 118, pos: { top: 378, right: '10%' } },
 ];
 
-function Hero({ v, onSignIn }: { v: Visitor; onSignIn(): void }) {
+function Hero({ v }: { v: Visitor }) {
   // The app window leans back and straightens as you scroll into the page.
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -476,9 +438,14 @@ function Hero({ v, onSignIn }: { v: Visitor; onSignIn(): void }) {
           moment you make it.
         </p>
         <div className="lp-in" style={{ ['--d' as string]: '180ms' }}>
-          <WaysIn v={v} onSignIn={onSignIn} />
+          <Ctas v={v} />
         </div>
         <p className="lp-note lp-in" style={{ ['--d' as string]: '240ms' }}>
+          {v.kind === 'new' && (
+            <span>
+              <Tick /> No account needed
+            </span>
+          )}
           <span>
             <Tick /> Great on mobile
           </span>
@@ -994,9 +961,11 @@ function Import() {
 
 export function Landing() {
   const [scrolled, setScrolled] = useState(false);
-  const [signingIn, setSigningIn] = useState(() => new URLSearchParams(location.search).has('signin'));
   const v = visitor();
-  const signIn = () => setSigningIn(true);
+  // Asked to log in while already logged in: straight back into the app.
+  const [signingIn, setSigningIn] = useState(() => new URLSearchParams(location.search).has('signin'));
+  if (signingIn && v.kind === 'signedIn') location.replace('/app');
+  const signIn = () => (v.kind === 'signedIn' ? location.assign('/app') : setSigningIn(true));
   useEffect(() => {
     document.title = 'PrepWeek: plan your team’s weeks at a glance';
     const on = () => setScrolled(scrollY > 8);
@@ -1011,7 +980,7 @@ export function Landing() {
         <div className="lp-wrap lp-nav-inner">
           <a className="lp-brand" href="/" aria-label="PrepWeek home">
             <Logo size={24} />
-            PrepWeek
+            <span className="lp-brand-name">PrepWeek</span>
           </a>
           <span className="lp-nav-links">
             <a href="#features">Features</a>
@@ -1020,36 +989,27 @@ export function Landing() {
             <a href="/s/demo">Demo</a>
           </span>
           <span className="lp-nav-actions">
-            {v.kind === 'signedIn' ? (
-              <a className="lp-btn primary" href="/app" title={`Signed in as ${v.name}`}>
+            {v.kind !== 'signedIn' && v.accounts && (
+              <button className="lp-btn ghost" onClick={signIn}>
+                Log in
+              </button>
+            )}
+            {v.kind === 'new' ? (
+              <button className="lp-btn primary" onClick={startPlanning}>
+                Start planning
+              </button>
+            ) : (
+              <a className="lp-btn primary" href="/app" title={v.kind === 'signedIn' ? `Signed in as ${v.name}` : undefined}>
                 {v.avatar ? <img className="lp-nav-face" src={v.avatar} alt="" referrerPolicy="no-referrer" /> : null}
                 Open PrepWeek
                 <Arrow />
               </a>
-            ) : (
-              <>
-                {v.accounts && (
-                  <button className="lp-btn ghost" onClick={signIn}>
-                    Log in
-                  </button>
-                )}
-                {v.kind === 'returning' ? (
-                  <a className="lp-btn primary" href="/app">
-                    Continue planning
-                    <Arrow />
-                  </a>
-                ) : (
-                  <button className="lp-btn primary" onClick={startPlanning}>
-                    Start planning
-                  </button>
-                )}
-              </>
             )}
           </span>
         </div>
       </nav>
 
-      <Hero v={v} onSignIn={signIn} />
+      <Hero v={v} />
       <Features />
       <Mobile />
       <Steps />
@@ -1060,7 +1020,7 @@ export function Landing() {
         <Reveal className="lp-final-inner">
 
           <h2>Plan next week in the next five minutes.</h2>
-          <WaysIn v={v} onSignIn={signIn} />
+          <Ctas v={v} />
         </Reveal>
         </div>
       </section>

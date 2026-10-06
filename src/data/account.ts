@@ -179,7 +179,8 @@ export const forgetMySheet = (id: string) => {
 };
 export const lastSheet = () => {
   try {
-    return localStorage.getItem(LAST);
+    const id = localStorage.getItem(LAST);
+    return id === 'demo' ? null : id;
   } catch {
     return null;
   }
@@ -190,6 +191,8 @@ export const forgetLastSheet = () => {
   } catch {}
 };
 export const rememberLastSheet = (id: string) => {
+  // The demo is a sample, not where you plan: "back in" shouldn't land there.
+  if (id === 'demo') return;
   try {
     localStorage.setItem(LAST, id);
   } catch {}
