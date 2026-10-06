@@ -7,7 +7,6 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { getMe, newSheetId, rememberMySheet } from '../data/account.ts';
 import { Logo } from '../ui/icons.tsx';
-import './landing.css';
 
 const SignInDialog = lazy(() => import('../timeline/Account.tsx').then((m) => ({ default: m.SignInDialog })));
 

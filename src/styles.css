@@ -1,3 +1,8 @@
+/* Landing page styles (all under .lp). Bundled here rather than imported
+   from Landing.tsx: some Bun versions turn a CSS import in a lazy chunk into
+   a JavaScript import of the .css file, which browsers refuse to load. */
+@import './landing/landing.css';
+
 /* =============================================================================
    prepweek: design tokens
    ========================================================================== */
