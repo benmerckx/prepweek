@@ -10,6 +10,7 @@
 // already resolved the caller's session; every method re-checks membership.
 
 import { DurableObject } from 'cloudflare:workers';
+import { DIGEST_HOUR, localTime, type DigestRecipient } from './digest.ts';
 import type { Env } from './env.ts';
 
 export type WorkspaceRole = 'admin' | 'member';
@@ -68,6 +69,16 @@ const TABLES: Record<string, string[]> = {
   members: ['workspace_id TEXT NOT NULL', 'user_id TEXT NOT NULL', 'role TEXT NOT NULL', 'joined INTEGER NOT NULL', 'PRIMARY KEY (workspace_id, user_id)'],
   invites: ['token TEXT PRIMARY KEY', 'workspace_id TEXT NOT NULL', 'email TEXT NOT NULL', 'role TEXT NOT NULL', 'invited_by TEXT NOT NULL', 'created INTEGER NOT NULL', 'expires INTEGER NOT NULL'],
   sheets: ['id TEXT PRIMARY KEY', 'workspace_id TEXT NOT NULL', 'name TEXT NOT NULL', 'created INTEGER NOT NULL', 'created_by TEXT NOT NULL', 'deleted INTEGER NOT NULL DEFAULT 0'],
+  // Daily digest settings; no row = on, in UTC, never sent.
+  digests: [
+    'user_id TEXT PRIMARY KEY',
+    "tz TEXT NOT NULL DEFAULT ''",
+    'off INTEGER NOT NULL DEFAULT 0',
+    "token TEXT NOT NULL DEFAULT ''",
+    "last_day TEXT NOT NULL DEFAULT ''",
+    'last_at INTEGER NOT NULL DEFAULT 0',
+    "origin TEXT NOT NULL DEFAULT ''",
+  ],
 };
 
 export class DirectoryDurableObject extends DurableObject<Env> {
@@ -338,5 +349,68 @@ export class DirectoryDurableObject extends DurableObject<Env> {
     this.requireRole(userId, s.workspace_id, 'admin');
     this.sql.exec('UPDATE sheets SET deleted = 1 WHERE id = ?', sheetId);
     return true;
+  }
+
+  // --- Daily digest ------------------------------------------------------------
+
+  private digestRow(userId: string) {
+    let row = this.one<{ tz: string; off: number; token: string }>('SELECT tz, off, token FROM digests WHERE user_id = ?', userId);
+    if (!row) {
+      row = { tz: '', off: 0, token: randomId(18) };
+      this.sql.exec('INSERT INTO digests (user_id, token) VALUES (?, ?)', userId, row.token);
+    }
+    return row;
+  }
+
+  async digestSettings(userId: string) {
+    const { tz, off } = this.digestRow(userId);
+    return { on: !off, tz };
+  }
+
+  async setDigest(userId: string, patch: { on?: boolean; tz?: string; origin?: string }) {
+    this.digestRow(userId);
+    // Where links in the email point: the address this person uses the app at.
+    if (patch.origin && /^https?:\/\/[^/]+$/.test(patch.origin)) this.sql.exec('UPDATE digests SET origin = ? WHERE user_id = ?', patch.origin, userId);
+    if (typeof patch.on === 'boolean') this.sql.exec('UPDATE digests SET off = ? WHERE user_id = ?', patch.on ? 0 : 1, userId);
+    if (typeof patch.tz === 'string' && patch.tz.length < 64) this.sql.exec('UPDATE digests SET tz = ? WHERE user_id = ?', patch.tz, userId);
+    return this.digestSettings(userId);
+  }
+
+  /** The unsubscribe link in each digest: no sign-in needed. */
+  async digestOffByToken(token: string): Promise<string | null> {
+    const row = token ? this.one<{ user_id: string }>('SELECT user_id FROM digests WHERE token = ?', token) : undefined;
+    if (!row) return null;
+    this.sql.exec('UPDATE digests SET off = 1 WHERE user_id = ?', row.user_id);
+    return this.one<{ email: string }>('SELECT email FROM users WHERE id = ?', row.user_id)?.email ?? '';
+  }
+
+  /**
+   * Everyone whose workday morning it is (from DIGEST_HOUR, retried for a few
+   * hours if sending failed) and who hasn't had today's digest yet.
+   */
+  async dueForDigest(now: number): Promise<DigestRecipient[]> {
+    const users = this.all<{ id: string; email: string; name: string; tz: string | null; off: number | null; last_day: string | null; last_at: number | null; origin: string | null }>(
+      'SELECT u.id, u.email, u.name, d.tz, d.off, d.last_day, d.last_at, d.origin FROM users u LEFT JOIN digests d ON d.user_id = u.id',
+    );
+    const out: DigestRecipient[] = [];
+    for (const u of users) {
+      if (u.off) continue;
+      const t = localTime(now, u.tz ?? '');
+      if (t.weekend || t.hour < DIGEST_HOUR || t.hour >= DIGEST_HOUR + 4 || u.last_day === t.date) continue;
+      const sheets = this.all<{ id: string; name: string }>(
+        'SELECT s.id, s.name FROM members m JOIN sheets s ON s.workspace_id = m.workspace_id WHERE m.user_id = ? AND s.deleted = 0 ORDER BY s.created',
+        u.id,
+      );
+      // Links need an address; it is learned from the person's browser.
+      if (!sheets.length || !(u.origin || this.env.APP_URL)) continue;
+      const { token } = this.digestRow(u.id);
+      out.push({ userId: u.id, email: u.email, name: u.name, token, date: t.date, day: t.day, since: u.last_at || now - DAY, origin: u.origin ?? '', sheets });
+    }
+    return out;
+  }
+
+  async markDigestSent(userId: string, date: string, at: number) {
+    this.digestRow(userId);
+    this.sql.exec('UPDATE digests SET last_day = ?, last_at = ? WHERE user_id = ?', date, at, userId);
   }
 }

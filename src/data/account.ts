@@ -24,6 +24,8 @@ export interface Workspace {
 export interface Me {
   user: Account | null;
   workspaces: Workspace[];
+  /** The daily digest email (signed in only). */
+  digest?: { on: boolean; tz: string };
 }
 
 /** null = accounts not available here (dev server, offline). */
@@ -72,7 +74,37 @@ export const loadMe = async (timeoutMs = 2500): Promise<Me | null> => {
     me = null;
   }
   emit();
+  syncDigestZone();
   return me;
+};
+
+/**
+ * The digest goes out in the morning where you are, with links to where you
+ * use the app: tell the server once per device and whenever that changes.
+ */
+const syncDigestZone = () => {
+  if (!me?.user || !me.digest) return;
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone ?? '';
+  const key = 'prepweek:digest-zone';
+  const stamp = `${me.user.id} ${tz} ${location.origin}`;
+  try {
+    if (me.digest.tz === tz && localStorage.getItem(key) === stamp) return;
+    localStorage.setItem(key, stamp);
+  } catch {}
+  void api('PATCH', '/api/me/digest', { tz, origin: location.origin }).catch(() => {});
+};
+
+/** Turn the daily digest on or off. */
+export const setDigest = async (on: boolean) => {
+  if (me?.digest) {
+    me = { ...me, digest: { ...me.digest, on } };
+    emit();
+  }
+  try {
+    await api('PATCH', '/api/me/digest', { on });
+  } finally {
+    await loadMe();
+  }
 };
 
 export interface AuthConfig {

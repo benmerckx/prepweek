@@ -18,6 +18,7 @@ import { createMergeableStore } from 'tinybase';
 import { createDurableObjectSqlStoragePersister } from 'tinybase/persisters/persister-durable-object-sql-storage';
 import { WsServerDurableObject } from 'tinybase/synchronizers/synchronizer-ws-server-durable-object';
 import { directory, handleApi, handleAuth, sessionUser } from './auth.ts';
+import { sendDigests, sheetDigest } from './digest.ts';
 import type { Env } from './env.ts';
 
 export { DirectoryDurableObject } from './directory.ts';
@@ -158,6 +159,11 @@ export class SheetDurableObject extends WsServerDurableObject {
   async wipe() {
     this.kick('Sheet deleted');
     await this.ctx.storage.deleteAll();
+  }
+
+  /** One person's part of the daily digest (see digest.ts). */
+  async digest(email: string, day: number, since: number) {
+    return this.sheetStore ? sheetDigest(this.sheetStore, email, day, since) : null;
   }
 
   async shareKeys(): Promise<Share | null> {
@@ -311,6 +317,10 @@ export default {
       console.error(e);
       return new Response(`Server error: ${e instanceof Error ? e.message : String(e)}`, { status: 500 });
     }
+  },
+  // Hourly (wrangler.toml): the daily digests whose morning it is.
+  async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext) {
+    ctx.waitUntil(sendDigests(env));
   },
 } satisfies ExportedHandler<Env>;
 

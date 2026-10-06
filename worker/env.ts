@@ -15,4 +15,6 @@ export interface Env {
   /** Optional: "Continue with Google". */
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
+  /** The public address, for links in emails sent without a request (the digest cron). */
+  APP_URL?: string;
 }

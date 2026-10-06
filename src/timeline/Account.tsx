@@ -21,6 +21,7 @@ import {
   onMe,
   rememberMySheet,
   removeMember,
+  setDigest,
   renameSheet,
   renameWorkspace,
   revokeInvite,
@@ -416,6 +417,18 @@ export function AccountButton({ onSignIn, onWorkspace }: { onSignIn(): void; onW
         <a className="menu-item" href="/">
           PrepWeek home
         </a>
+        {me.digest && (
+          <button
+            className="menu-item menu-toggle"
+            role="menuitemcheckbox"
+            aria-checked={me.digest.on}
+            title="An email on workday mornings: what’s on your plate today and what changed on your work"
+            onClick={() => void setDigest(!me.digest!.on).catch(() => {})}
+          >
+            Daily email digest
+            <span className={'switch' + (me.digest.on ? ' on' : '')} aria-hidden />
+          </button>
+        )}
         <div className="menu-sep" />
         <button className="menu-item" onClick={() => void signOut().then(() => location.assign('/'))}>
           Log out

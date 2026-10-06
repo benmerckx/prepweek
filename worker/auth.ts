@@ -10,6 +10,9 @@
 //
 //   GET    /api/me
 //   PATCH  /api/me                         {name}
+//   PATCH  /api/me/digest                  {on?, tz?, origin?}
+//   GET    /api/me/digest/preview          today's digest as a page
+//   GET    /api/digest/off?t=…             the unsubscribe link (no sign-in)
 //   POST   /api/workspaces                 {name}
 //   PATCH  /api/workspaces/:id             {name}
 //   DELETE /api/workspaces/:id             (admins; deletes its sheets)
@@ -29,6 +32,7 @@
 
 import type { Env } from './env.ts';
 import type { User, WorkspaceRole } from './directory.ts';
+import { buildDigest, localTime } from './digest.ts';
 import { escapeHtml, renderEmail } from './email.ts';
 
 const COOKIE = 'pw_session';
@@ -92,11 +96,11 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const isLocal = (url: URL) => ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
 
 /** Email is on when Mandrill has a key and a sender (a verified domain). */
-const canEmail = (env: Env) => !!(env.MANDRILL_API_KEY && env.EMAIL_FROM);
+export const canEmail = (env: Env) => !!(env.MANDRILL_API_KEY && env.EMAIL_FROM);
 
 
 /** Send through Mandrill (Mailchimp Transactional). */
-const sendEmail = async (env: Env, to: string, subject: string, html: string) => {
+export const sendEmail = async (env: Env, to: string, subject: string, html: string, headers?: Record<string, string>) => {
   // EMAIL_FROM: "prepweek <login@yourdomain.com>" or just the address.
   const from = /^\s*(.*?)\s*<([^>]+)>\s*$/.exec(env.EMAIL_FROM ?? '');
   const res = await fetch('https://mandrillapp.com/api/1.0/messages/send', {
@@ -111,6 +115,7 @@ const sendEmail = async (env: Env, to: string, subject: string, html: string) =>
         subject,
         html,
         auto_text: true,
+        headers,
         track_opens: false,
         track_clicks: false, // a rewritten sign-in link would break
       },
@@ -180,14 +185,14 @@ export async function handleAuth(req: Request, env: Env, url: URL): Promise<Resp
     const token = escapeHtml(url.searchParams.get('token') ?? '');
     return new Response(
       `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Sign in to PrepWeek</title>
-<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f5f6f8;font:16px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#14161c}
-main{background:#fff;border-radius:16px;padding:36px 32px;box-shadow:0 1px 3px rgba(20,22,28,.08);text-align:center;max-width:340px;margin:16px}
-img{display:block;margin:0 auto 22px}h1{font-size:20px;margin:0 0 6px}p{margin:0 0 22px;color:#5b6170}
-button{font:inherit;font-weight:600;color:#fff;background:#4f5bd5;border:0;border-radius:10px;padding:12px 28px;cursor:pointer}button:hover{background:#4350c4}
-@media (prefers-color-scheme:dark){body{background:#111318;color:#eceef2}main{background:#1a1a17;box-shadow:none}p{color:#a3a9b6}}</style></head>
+<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f0f0f3;font:16px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1c2024}
+main{background:#fff;border-radius:16px;padding:36px 32px;border:1px solid #e4e4e9;text-align:center;max-width:340px;margin:16px}
+img{display:block;margin:0 auto 22px}h1{font-size:20px;margin:0 0 6px}p{margin:0 0 22px;color:#60646c}
+button{font:inherit;font-weight:600;color:#fff;background:#3e63dd;border:0;border-radius:10px;padding:12px 28px;cursor:pointer}button:hover{background:#3358d4}
+@media (prefers-color-scheme:dark){body{background:#111113;color:#edeef0}main{background:#18191b;border-color:#2b2d31}p{color:#b0b4ba}}</style></head>
 <body><main><img src="/icons/icon-192.png" width="56" height="56" alt=""><h1>Sign in to PrepWeek</h1><p>Continue to finish signing in.</p>
 <form method="post" action="/auth/verify"><input type="hidden" name="token" value="${token}"><button autofocus>Continue</button></form></main></body></html>`,
-      { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'referrer-policy': 'no-referrer' } },
+      { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'referrer-policy': 'same-origin' } },
     );
   }
 
@@ -255,6 +260,18 @@ button{font:inherit;font-weight:600;color:#fff;background:#4f5bd5;border:0;borde
   return fail('Not found', 404);
 }
 
+/** A small page for links opened from an email. */
+const page = (heading: string, text: string, origin: string, action = `<a href="${origin}/app">Open PrepWeek</a>`) =>
+  new Response(
+    `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${heading}</title>
+<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f0f0f3;color:#1c2024;font:15px/1.55 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif}
+main{max-width:420px;margin:24px 16px;background:#fff;border:1px solid #e4e4e9;border-radius:14px;padding:28px}h1{margin:0 0 10px;font-size:20px}p{margin:0 0 20px;color:#60646c}
+a,button{display:inline-block;padding:10px 18px;border:0;border-radius:9px;background:#3e63dd;color:#fff;text-decoration:none;font:inherit;font-weight:600;cursor:pointer}form{margin:0}
+@media (prefers-color-scheme:dark){body{background:#111113;color:#edeef0}main{background:#18191b;border-color:#2b2d31}p{color:#b0b4ba}}</style></head>
+<body><main><h1>${heading}</h1><p>${text}</p>${action}</main></body></html>`,
+    { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } },
+  );
+
 export async function handleApi(req: Request, env: Env, url: URL): Promise<Response> {
   if (req.method !== 'GET' && req.headers.get('origin') && req.headers.get('origin') !== url.origin) return fail('Bad origin', 403);
   const user = await sessionUser(req, env);
@@ -268,12 +285,61 @@ export async function handleApi(req: Request, env: Env, url: URL): Promise<Respo
     return info ? json(info) : fail('This invite has expired or was revoked', 404);
   }
 
-  if (seg[0] === 'me' && req.method === 'GET') {
-    return json(user ? { user, workspaces: await dir.workspaces(user.id) } : { user: null, workspaces: [] });
+  // The unsubscribe link, signed in or not. Opening it asks first (mail
+  // scanners open links); the POST also serves one-click List-Unsubscribe.
+  if (seg[0] === 'digest' && seg[1] === 'off') {
+    const t = url.searchParams.get('t') ?? '';
+    if (req.method === 'GET')
+      return page(
+        'Turn off the daily digest?',
+        'You’ll stop getting the morning email with your day and what changed. You can turn it back on from your account menu in PrepWeek.',
+        url.origin,
+        `<form method="post" action="/api/digest/off?t=${encodeURIComponent(t)}"><button>Turn off</button></form>`,
+      );
+    if (req.method === 'POST') {
+      const email = await dir.digestOffByToken(t);
+      return page(
+        email === null ? 'This link has expired' : 'Daily digest turned off',
+        email === null
+          ? 'We couldn’t find your digest settings. You can turn the digest off from your account menu in PrepWeek.'
+          : `You won’t get the daily digest${email ? ` at ${escapeHtml(email)}` : ''} any more. Changed your mind? Turn it back on from your account menu.`,
+        url.origin,
+      );
+    }
+  }
+
+  if (seg[0] === 'me' && seg.length === 1 && req.method === 'GET') {
+    return json(user ? { user, workspaces: await dir.workspaces(user.id), digest: await dir.digestSettings(user.id) } : { user: null, workspaces: [] });
   }
   if (!user) return fail('Sign in first', 401);
 
   try {
+    if (seg[0] === 'me' && seg[1] === 'digest') {
+      if (req.method === 'PATCH') {
+        const b = body as { on?: unknown; tz?: unknown; origin?: unknown };
+        return json(
+          await dir.setDigest(user.id, {
+            on: typeof b.on === 'boolean' ? b.on : undefined,
+            tz: typeof b.tz === 'string' ? b.tz : undefined,
+            origin: b.origin === url.origin ? url.origin : undefined,
+          }),
+        );
+      }
+      // What this morning's email would hold (since yesterday), to check it.
+      if (seg[2] === 'preview' && req.method === 'GET') {
+        const { tz } = await dir.digestSettings(user.id);
+        const t = localTime(Date.now(), tz);
+        const ws = await dir.workspaces(user.id);
+        const mail = await buildDigest(
+          env,
+          { userId: user.id, email: user.email, name: user.name, token: '', date: t.date, day: t.day, since: Date.now() - 86_400_000, origin: url.origin, sheets: ws.flatMap((w) => w.sheets) },
+          url.origin,
+        );
+        return mail
+          ? new Response(mail.html, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } })
+          : page('Nothing for today', 'Your digest would be empty today, so it wouldn’t be sent.', url.origin);
+      }
+    }
     if (seg[0] === 'me' && req.method === 'PATCH') {
       await dir.rename(user.id, body.name ?? '');
       return json({ ok: true });

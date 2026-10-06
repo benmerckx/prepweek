@@ -391,6 +391,16 @@ export function Timeline({ model }: { model: TimelineModel }) {
     [model, vp, toggleTeam],
   );
   useEffect(() => watchDesktopNotifications(revealTask), [revealTask]);
+  // A link to one task (?task=<id>, from the daily digest): open it once the
+  // sheet has loaded, then drop it from the address.
+  useEffect(() => {
+    const url = new URL(location.href);
+    const id = url.searchParams.get('task');
+    if (!id || !synced) return;
+    url.searchParams.delete('task');
+    history.replaceState(history.state, '', url);
+    revealTask(id);
+  }, [synced, revealTask]);
 
   // --- Presence: share what I look at, select and point at. ---
   useEffect(() => {

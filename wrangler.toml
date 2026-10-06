@@ -33,8 +33,14 @@ class_name = "DirectoryDurableObject"
 #   MANDRILL_API_KEY        magic-link and invite emails (Mandrill)
 #   GOOGLE_CLIENT_SECRET    "Continue with Google"
 [vars]
+# Links in the daily digest use the address people use the app at; set this
+# to pin one, e.g. APP_URL = "https://plan.example.com".
 EMAIL_FROM = "no-reply@prepweek.com"
 GOOGLE_CLIENT_ID = "536583470323-hurodoi9k3c7voaik9i3fjbvjgk1amh3.apps.googleusercontent.com"
+
+# Hourly: sends the daily digest to everyone whose workday morning it is.
+[triggers]
+crons = ["0 * * * *"]
 
 # Attachment storage (served by the worker at /files/<sheet>/<id>).
 # Disabled until the bucket exists. To enable: run
