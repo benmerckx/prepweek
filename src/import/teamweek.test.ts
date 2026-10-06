@@ -64,7 +64,7 @@ describe('teamweek import', () => {
     expect(relaunch.start).toBe(dayFromYMD(2026, 9, 5));
     expect(relaunch.end).toBe(dayFromYMD(2026, 9, 9));
     expect(relaunch.project).toBe('Acme');
-    expect(relaunch.tags).toBe('ux,web');
+    expect(relaunch.tags).toBe('ux,web,Design'); // segment becomes a tag
   });
 
   test('ids are deterministic so re-importing updates instead of duplicating', () => {
@@ -83,5 +83,40 @@ describe('teamweek import', () => {
     const second = buildPlan(rows, opts, existing);
     expect(second.people.every((p) => p.existingId)).toBe(true);
     expect(second.tasks.map((t) => t.id).sort()).toEqual(first.tasks.map((t) => t.id).sort());
+  });
+});
+
+describe('teamweek workspace export (ids, clients, times)', () => {
+  const csv = [
+    'User ID,User Name,User Email,Client ID,Client Name,Project ID,Project Name,Task ID,Task Name,Start Date,Start Time,End Date,End Time,Estimated Time (minutes),Status,Segment,Tags,Repeats,Notes,Attachment Links',
+    '1,Ann Smith,ann@x.test,7,Imec,9,Website,42,Status meeting,2026-03-02,10:30:00,2026-03-02,11:00:00,30,Done,Default Segment,,every 1 week,Agenda:\\n- item one\\n- item two,https://cdn.test/a/Screen%20shot.png',
+    '2,Bob Jones,bob@x.test,7,Imec,9,Website,42,Status meeting,2026-03-02,10:30:00,2026-03-02,11:00:00,30,to-do,🌴 Verlof,,,,',
+  ].join('\n');
+  const [header, ...rows] = parseCsv(csv);
+  const mapping = guessMapping(header!);
+  const plan = buildPlan(rows, { mapping, dateOrder: 'dmy', includeDone: true, unassigned: 'skip' }, []);
+
+  test('maps the extra columns', () => {
+    expect(header![mapping.client!]).toBe('Client Name');
+    expect(header![mapping.startTime!]).toBe('Start Time');
+    expect(header![mapping.start!]).toBe('Start Date');
+    expect(header![mapping.taskId!]).toBe('Task ID');
+    expect(header![mapping.attachments!]).toBe('Attachment Links');
+  });
+
+  test('one block per assignee of a shared task, with its details', () => {
+    expect(plan.tasks).toHaveLength(2);
+    const [a, b] = plan.tasks;
+    expect(a!.id).not.toBe(b!.id);
+    expect(a!.id.startsWith('tw42-')).toBe(true);
+    expect(a!.start).toBe(dayFromYMD(2026, 2, 2));
+    expect(a!.time).toBe('10:30–11:00');
+    expect(a!.done).toBe(true);
+    expect(b!.done).toBe(false);
+    expect(a!.client).toBe('Imec');
+    expect(a!.tags).toBe(''); // "Default Segment" is dropped
+    expect(b!.tags).toBe('🌴 Verlof');
+    expect(a!.notes.startsWith('Agenda:\n- item one\n- item two')).toBe(true);
+    expect(a!.links).toEqual(['https://cdn.test/a/Screen%20shot.png']);
   });
 });

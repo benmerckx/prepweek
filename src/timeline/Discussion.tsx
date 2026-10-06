@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { addComment, deleteComment, isReadOnly, store, type CommentRow } from '../data/store.ts';
 import { displayName, getMe, isMe, onMeChange, setMe } from '../data/identity.ts';
@@ -51,24 +51,60 @@ function Face({ name, byId, size = 24 }: { name: string; byId: string; size?: nu
 }
 
 /** "@Ava Peeters" in comment text, highlighted when it names a person. */
+/**
+ * Comment text with light markdown: @mentions, links (bare or [text](url)),
+ * **bold**, *italic*, `code`, and "- " / "1. " lists.
+ */
 function RichText({ text }: { text: string }) {
   const names = useMemo(() => people().map((p) => p.name).filter(Boolean).sort((a, b) => b.length - a.length), []);
-  if (!names.length) return <>{text}</>;
   const esc = names.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-  const parts = text.split(new RegExp(`(@(?:${esc.join('|')}))`, 'gi'));
-  return (
-    <>
-      {parts.map((p, i) =>
-        i % 2 ? (
-          <span key={i} className="mention">
-            {p}
-          </span>
-        ) : (
-          <Fragment key={i}>{p}</Fragment>
-        ),
-      )}
-    </>
-  );
+  const mention = esc.length ? `@(?:${esc.join('|')})` : '(?!)';
+  const token = new RegExp(`(${mention})|\\[([^\\]]+)\\]\\((https?://[^)\\s]+)\\)|(https?://[^\\s<]+[^\\s<.,;:!?)\\]])|\\*\\*([^*]+)\\*\\*|\\*([^*\\s][^*]*)\\*|\`([^\`]+)\``, 'gi');
+  const inline = (line: string, key: string) => {
+    const out: ReactNode[] = [];
+    let last = 0;
+    let m: RegExpExecArray | null;
+    token.lastIndex = 0;
+    while ((m = token.exec(line))) {
+      if (m.index > last) out.push(line.slice(last, m.index));
+      const k = `${key}-${m.index}`;
+      if (m[1]) out.push(<span key={k} className="mention">{m[1]}</span>);
+      else if (m[2]) out.push(<a key={k} href={m[3]} target="_blank" rel="noreferrer">{m[2]}</a>);
+      else if (m[4]) out.push(<a key={k} href={m[4]} target="_blank" rel="noreferrer">{m[4].replace(/^https?:\/\/(www\.)?/, '')}</a>);
+      else if (m[5]) out.push(<b key={k}>{m[5]}</b>);
+      else if (m[6]) out.push(<i key={k}>{m[6]}</i>);
+      else if (m[7]) out.push(<code key={k}>{m[7]}</code>);
+      last = m.index + m[0].length;
+    }
+    if (last < line.length) out.push(line.slice(last));
+    return out;
+  };
+  // Group consecutive list lines into lists; other lines stay as lines.
+  const blocks: ReactNode[] = [];
+  const lines = text.split('\n');
+  for (let i = 0; i < lines.length; ) {
+    const bullet = /^\s*[-*]\s+/;
+    const num = /^\s*\d+[.)]\s+/;
+    const kind = bullet.test(lines[i]!) ? 'ul' : num.test(lines[i]!) ? 'ol' : null;
+    if (kind) {
+      const items: ReactNode[] = [];
+      const re = kind === 'ul' ? bullet : num;
+      while (i < lines.length && re.test(lines[i]!)) {
+        items.push(<li key={i}>{inline(lines[i]!.replace(re, ''), `l${i}`)}</li>);
+        i++;
+      }
+      blocks.push(kind === 'ul' ? <ul key={`b${i}`}>{items}</ul> : <ol key={`b${i}`}>{items}</ol>);
+    } else {
+      blocks.push(
+        <Fragment key={`t${i}`}>
+          {inline(lines[i]!, `t${i}`)}
+          {i < lines.length - 1 && !bullet.test(lines[i + 1]!) && !num.test(lines[i + 1]!) && <br />}
+        </Fragment>,
+      );
+      i++;
+    }
+  }
+  return <>{blocks}</>;
 }
 
 // --- Who are you? ----------------------------------------------------------------

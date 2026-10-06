@@ -10,7 +10,10 @@
 import { dayFromYMD, type Day } from '../lib/dates.ts';
 import { PALETTE } from '../data/store.ts';
 
-export const FIELDS = ['title', 'assignee', 'email', 'start', 'end', 'project', 'notes', 'tags', 'status', 'color', 'estimate'] as const;
+export const FIELDS = [
+  'title', 'assignee', 'email', 'start', 'end', 'project', 'client', 'notes', 'tags', 'segment', 'status', 'color', 'estimate',
+  'startTime', 'endTime', 'attachments', 'taskId',
+] as const;
 export type Field = (typeof FIELDS)[number];
 export type Mapping = Partial<Record<Field, number>>;
 
@@ -21,8 +24,14 @@ export const FIELD_LABELS: Record<Field, string> = {
   start: 'Start date',
   end: 'End date',
   project: 'Project',
+  client: 'Client',
   notes: 'Notes',
   tags: 'Tags',
+  segment: 'Segment',
+  startTime: 'Start time',
+  endTime: 'End time',
+  attachments: 'Attachment links',
+  taskId: 'Task ID',
   status: 'Status',
   color: 'Color',
   estimate: 'Estimate',
@@ -33,11 +42,17 @@ const SYNONYMS: Record<Field, string[]> = {
   title: ['taskname', 'task', 'tasktitle', 'title', 'name'],
   assignee: ['assigneename', 'assignee', 'assignees', 'assignedto', 'user', 'username', 'member', 'membername', 'person', 'people', 'owner'],
   email: ['assigneeemail', 'assigneeemails', 'email', 'useremail', 'memberemail', 'emails'],
-  start: ['startdate', 'start', 'startson', 'from', 'begin', 'startdatetime', 'starttime'],
-  end: ['enddate', 'end', 'endson', 'to', 'until', 'duedate', 'due', 'enddatetime', 'endtime'],
-  project: ['projectname', 'project', 'plan', 'group', 'client'],
+  start: ['startdate', 'start', 'startson', 'from', 'begin', 'startdatetime'],
+  end: ['enddate', 'end', 'endson', 'to', 'until', 'duedate', 'due', 'enddatetime'],
+  project: ['projectname', 'project', 'plan', 'group'],
+  client: ['clientname', 'client', 'customer', 'customername'],
   notes: ['notes', 'note', 'description', 'details', 'comment', 'comments'],
-  tags: ['tags', 'tag', 'labels', 'label', 'segment'],
+  tags: ['tags', 'tag', 'labels', 'label'],
+  segment: ['segment', 'segmentname', 'stage'],
+  startTime: ['starttime', 'fromtime'],
+  endTime: ['endtime', 'totime'],
+  attachments: ['attachmentlinks', 'attachments', 'attachmenturls', 'files', 'links'],
+  taskId: ['taskid', 'id'],
   status: ['taskstatus', 'status', 'state', 'done', 'completed'],
   color: ['color', 'colour', 'hex', 'taskcolor', 'projectcolor'],
   estimate: ['estimatedminutes', 'estimateminutes', 'estimatesminutes', 'estimate', 'estimatedtime', 'estimatedhours', 'estimates'],
@@ -156,8 +171,14 @@ export interface PlannedTask {
   color: string;
   notes: string;
   project: string;
+  client: string;
   /** Comma-separated. */
   tags: string;
+  done: boolean;
+  /** "10:30–11:00" for timed tasks, else ''. */
+  time: string;
+  /** Attachment URLs (added as links). */
+  links: string[];
 }
 
 export interface ImportPlan {
@@ -260,25 +281,38 @@ export const buildPlan = (rows: string[][], opts: ImportOptions, existing: Exist
     const title = cell(row, 'title') || project || 'Untitled';
     const rawColor = cell(row, 'color');
     const color = HEX.test(rawColor) ? (rawColor.startsWith('#') ? rawColor : `#${rawColor}`) : colorFor(project || title);
-    const tags = cell(row, 'tags')
-      .split(/[,;|]/)
+    // Segments ("🌴 Verlof", "Feedback") become tags; the default one is noise.
+    const segment = cell(row, 'segment');
+    const tags = [...cell(row, 'tags').split(/[,;|]/), /^default segment$/i.test(segment) ? '' : segment]
       .map((t) => t.trim())
       .filter(Boolean)
       .join(',');
     const est = cell(row, 'estimate');
     const notes = [
-      cell(row, 'notes'),
-      est && Number(est) > 0 ? `Estimate: ${est}` : '',
+      // Exports escape line breaks as a literal "\n".
+      cell(row, 'notes').replace(/(?:\\r)?\\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim(),
+      est && Number(est) > 0 ? `Estimate: ${est} min` : '',
     ]
       .filter(Boolean)
-      .join('\n');
+      .join('\n\n');
+    const t0 = cell(row, 'startTime').slice(0, 5);
+    const t1 = cell(row, 'endTime').slice(0, 5);
+    const time = t0 ? (t1 && t1 !== t0 ? `${t0}–${t1}` : t0) : '';
+    const done = DONE.test(cell(row, 'status'));
+    const links = cell(row, 'attachments')
+      .split(/\s+|,(?=https?:)/)
+      .filter((u) => /^https?:\/\//.test(u));
+    const taskId = cell(row, 'taskId');
+    const client = cell(row, 'client');
 
     for (const p of assignees) {
       // Deterministic id from what the file says (not from who it matched
       // on this sheet), so importing the same export again updates in place.
-      const id = `tw${hash(`${who.get(p)}|${title}|${project}|${start}|${end}`)}`;
+      // With the export's task id, a task shared by several people becomes
+      // one block each, and re-importing updates them.
+      const id = taskId ? `tw${taskId}-${hash(who.get(p) ?? '')}` : `tw${hash(`${who.get(p)}|${title}|${project}|${start}|${end}`)}`;
       if (!tasks.has(id)) p.tasks++;
-      tasks.set(id, { id, personKey: p.key, start, end, title, color, notes, project, tags });
+      tasks.set(id, { id, personKey: p.key, start, end, title, color, notes, project, client, tags, done, time, links });
       if (start < min) min = start;
       if (end > max) max = end;
     }

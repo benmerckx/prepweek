@@ -53,6 +53,9 @@ export interface TaskView {
   series: string;
   /** Fill pattern ('' = solid). */
   pattern: string;
+  done: boolean;
+  /** "10:30–11:00" for timed tasks, else ''. */
+  time: string;
 }
 
 export interface Project extends ProjectRow {
@@ -452,6 +455,8 @@ export class TimelineModel {
       repeat: isRule(r.repeat) ? r.repeat : '',
       series: id,
       pattern: r.pattern ?? '',
+      done: !!r.done,
+      time: r.time ?? '',
     };
     let m = this.byUser.get(r.userId);
     if (!m) this.byUser.set(r.userId, (m = new Map()));
@@ -512,6 +517,8 @@ export class TimelineModel {
         repeat: base?.repeat ?? '',
         series: base?.series ?? p.id,
         pattern: base?.pattern ?? '',
+        done: base?.done ?? false,
+        time: base?.time ?? '',
       };
       views.push(v);
       items.push({ id: v.id, start: v.start, end: v.end, lane: p.lane ?? this.prevLane.get(p.id) });

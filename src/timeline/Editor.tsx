@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Attachments, attachFiles } from './Attachments.tsx';
 import { PALETTE, PATTERNS, deleteTask, getTask, updateTask } from '../data/store.ts';
 import { RULES, RULE_LABELS } from '../lib/recur.ts';
@@ -6,6 +6,9 @@ import { dayFromYMD, formatDay, formatRange, workdays, ymd } from '../lib/dates.
 import type { TaskView, TimelineModel } from './model.ts';
 import { ProjectField, TagField } from './Projects.tsx';
 import { Discussion } from './Discussion.tsx';
+
+// Lexical loads on first use, not on page load.
+const RichNotes = lazy(() => import('./RichNotes.tsx'));
 import { Calendar, Check, Repeat, Trash } from '../ui/icons.tsx';
 
 interface Props {
@@ -166,10 +169,19 @@ export function Editor({ task, model, sheet, side, readOnly, onClose }: Props) {
         <div className="editor-meta">
           <Calendar />
           <span>{formatRange(task.start, task.end)}</span>
+          {task.time && <span className="editor-time">{task.time}</span>}
           <span className="editor-days">
             {workdays(task.start, task.end)} workday{workdays(task.start, task.end) === 1 ? '' : 's'}
           </span>
         </div>
+        <button
+          className={'done-toggle' + (task.done ? ' on' : '')}
+          aria-pressed={task.done}
+          onClick={() => updateTask(task.series, { done: !task.done }, task.done ? 'Reopen task' : 'Complete task')}
+        >
+          <span className="done-box">{task.done && <Check size={12} />}</span>
+          {task.done ? 'Done' : 'Mark as done'}
+        </button>
         <div className="editor-fields">
           <ProjectField task={task} model={model} />
           <TagField task={task} model={model} />
@@ -211,14 +223,14 @@ export function Editor({ task, model, sheet, side, readOnly, onClose }: Props) {
             />
           ))}
         </div>
-        <textarea
-          className="editor-notes"
-          placeholder="Notes"
-          defaultValue={task.notes}
-          rows={2}
-          onFocus={(e) => (lastField.current = e.currentTarget)}
-          onBlur={(e) => e.currentTarget.value !== task.notes && updateTask(task.id, { notes: e.currentTarget.value }, 'Edit notes')}
-        />
+        <Suspense fallback={<div className="rich-notes loading">{task.notes || 'Notes'}</div>}>
+          <RichNotes
+            key={task.series}
+            value={task.notes}
+            readOnly={readOnly}
+            onSave={(md) => updateTask(task.series, { notes: md }, 'Edit notes')}
+          />
+        </Suspense>
       </fieldset>
       <Attachments taskId={task.series} onError={setError} />
       {error && <p className="editor-error">{error}</p>}

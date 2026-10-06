@@ -28,6 +28,10 @@ export type TaskRow = {
   repeat?: string;
   /** Fill pattern ('' = solid), see PATTERNS. */
   pattern?: string;
+  /** Finished. */
+  done?: boolean;
+  /** Time of day for short tasks, e.g. "10:30–11:00" ('' = all day). */
+  time?: string;
   /** Last day an occurrence may start on (0 = open-ended). */
   repeatUntil?: number;
   /** Comma-separated occurrence numbers that were deleted or detached. */
@@ -56,6 +60,8 @@ store.setTablesSchema({
     tags: { type: 'string', default: '' },
     repeat: { type: 'string', default: '' },
     pattern: { type: 'string', default: '' },
+    done: { type: 'boolean', default: false },
+    time: { type: 'string', default: '' },
     repeatUntil: { type: 'number', default: 0 },
     skip: { type: 'string', default: '' },
   },
@@ -581,7 +587,21 @@ export type ImportMode = 'add' | 'replace';
 export const applyImport = async (
   plan: {
     people: { key: string; name: string; email: string; existingId?: string }[];
-    tasks: { id: string; personKey: string; start: number; end: number; title: string; color: string; notes: string; project?: string; tags?: string }[];
+    tasks: {
+      id: string;
+      personKey: string;
+      start: number;
+      end: number;
+      title: string;
+      color: string;
+      notes: string;
+      project?: string;
+      client?: string;
+      tags?: string;
+      done?: boolean;
+      time?: string;
+      links?: string[];
+    }[];
   },
   mode: ImportMode = 'add',
   onProgress?: (done: number) => void,
@@ -599,14 +619,26 @@ export const applyImport = async (
   // They are never removed by 'replace', like milestones.
   const projectIds = new Map<string, string>();
   for (const id of store.getRowIds('projects')) projectIds.set((store.getCell('projects', id, 'name') as string).toLowerCase(), id);
-  const newProjects: { id: string; name: string; color: string }[] = [];
+  const newProjects: { id: string; name: string; color: string; client: string }[] = [];
+  /** Existing projects that get a client from the file. */
+  const clientFor = new Map<string, string>();
   for (const t of plan.tasks) {
     const name = t.project?.trim();
-    if (!name || projectIds.has(name.toLowerCase())) continue;
+    if (!name) continue;
+    const known = projectIds.get(name.toLowerCase());
+    if (known) {
+      if (t.client && !store.getCell('projects', known, 'client')) clientFor.set(known, t.client);
+      continue;
+    }
     const id = newId();
     projectIds.set(name.toLowerCase(), id);
-    newProjects.push({ id, name, color: t.color });
+    newProjects.push({ id, name, color: t.color, client: t.client ?? '' });
   }
+  // Attachment links become link attachments (ids derived from the task, so
+  // a re-import doesn't add them twice).
+  const links = plan.tasks.flatMap((t) =>
+    (t.links ?? []).map((url, i) => ({ id: `${t.id}-a${i}`, taskId: t.id, url, name: decodeURIComponent(url.split('/').pop() || url) })),
+  );
   let order = replace ? 0 : Math.max(-1, ...store.getRowIds('users').map((u) => getUser(u)!.order)) + 1;
   const touches: [TableId, string][] = [...removed];
   for (const p of plan.people) {
@@ -616,6 +648,8 @@ export const applyImport = async (
   }
   for (const t of plan.tasks) touches.push(['tasks', t.id]);
   for (const p of newProjects) touches.push(['projects', p.id]);
+  for (const id of clientFor.keys()) touches.push(['projects', id]);
+  for (const a of links) touches.push(['attachments', a.id]);
   // Big imports take seconds to write (TinyBase's mergeable store does real
   // work per cell), so they go in chunks with progress instead of freezing.
   const steps: (() => void)[] = [
@@ -623,7 +657,8 @@ export const applyImport = async (
       for (const [table, id] of part) store.delRow(table, id);
     }),
     () => {
-      for (const p of newProjects) store.setRow('projects', p.id, { name: p.name, color: p.color, client: '', archived: false });
+      for (const p of newProjects) store.setRow('projects', p.id, { name: p.name, color: p.color, client: p.client, archived: false });
+      for (const [id, client] of clientFor) store.setCell('projects', id, 'client', client);
       for (const p of plan.people) {
         const id = ids.get(p.key)!;
         if (p.existingId) {
@@ -646,8 +681,14 @@ export const applyImport = async (
           lane: -1,
           projectId: t.project ? (projectIds.get(t.project.trim().toLowerCase()) ?? '') : '',
           tags: joinTags(parseTags(t.tags)),
+          done: !!t.done,
+          time: t.time ?? '',
         });
       }
+    }),
+    ...chunks(links).map((part) => () => {
+      for (const a of part)
+        store.setRow('attachments', a.id, { taskId: a.taskId, kind: 'link', name: a.name, url: a.url, mime: '', size: 0, created: Date.now() });
     }),
   ];
   await commitInChunks(`${replace ? 'Replace with' : 'Import'} ${plan.tasks.length} tasks`, touches, steps, onProgress);

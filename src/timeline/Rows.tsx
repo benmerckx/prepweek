@@ -1,6 +1,6 @@
 import { memo, useLayoutEffect, useRef } from 'react';
 import { labelPinner } from './pin.ts';
-import { Comment, Notes, Paperclip, Repeat } from '../ui/icons.tsx';
+import { Check, Comment, Notes, Paperclip, Repeat } from '../ui/icons.tsx';
 import { CHUNK, visibleTasks, type Dims, type RowLayout, type TaskView } from './model.ts';
 import type { Scale } from './scale.ts';
 import { formatRange, workdays } from '../lib/dates.ts';
@@ -24,10 +24,11 @@ export const TaskBlock = memo(function TaskBlock({ task, scale, dims, selected, 
     labelPinner.register(el, left, width);
     return () => labelPinner.unregister(el);
   }, [left, width]);
-  const days = workdays(task.start, task.end);
+  // Workdays, or calendar days for a weekend-only task (never "0d").
+  const days = workdays(task.start, task.end) || task.end - task.start + 1;
   /** Tall blocks: title on top, details on a second line. */
   const tall = dims.blockH >= 36;
-  const cls = 'task' + (selected ? ' selected' : '') + (dragging ? ' dragging' : '') + (task.title ? '' : ' untitled') + (dimmed ? ' dimmed' : '');
+  const cls = 'task' + (task.done ? ' done' : '') + (selected ? ' selected' : '') + (dragging ? ' dragging' : '') + (task.title ? '' : ' untitled') + (dimmed ? ' dimmed' : '');
   return (
     <div
       ref={ref}
@@ -45,12 +46,20 @@ export const TaskBlock = memo(function TaskBlock({ task, scale, dims, selected, 
       {width >= 18 && <div className="handle start" data-handle="start" />}
       <div className="task-clip">
         <div className={'task-label' + (tall ? ' tall' : '')}>
-          <span className="task-title">{task.title || 'Untitled'}</span>
+          <span className="task-title">
+            {task.done && <Check size={12} />}
+            {task.title || 'Untitled'}
+          </span>
           {(tall ? width > 60 : width > 120) && (
             <span className="task-sub">
               <span className="task-meta">
-                {task.project && task.project !== task.title && width > (tall ? 110 : 190) ? `${task.project} · ` : ''}
-                {days}d
+                {[
+                  task.time,
+                  task.project && task.project !== task.title && width > (tall ? 110 : 190) ? task.project : '',
+                  task.time && days === 1 ? '' : `${days}d`,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
               </span>
               {width > 90 && (task.files > 0 || task.notes || task.repeat || task.comments > 0) && (
                 <span className="task-badges">

@@ -20,7 +20,7 @@ interface Loaded {
   rows: string[][];
 }
 
-const SHOWN_FIELDS: Field[] = ['title', 'assignee', 'email', 'start', 'end', 'project', 'status', 'notes', 'tags', 'color', 'estimate'];
+const SHOWN_FIELDS: Field[] = ['title', 'assignee', 'email', 'start', 'end', 'startTime', 'endTime', 'project', 'client', 'status', 'notes', 'tags', 'segment', 'attachments', 'color', 'estimate', 'taskId'];
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
 
@@ -39,7 +39,8 @@ export function ImportDialog({ initialFile, onClose: close, onImported }: Props)
   const [mapping, setMapping] = useState<Mapping>({});
   const [dateOrder, setDateOrder] = useState<DateOrder>('dmy');
   const [ambiguous, setAmbiguous] = useState(false);
-  const [includeDone, setIncludeDone] = useState(false);
+  // Done tasks are kept (shown as done): they're the history of the plan.
+  const [includeDone, setIncludeDone] = useState(true);
   const [unassigned, setUnassigned] = useState<'skip' | 'row'>('skip');
   const [mode, setMode] = useState<ImportMode>('add');
   const [dragOver, setDragOver] = useState(false);
@@ -224,7 +225,7 @@ export function ImportDialog({ initialFile, onClose: close, onImported }: Props)
               </label>
               <label>
                 <input type="checkbox" checked={includeDone} onChange={(e) => setIncludeDone(e.currentTarget.checked)} />
-                Include completed tasks
+                Include completed tasks (marked done)
               </label>
               <label>
                 <span>Tasks without assignee</span>
