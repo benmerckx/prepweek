@@ -6,7 +6,7 @@ import type { TimelineModel } from './model.ts';
 import { FilterMenu, ViewsMenu, type FilterState } from './Filters.tsx';
 import { NotificationsMenu } from './Discussion.tsx';
 import { PresenceAvatars } from './Presence.tsx';
-import { AccountButton, AccountMenuSection, SheetSwitcher } from './Account.tsx';
+import { AccountButton, SheetSwitcher, useAccount } from './Account.tsx';
 import { canInstall, install, onInstallChange } from '../lib/install.ts';
 import { getTheme, onThemeChange, toggleTheme } from '../lib/theme.ts';
 import type { Peer } from '../data/presence.ts';
@@ -145,6 +145,7 @@ export const Toolbar = memo(function Toolbar(props: Props) {
   const taskCount = store.getRowCount('tasks');
   const route = useRoute();
   const plan = route.section === 'plan';
+  const account = useAccount();
 
   return (
     <header className={'toolbar' + (plan ? '' : ' on-page')}>
@@ -180,7 +181,8 @@ export const Toolbar = memo(function Toolbar(props: Props) {
           View only
         </span>
       )}
-      <NotificationsMenu onOpenTask={props.onOpenTask} />
+      {/* Notifications are for accounts: signed out, Log in takes the spot. */}
+      {!(account && !account.user) && <NotificationsMenu onOpenTask={props.onOpenTask} />}
       {/* Connection state lives in the menu; only losing it is worth a chip. */}
       {sync === 'offline' && (
         <div className="sync sync-offline" title={SYNC_HELP.offline}>
@@ -283,7 +285,6 @@ export const Toolbar = memo(function Toolbar(props: Props) {
           <Toggle label="Hide weekends" on={props.hideWeekends} onToggle={props.onToggleWeekends} />
           <Toggle label="Compact rows" on={props.dense} onToggle={props.onToggleDense} />
           <Toggle label="Dark mode" on={theme === 'dark'} onToggle={toggleTheme} />
-          <AccountMenuSection onSignIn={props.onSignIn} />
           </>
           )}
         </div>

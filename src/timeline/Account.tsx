@@ -32,6 +32,7 @@ import {
   type Workspace,
 } from '../data/account.ts';
 import { getAccess, getSheetId, onAccess, reloadAccess } from '../data/access.ts';
+import { store } from '../data/store.ts';
 import { useBackToClose, useEscape } from '../lib/useBackToClose.ts';
 import { Select, type Option } from '../ui/Select.tsx';
 import { ActionMenu } from '../ui/Menu.tsx';
@@ -86,13 +87,24 @@ const closeMenu = (el: HTMLElement | null) => el?.closest('details')?.removeAttr
  */
 const saving = new Set<string>();
 
+/** Nothing on this sheet yet (no people, no work). */
+const isEmptySheet = () => !store.hasTable('users') && !store.hasTable('tasks');
+const useEmptySheet = () =>
+  useSyncExternalStore((cb) => {
+    const id = store.addTableIdsListener(cb);
+    return () => void store.delListener(id);
+  }, isEmptySheet);
+
 export function useAutoSave() {
   const me = useAccount();
   const access = useAccess();
+  // An empty plan isn't worth keeping: it would only clutter the workspace
+  // (and be where you land next time). It's saved once it has something.
+  const empty = useEmptySheet();
   useEffect(() => {
     const id = getSheetId();
     const ws = me?.workspaces[0];
-    if (!me?.user || !ws || !access || access.workspace !== null || access.role !== 'edit') return;
+    if (empty || !me?.user || !ws || !access || access.workspace !== null || access.role !== 'edit') return;
     if (!mySheets().includes(id) || saving.has(id)) return;
     saving.add(id);
     void addSheet(ws.id, `Plan ${ws.sheets.length + 1}`, id)
@@ -102,7 +114,7 @@ export function useAutoSave() {
       })
       .catch((e) => console.warn('Could not save this plan to your workspace', e))
       .finally(() => saving.delete(id));
-  }, [me, access]);
+  }, [me, access, empty]);
 }
 
 // --- Sheet switcher (left of the toolbar) -----------------------------------------
@@ -369,8 +381,8 @@ export function AccountButton({ onSignIn, onWorkspace }: { onSignIn(): void; onW
   if (!me) return null;
   if (!me.user)
     return (
-      <button className="btn tb-signup" onClick={onSignIn}>
-        Sign up
+      <button className="btn tb-signup" onClick={onSignIn} title="Log in or sign up">
+        Log in
       </button>
     );
   const u = me.user;
@@ -397,47 +409,18 @@ export function AccountButton({ onSignIn, onWorkspace }: { onSignIn(): void; onW
             }}
           >
             <PeopleIcon />
-            {ws.name}: people
+            <span className="menu-item-text">People in {ws.name}</span>
           </button>
         )}
+        <a className="menu-item" href="/">
+          PrepWeek home
+        </a>
         <div className="menu-sep" />
-        <button className="menu-item" onClick={() => void signOut().then(() => location.reload())}>
-          Sign out
+        <button className="menu-item" onClick={() => void signOut().then(() => location.assign('/'))}>
+          Log out
         </button>
       </div>
     </details>
-  );
-}
-
-/**
- * Phones: the account lives in the "…" menu (the toolbar has no room for
- * the avatar); CSS shows this only on compact screens.
- */
-export function AccountMenuSection({ onSignIn }: { onSignIn(): void }) {
-  const me = useAccount();
-  if (!me) return null;
-  return (
-    <div className="acct-in-menu">
-      <div className="menu-sep" />
-      {me.user ? (
-        <>
-          <div className="acct-head">
-            <Avatar name={me.user.name} src={me.user.avatar} size={30} />
-            <div>
-              <b>{me.user.name}</b>
-              <span>{me.user.email}</span>
-            </div>
-          </div>
-          <button className="menu-item" onClick={() => void signOut().then(() => location.reload())}>
-            Sign out
-          </button>
-        </>
-      ) : (
-        <button className="menu-item" onClick={onSignIn}>
-          Sign up or log in
-        </button>
-      )}
-    </div>
   );
 }
 
@@ -539,7 +522,13 @@ function SignInForm({ next, compact, email: initialEmail = '' }: { next: string;
 }
 
 /** `next`: where signing in leads (default: back to this page). */
-export function SignInDialog({ onClose, next = location.pathname + location.search }: { onClose(): void; next?: string }) {
+/**
+ * Where to land after logging in: back here, unless this is an empty plan
+ * started without an account; then your own sheets (/app) are the point.
+ */
+const afterSignIn = () => (getAccess()?.workspace == null && isEmptySheet() ? '/app' : location.pathname + location.search);
+
+export function SignInDialog({ onClose, next = afterSignIn() }: { onClose(): void; next?: string }) {
   useBackToClose(true, onClose);
   useEscape(onClose);
   return createPortal(

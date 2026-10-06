@@ -15,6 +15,18 @@ const setStatus = (s: SyncStatus) => {
   listeners.forEach((l) => l());
 };
 export const getSyncStatus = () => status;
+/**
+ * The sheet's content is all here: loaded from this device, and from the
+ * server too when it has one and answered (or failed to). Until then, an
+ * empty sheet may just be one that hasn't arrived yet.
+ */
+let settled = false;
+export const isSynced = () => settled;
+const settle = () => {
+  if (settled) return;
+  settled = true;
+  listeners.forEach((l) => l());
+};
 export const onSyncStatus = (fn: () => void) => {
   listeners.add(fn);
   return () => listeners.delete(fn);
@@ -84,12 +96,18 @@ export const startSync = async (sheetId: string, served = false) => {
 
   // Never block first paint on the network: the local replica is already
   // usable, the server merges in when it answers.
+  // A sheet this device already has is usable as is. Otherwise wait for the
+  // server, but not forever (offline, the connection never opens).
+  if (!server || !local.empty) settle();
+  else setTimeout(settle, 5000);
   if (server)
-    connect(server, sheetId).catch((e) => {
-      // e.g. refused because the sheet is private and our link isn't valid.
-      console.warn('Sync connection failed', e);
-      setStatus('offline');
-    });
+    connect(server, sheetId)
+      .catch((e) => {
+        // e.g. refused because the sheet is private and our link isn't valid.
+        console.warn('Sync connection failed', e);
+        setStatus('offline');
+      })
+      .finally(settle);
 };
 
 /**

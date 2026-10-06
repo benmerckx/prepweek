@@ -16,7 +16,8 @@ import { publish, startPresence, type Peer } from '../data/presence.ts';
 import { PresenceLayer } from './Presence.tsx';
 import { LockScreen, ShareDialog, useAccess } from './Share.tsx';
 import { CommandPalette, type Command } from './Palette.tsx';
-import { SignInDialog, WorkspaceDialog, useAutoSave } from './Account.tsx';
+import { isSynced, onSyncStatus } from '../data/sync.ts';
+import { SignInDialog, WorkspaceDialog, useAccount, useAutoSave } from './Account.tsx';
 import { Minimap } from './Minimap.tsx';
 import { Editor } from './Editor.tsx';
 import { Toolbar } from './Toolbar.tsx';
@@ -92,6 +93,8 @@ export function Timeline({ model }: { model: TimelineModel }) {
   // Accounts: sign in, workspace people, and saving a plan started here.
   const [signingIn, setSigningIn] = useState(false);
   const openSignIn = useCallback(() => setSigningIn(true), []);
+  const account = useAccount();
+  const synced = useSyncExternalStore(onSyncStatus, isSynced);
   useEffect(() => {
     window.addEventListener('prepweek:signin', openSignIn);
     return () => window.removeEventListener('prepweek:signin', openSignIn);
@@ -972,8 +975,13 @@ export function Timeline({ model }: { model: TimelineModel }) {
             <GridBackground d0={win.d0} d1={win.d1} scale={scale} height={bodyH} today={todayDay} />
             <MilestoneLines milestones={model.milestones} d0={win.d0} d1={win.d1} scale={scale} height={bodyH} drag={msDrag} />
             {rendered}
-            {rows.length === 0 && !focus && !readOnly && (
-              <EmptySheet left={(vp.scroller?.scrollLeft ?? 0) + (compact ? 14 : 20)} onAdd={() => createUser('New person')} onImport={openImport} />
+            {rows.length === 0 && !focus && !readOnly && synced && (
+              <EmptySheet
+                left={(vp.scroller?.scrollLeft ?? 0) + (compact ? 14 : 20)}
+                onAdd={() => createUser('New person')}
+                onImport={openImport}
+                onSignIn={account && !account.user ? openSignIn : undefined}
+              />
             )}
             <PresenceLayer model={model} scale={scale} version={model.version} />
             {editor}
@@ -1082,7 +1090,7 @@ function VisibleRange({ vp }: { vp: Viewport }) {
  * A sheet without people: a card next to the add-person button that points
  * at it, with the three steps to a first plan.
  */
-function EmptySheet({ left, onAdd, onImport }: { left: number; onAdd(): void; onImport(): void }) {
+function EmptySheet({ left, onAdd, onImport, onSignIn }: { left: number; onAdd(): void; onImport(): void; onSignIn?(): void }) {
   return (
     <div className="empty-card" style={{ transform: `translateX(${left}px)` }} data-no-drag onPointerDown={(e) => e.stopPropagation()}>
       <h2>Plan your first week</h2>
@@ -1105,6 +1113,15 @@ function EmptySheet({ left, onAdd, onImport }: { left: number; onAdd(): void; on
           Import from Teamweek
         </button>
       </div>
+      {onSignIn && (
+        <p className="empty-card-login">
+          Already planning with PrepWeek?{' '}
+          <button className="link-btn" onClick={onSignIn}>
+            Log in
+          </button>{' '}
+          to get to your sheets.
+        </p>
+      )}
     </div>
   );
 }

@@ -612,7 +612,7 @@ html:has(.lp) {
   cursor: default;
 }
 .lp .task.lp-task:hover {
-  background: var(--fill);
+  background-color: var(--fill);
 }
 .lp .task.done.lp-task:hover {
   background: color-mix(in oklab, var(--c) 10%, var(--bg));
@@ -2126,80 +2126,53 @@ html:has(.lp) {
   animation-delay: 2.44s;
 }
 
-/* --- Final CTA --- */
+/* --- Final CTA: a tinted card, like the feature cards, with a week of work on top --- */
 .lp-final {
   padding-bottom: 120px;
 }
 .lp-final-inner {
-  position: relative;
-  padding: 88px 24px;
-  overflow: hidden;
+  padding: 56px 24px 64px;
+  border: 1px solid var(--lp-line);
   border-radius: 28px;
-  /* The deep accent in both themes, so white text reads on it. */
-  background: #4f5bd5;
-  color: #fff;
+  background: color-mix(in oklab, var(--accent) 7%, var(--bg));
   text-align: center;
 }
-/* Flat blocks peeking in from the corners. */
-.lp-final-inner::before,
-.lp-final-inner::after {
-  content: '';
-  position: absolute;
-  width: 220px;
-  height: 44px;
-  border-radius: 8px;
-  pointer-events: none;
+.lp-final-week {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  max-width: 560px;
+  margin: 0 auto 36px;
 }
-.lp-final-inner::before {
-  top: 38px;
-  left: -60px;
-  background: #f5b301;
+.lp-final-week > div {
+  grid-row: var(--row, 1);
+  grid-column: var(--col) / span var(--span, 1);
 }
-.lp-final-inner::after {
-  right: -50px;
-  bottom: 42px;
-  background: #f72585;
-}
-@media (max-width: 640px) {
-  .lp-final-inner {
-    padding-top: 96px;
-  }
-  .lp-final-inner::before {
-    top: 26px;
-    width: 140px;
-    height: 32px;
-  }
-  .lp-final-inner::after {
-    bottom: 22px;
-    width: 140px;
-    height: 32px;
-  }
-}
-.lp-final .lp-btn.primary {
-  background: #fff;
-  color: #3f4bc4;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.2);
-}
-.lp-final .lp-btn.primary:hover {
-  background: #fff;
-}
-.lp-final .lp-btn.ghost {
-  border-color: rgb(255 255 255 / 0.35);
-  background: transparent;
-  color: #fff;
-}
-.lp-final .lp-btn.ghost:hover {
-  border-color: #fff;
-  background: rgb(255 255 255 / 0.1);
-}
-.lp-final-inner > * {
-  position: relative;
+.lp-final-days {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  max-width: 560px;
+  margin: 0 auto 8px;
+  color: var(--text-faint);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 .lp-final p {
-  color: rgb(255 255 255 / 0.82);
   max-width: 520px;
   margin-right: auto;
   margin-left: auto;
+}
+@media (max-width: 640px) {
+  .lp-final-inner {
+    padding: 40px 16px 44px;
+  }
+  .lp-final-week {
+    gap: 6px;
+    margin-bottom: 28px;
+  }
 }
 
 /* --- Footer --- */

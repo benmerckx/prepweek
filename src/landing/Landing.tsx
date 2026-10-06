@@ -957,6 +957,15 @@ function Import() {
   );
 }
 
+/** Next week, planned: the closing card's little timeline. */
+const FINAL_WEEK: { title: string; meta: string; color: string; pattern?: string; col: number; span: number; row: number }[] = [
+  { title: 'Kickoff', meta: 'Mon', color: C.blue, col: 1, span: 1, row: 1 },
+  { title: 'Website relaunch', meta: '4d', color: C.pink, pattern: 'stripes', col: 2, span: 4, row: 1 },
+  { title: 'Workshop', meta: '2d', color: C.amber, pattern: 'dots', col: 1, span: 2, row: 2 },
+  { title: 'Review', meta: 'Thu', color: C.green, col: 4, span: 1, row: 2 },
+  { title: 'Launch', meta: 'Fri', color: C.violet, pattern: 'zigzag', col: 5, span: 1, row: 2 },
+];
+
 // --- Page ----------------------------------------------------------------------------------------------
 
 export function Landing() {
@@ -1018,7 +1027,18 @@ export function Landing() {
       <section className="lp-section lp-final">
         <div className="lp-wrap">
         <Reveal className="lp-final-inner">
-
+          <div className="lp-final-days" aria-hidden>
+            {['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].map((d) => (
+              <span key={d}>{d}</span>
+            ))}
+          </div>
+          <div className="lp-final-week" aria-hidden>
+            {FINAL_WEEK.map((b) => (
+              <div key={b.title} style={{ ['--col' as string]: b.col, ['--span' as string]: b.span, ['--row' as string]: b.row }}>
+                <Block title={b.title} meta={b.meta} color={b.color} pattern={b.pattern} />
+              </div>
+            ))}
+          </div>
           <h2>Plan next week in the next five minutes.</h2>
           <Ctas v={v} />
         </Reveal>

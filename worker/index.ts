@@ -66,8 +66,22 @@ export class SheetDurableObject extends WsServerDurableObject {
   override getFragmentSize() {
     return 768 * 1024;
   }
+
+  // Right after starting, the object asks the connected browsers for their
+  // content. Usually none is connected yet (the access check wakes it before
+  // the socket opens), so that request only ends at its timeout, and every
+  // change a browser sends meanwhile waits behind it: a sheet opened on
+  // another device looked empty for the first 30 seconds. TinyBase reads
+  // this value once but computes each timer from it afresh (`seconds * 1000`),
+  // so it answers 1 second for that first request and 30 for every big
+  // payload after it.
+  #startedRequests = false;
   override getRequestTimeoutSeconds() {
-    return 30;
+    return { valueOf: () => (this.#startedRequests ? 30 : 1) } as unknown as number;
+  }
+  override onMessage(fromClientId: string) {
+    // The object's own first request is on its way, its timer already set.
+    if (fromClientId === 'S') this.#startedRequests = true;
   }
 
   // --- Link sharing ---
