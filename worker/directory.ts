@@ -60,20 +60,35 @@ const nameFromEmail = (email: string) => {
     .join(' ');
 };
 
+const TABLES: Record<string, string[]> = {
+  users: ['id TEXT PRIMARY KEY', 'email TEXT UNIQUE NOT NULL', 'name TEXT NOT NULL', "avatar TEXT NOT NULL DEFAULT ''", 'created INTEGER NOT NULL'],
+  sessions: ['hash TEXT PRIMARY KEY', 'user_id TEXT NOT NULL', 'expires INTEGER NOT NULL'],
+  logins: ['hash TEXT PRIMARY KEY', 'email TEXT NOT NULL', 'next TEXT NOT NULL', 'expires INTEGER NOT NULL'],
+  workspaces: ['id TEXT PRIMARY KEY', 'name TEXT NOT NULL', 'created INTEGER NOT NULL'],
+  members: ['workspace_id TEXT NOT NULL', 'user_id TEXT NOT NULL', 'role TEXT NOT NULL', 'joined INTEGER NOT NULL', 'PRIMARY KEY (workspace_id, user_id)'],
+  invites: ['token TEXT PRIMARY KEY', 'workspace_id TEXT NOT NULL', 'email TEXT NOT NULL', 'role TEXT NOT NULL', 'invited_by TEXT NOT NULL', 'created INTEGER NOT NULL', 'expires INTEGER NOT NULL'],
+  sheets: ['id TEXT PRIMARY KEY', 'workspace_id TEXT NOT NULL', 'name TEXT NOT NULL', 'created INTEGER NOT NULL', 'created_by TEXT NOT NULL', 'deleted INTEGER NOT NULL DEFAULT 0'],
+};
+
 export class DirectoryDurableObject extends DurableObject<Env> {
   private sql: SqlStorage;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     this.sql = ctx.storage.sql;
+    for (const [table, columns] of Object.entries(TABLES)) {
+      this.sql.exec(`CREATE TABLE IF NOT EXISTS ${table} (${columns.join(', ')})`);
+      // CREATE TABLE IF NOT EXISTS leaves a table made by an earlier version as it is,
+      // so add the columns it lacks. Added NOT NULL columns need a default.
+      const have = new Set(this.sql.exec(`PRAGMA table_info(${table})`).toArray().map((c) => c.name));
+      for (const def of columns) {
+        const [name, type] = def.split(' ');
+        if (name === 'PRIMARY' || have.has(name!)) continue;
+        const fill = /NOT NULL/.test(def) && !/DEFAULT/.test(def) ? ` DEFAULT ${type === 'INTEGER' ? 0 : "''"}` : '';
+        this.sql.exec(`ALTER TABLE ${table} ADD COLUMN ${def.replace(/ UNIQUE| PRIMARY KEY/g, '')}${fill}`);
+      }
+    }
     this.sql.exec(`
-      CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, email TEXT UNIQUE NOT NULL, name TEXT NOT NULL, avatar TEXT NOT NULL DEFAULT '', created INTEGER NOT NULL);
-      CREATE TABLE IF NOT EXISTS sessions (hash TEXT PRIMARY KEY, user_id TEXT NOT NULL, expires INTEGER NOT NULL);
-      CREATE TABLE IF NOT EXISTS logins (hash TEXT PRIMARY KEY, email TEXT NOT NULL, next TEXT NOT NULL, expires INTEGER NOT NULL);
-      CREATE TABLE IF NOT EXISTS workspaces (id TEXT PRIMARY KEY, name TEXT NOT NULL, created INTEGER NOT NULL);
-      CREATE TABLE IF NOT EXISTS members (workspace_id TEXT NOT NULL, user_id TEXT NOT NULL, role TEXT NOT NULL, joined INTEGER NOT NULL, PRIMARY KEY (workspace_id, user_id));
-      CREATE TABLE IF NOT EXISTS invites (token TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, email TEXT NOT NULL, role TEXT NOT NULL, invited_by TEXT NOT NULL, created INTEGER NOT NULL, expires INTEGER NOT NULL);
-      CREATE TABLE IF NOT EXISTS sheets (id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, name TEXT NOT NULL, created INTEGER NOT NULL, created_by TEXT NOT NULL, deleted INTEGER NOT NULL DEFAULT 0);
       CREATE INDEX IF NOT EXISTS members_by_user ON members (user_id);
       CREATE INDEX IF NOT EXISTS sheets_by_workspace ON sheets (workspace_id);
     `);
