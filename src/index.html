@@ -9,7 +9,7 @@
     <meta property="og:description" content="A fast, visual planner for teams. Live, offline-first, and it imports your Teamweek history." />
     <meta property="og:type" content="website" />
     <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#1a1a17" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#111113" media="(prefers-color-scheme: dark)" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="PrepWeek" />
@@ -21,7 +21,7 @@
       } catch (e) {}
       document.documentElement.dataset.theme = t;
       document.querySelectorAll('meta[name=theme-color]').forEach(function (m) {
-        m.content = t === 'dark' ? '#1a1a17' : '#ffffff';
+        m.content = t === 'dark' ? '#111113' : '#ffffff';
       });
       // The home page (see main.tsx) skips the "opening your sheet" screen.
       if (location.pathname === '/' || location.pathname === '/welcome') document.documentElement.dataset.landing = '';
@@ -93,7 +93,7 @@
       @media (prefers-color-scheme: dark) {
         html:not([data-theme='light']),
         html:not([data-theme='light']) body {
-          background: #1a1a17;
+          background: #111113;
         }
         html:not([data-theme='light']) .boot {
           color: #959cab;
@@ -107,7 +107,7 @@
       }
       html[data-theme='dark'],
       html[data-theme='dark'] body {
-        background: #1a1a17;
+        background: #111113;
       }
       html[data-theme='dark'] .boot {
         color: #959cab;

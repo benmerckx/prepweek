@@ -14,33 +14,35 @@
 
   /* Surfaces */
   --bg: #ffffff;
-  --panel: #f7f8fa;
-  --panel-2: #eff1f4;
+  --panel: #f9f9fb;
+  --panel-2: #f0f0f3;
   --raised: #ffffff;
-  --border: #e5e7eb;
-  --border-strong: #d4d8df;
-  --hover: rgba(15, 23, 42, 0.045);
+  --border: #e4e4e9;
+  --border-strong: #cdced6;
+  --hover: rgba(0, 0, 51, 0.045);
 
   /* Text */
-  --text: #151821;
-  --text-dim: #646b7a;
-  --text-faint: #9aa1ae;
+  --text: #1c2024;
+  --text-dim: #60646c;
+  --text-faint: #8b8d98;
 
   /* Brand & signals */
-  --accent: #4f5bd5;
-  --accent-hover: #4350c4;
-  --accent-soft: rgba(79, 91, 213, 0.1);
+  --accent: #3e63dd;
+  --accent-hover: #3358d4;
+  --accent-soft: rgba(62, 99, 221, 0.1);
   --accent-text: #ffffff;
+  /* Accent as a fill (buttons, badges); --accent is its text color. */
+  --accent-solid: #3e63dd;
   --today: #ef4444;
   --danger: #dc2626;
   --ok: #16a34a;
   --warn: #d97706;
 
   /* Timeline grid */
-  --grid-day: rgba(15, 23, 42, 0.045);
-  --grid-week: rgba(15, 23, 42, 0.1);
-  --weekend: rgba(15, 23, 42, 0.055);
-  --row-line: #eef0f3;
+  --grid-day: rgba(0, 0, 51, 0.045);
+  --grid-week: rgba(0, 0, 51, 0.1);
+  --weekend: rgba(0, 0, 51, 0.05);
+  --row-line: #f0f0f3;
 
   /* Blocks: tint of the task color on the canvas, ink in the same hue. */
   --block-tint: 17%;
@@ -51,23 +53,23 @@
 
   --radius: 8px;
   --radius-sm: 6px;
-  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
-  --shadow: 0 12px 32px -8px rgba(15, 23, 42, 0.22), 0 2px 6px rgba(15, 23, 42, 0.08);
-  --shadow-lift: 0 10px 24px -6px rgba(15, 23, 42, 0.3), 0 2px 6px rgba(15, 23, 42, 0.12);
-  --ring: 0 0 0 3px rgba(79, 91, 213, 0.22);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 51, 0.06);
+  --shadow: 0 12px 32px -8px rgba(0, 0, 51, 0.2), 0 2px 6px rgba(0, 0, 51, 0.07);
+  --shadow-lift: 0 10px 24px -6px rgba(0, 0, 51, 0.28), 0 2px 6px rgba(0, 0, 51, 0.1);
+  --ring: 0 0 0 3px rgba(62, 99, 221, 0.25);
 
   /* Minimap (read by canvas code) */
-  --mm-bg: #f7f8fa;
-  --mm-band: rgba(15, 23, 42, 0.028);
-  --mm-line: rgba(15, 23, 42, 0.18);
-  --mm-text: #8a91a0;
-  --mm-text-strong: #151821;
-  --mm-slider: rgba(79, 91, 213, 0.14);
-  --mm-slider-border: rgba(79, 91, 213, 0.75);
+  --mm-bg: #f9f9fb;
+  --mm-band: rgba(0, 0, 51, 0.03);
+  --mm-line: rgba(0, 0, 51, 0.16);
+  --mm-text: #80838d;
+  --mm-text-strong: #1c2024;
+  --mm-slider: rgba(62, 99, 221, 0.13);
+  --mm-slider-border: rgba(62, 99, 221, 0.75);
   --mm-today: #ef4444;
-  --mm-hover: rgba(21, 24, 33, 0.45);
-  --mm-dim: rgba(247, 248, 250, 0.38);
-  --mm-ink: #4f5bd5;
+  --mm-hover: rgba(28, 32, 36, 0.45);
+  --mm-dim: rgba(249, 249, 251, 0.38);
+  --mm-ink: #3e63dd;
 
   color-scheme: light dark;
 }
@@ -75,29 +77,30 @@
 /* Dark: follows the system unless the theme toggle picked one. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --bg: #1a1a17;
-    --panel: #1f1f1b;
-    --panel-2: #282823;
-    --raised: #23231f;
-    --border: #31312b;
-    --border-strong: #424239;
-    --hover: rgba(255, 255, 255, 0.045);
+    --bg: #111113;
+    --panel: #18191b;
+    --panel-2: #212225;
+    --raised: #1c1d20;
+    --border: #2b2d31;
+    --border-strong: #3b3f45;
+    --hover: rgba(221, 234, 248, 0.06);
 
-    --text: #f4f3ec;
-    --text-dim: #a6a496;
-    --text-faint: #74726a;
+    --text: #edeef0;
+    --text-dim: #b0b4ba;
+    --text-faint: #777b84;
 
-    --accent: #7c88ff;
-    --accent-hover: #8f99ff;
-    --accent-soft: rgba(124, 136, 255, 0.14);
-    --accent-text: #0d0f14;
+    --accent: #9eb1ff;
+    --accent-hover: #5472e4;
+    --accent-soft: rgba(84, 114, 228, 0.18);
+    --accent-text: #ffffff;
+    --accent-solid: #3e63dd;
     --today: #f87171;
     --danger: #f87171;
 
-    --grid-day: rgba(255, 255, 255, 0.035);
-    --grid-week: rgba(255, 255, 255, 0.085);
-    --weekend: rgba(255, 255, 255, 0.045);
-    --row-line: #262621;
+    --grid-day: rgba(221, 234, 248, 0.04);
+    --grid-week: rgba(221, 234, 248, 0.09);
+    --weekend: rgba(221, 234, 248, 0.045);
+    --row-line: #1f2023;
 
     --block-tint: 26%;
     --block-tint-hover: 33%;
@@ -108,46 +111,47 @@
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
     --shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.6), 0 2px 8px rgba(0, 0, 0, 0.4);
     --shadow-lift: 0 12px 28px -6px rgba(0, 0, 0, 0.7), 0 2px 6px rgba(0, 0, 0, 0.5);
-    --ring: 0 0 0 3px rgba(124, 136, 255, 0.3);
+    --ring: 0 0 0 3px rgba(84, 114, 228, 0.35);
 
-    --mm-bg: #1f1f1b;
-    --mm-band: rgba(255, 255, 255, 0.022);
-    --mm-line: rgba(255, 255, 255, 0.18);
-    --mm-text: #8a887d;
-    --mm-text-strong: #f4f3ec;
-    --mm-slider: rgba(124, 136, 255, 0.16);
-    --mm-slider-border: rgba(143, 153, 255, 0.8);
+    --mm-bg: #18191b;
+    --mm-band: rgba(221, 234, 248, 0.025);
+    --mm-line: rgba(221, 234, 248, 0.16);
+    --mm-text: #80838d;
+    --mm-text-strong: #edeef0;
+    --mm-slider: rgba(84, 114, 228, 0.18);
+    --mm-slider-border: rgba(158, 177, 255, 0.8);
     --mm-today: #f87171;
-    --mm-hover: rgba(244, 243, 236, 0.45);
-    --mm-dim: rgba(26, 26, 23, 0.42);
-    --mm-ink: #8f99ff;
+    --mm-hover: rgba(237, 238, 240, 0.45);
+    --mm-dim: rgba(17, 17, 19, 0.42);
+    --mm-ink: #9eb1ff;
     color-scheme: dark;
   }
 }
 :root[data-theme='dark'] {
-  --bg: #1a1a17;
-  --panel: #1f1f1b;
-  --panel-2: #282823;
-  --raised: #23231f;
-  --border: #31312b;
-  --border-strong: #424239;
-  --hover: rgba(255, 255, 255, 0.045);
+  --bg: #111113;
+  --panel: #18191b;
+  --panel-2: #212225;
+  --raised: #1c1d20;
+  --border: #2b2d31;
+  --border-strong: #3b3f45;
+  --hover: rgba(221, 234, 248, 0.06);
 
-  --text: #f4f3ec;
-  --text-dim: #a6a496;
-  --text-faint: #74726a;
+  --text: #edeef0;
+  --text-dim: #b0b4ba;
+  --text-faint: #777b84;
 
-  --accent: #7c88ff;
-  --accent-hover: #8f99ff;
-  --accent-soft: rgba(124, 136, 255, 0.14);
-  --accent-text: #0d0f14;
+  --accent: #9eb1ff;
+  --accent-hover: #5472e4;
+  --accent-soft: rgba(84, 114, 228, 0.18);
+  --accent-text: #ffffff;
+  --accent-solid: #3e63dd;
   --today: #f87171;
   --danger: #f87171;
 
-  --grid-day: rgba(255, 255, 255, 0.035);
-  --grid-week: rgba(255, 255, 255, 0.085);
-  --weekend: rgba(255, 255, 255, 0.045);
-  --row-line: #262621;
+  --grid-day: rgba(221, 234, 248, 0.04);
+  --grid-week: rgba(221, 234, 248, 0.09);
+  --weekend: rgba(221, 234, 248, 0.045);
+  --row-line: #1f2023;
 
   --block-tint: 26%;
   --block-tint-hover: 33%;
@@ -158,19 +162,19 @@
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.6), 0 2px 8px rgba(0, 0, 0, 0.4);
   --shadow-lift: 0 12px 28px -6px rgba(0, 0, 0, 0.7), 0 2px 6px rgba(0, 0, 0, 0.5);
-  --ring: 0 0 0 3px rgba(124, 136, 255, 0.3);
+  --ring: 0 0 0 3px rgba(84, 114, 228, 0.35);
 
-  --mm-bg: #1f1f1b;
-  --mm-band: rgba(255, 255, 255, 0.022);
-  --mm-line: rgba(255, 255, 255, 0.18);
-  --mm-text: #8a887d;
-  --mm-text-strong: #f4f3ec;
-  --mm-slider: rgba(124, 136, 255, 0.16);
-  --mm-slider-border: rgba(143, 153, 255, 0.8);
+  --mm-bg: #18191b;
+  --mm-band: rgba(221, 234, 248, 0.025);
+  --mm-line: rgba(221, 234, 248, 0.16);
+  --mm-text: #80838d;
+  --mm-text-strong: #edeef0;
+  --mm-slider: rgba(84, 114, 228, 0.18);
+  --mm-slider-border: rgba(158, 177, 255, 0.8);
   --mm-today: #f87171;
-  --mm-hover: rgba(244, 243, 236, 0.45);
-  --mm-dim: rgba(26, 26, 23, 0.42);
-  --mm-ink: #8f99ff;
+  --mm-hover: rgba(237, 238, 240, 0.45);
+  --mm-dim: rgba(17, 17, 19, 0.42);
+  --mm-ink: #9eb1ff;
   color-scheme: dark;
 }
 :root[data-theme='light'] {
@@ -304,7 +308,7 @@ svg {
   color: var(--text);
 }
 .btn.primary {
-  background: var(--accent);
+  background: var(--accent-solid);
   border-color: transparent;
   color: var(--accent-text);
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.12);
@@ -594,7 +598,7 @@ svg {
   transition: transform 0.15s;
 }
 .switch.on {
-  background: var(--accent);
+  background: var(--accent-solid);
 }
 .switch.on::after {
   transform: translateX(12px);
@@ -1074,7 +1078,7 @@ svg {
   background: color-mix(in srgb, var(--accent) 55%, transparent);
 }
 .load-over {
-  background: var(--accent);
+  background: var(--accent-solid);
 }
 .person-input {
   width: 100%;
@@ -2769,7 +2773,7 @@ button.tag-chip {
 }
 .fl-tags .tag-chip.on {
   border-color: var(--accent);
-  background: var(--accent);
+  background: var(--accent-solid);
   color: var(--accent-text);
 }
 .fl-empty {
@@ -2937,7 +2941,7 @@ button.tag-chip {
   z-index: 4;
   height: 3px;
   border-radius: 2px;
-  background: var(--accent);
+  background: var(--accent-solid);
   box-shadow: 0 0 0 2px var(--bg);
   pointer-events: none;
 }
@@ -2949,7 +2953,7 @@ button.tag-chip {
   width: 9px;
   height: 9px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--accent-solid);
 }
 .team-head {
   position: absolute;
@@ -3327,7 +3331,7 @@ button.tag-chip {
   padding: 0;
   border: none;
   border-radius: 7px;
-  background: var(--accent);
+  background: var(--accent-solid);
   color: var(--accent-text);
   cursor: pointer;
 }
@@ -3407,7 +3411,7 @@ button.tag-chip {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--accent-solid);
 }
 .note-text {
   display: flex;
@@ -4199,7 +4203,7 @@ a.brand,
   place-items: center;
   flex: none;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--accent-solid);
   color: var(--accent-text);
   font-weight: 700;
   object-fit: cover;
@@ -4613,7 +4617,7 @@ a.menu-item {
   position: absolute;
   inset: 0 auto 0 0;
   border-radius: inherit;
-  background: var(--accent);
+  background: var(--accent-solid);
   transition: width 160ms ease-out;
 }
 @media (prefers-reduced-motion: reduce) {
@@ -5892,7 +5896,7 @@ a.menu-item {
   color: var(--text-faint);
 }
 .ui-date-seg[data-focused] {
-  background: var(--accent);
+  background: var(--accent-solid);
   color: #fff;
 }
 .ui-date-placeholder {
@@ -5993,7 +5997,7 @@ a.menu-item {
   background: var(--hover);
 }
 .ui-cal-cell[data-selected] {
-  background: var(--accent);
+  background: var(--accent-solid);
   color: #fff;
   font-weight: 600;
 }
@@ -6082,7 +6086,7 @@ a.menu-item {
   font-weight: 550;
 }
 .tree-sheet.on .tree-link::before {
-  background: var(--accent);
+  background: var(--accent-solid);
 }
 .ui-more,
 .tree-add {
