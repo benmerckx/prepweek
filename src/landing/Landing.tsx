@@ -337,7 +337,7 @@ const FLOATERS: { title: string; meta: string; color: string; pattern?: string; 
   { title: 'Kickoff', meta: 'Mon', color: C.blue, w: 132, pos: { top: 120, left: '6%' } },
   { title: 'Holiday', meta: '5d', color: C.pink, pattern: 'stripes', w: 170, pos: { top: 250, left: '3%' } },
   { title: 'Review', meta: '1d', color: C.amber, w: 104, pos: { top: 390, left: '9%' } },
-  { title: 'Launch', meta: 'Fri', color: C.green, w: 120, pos: { top: 104, right: '7%' } },
+  { title: 'Launch', meta: 'Fri', color: C.green, pattern: 'zigzag', w: 120, pos: { top: 104, right: '7%' } },
   { title: 'Workshop', meta: '2d', color: C.violet, pattern: 'dots', w: 156, pos: { top: 236, right: '3%' } },
   { title: 'Stand-up', meta: '9:30', color: C.cyan, w: 118, pos: { top: 378, right: '10%' } },
 ];

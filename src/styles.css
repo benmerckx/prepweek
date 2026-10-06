@@ -4441,31 +4441,43 @@ a.brand,
 
 
 /* =============================================================================
-   Block patterns: an optional fill, drawn in the block's own color with
-   plain CSS gradients (no masks, so every browser shows them).
+   Block patterns: an optional fill of small, crisp SVG tiles used as a mask,
+   inset from the block's edge so a frame of solid color stays around it.
+   White over a filled block, the block's own color over a pale one.
    ========================================================================== */
 
 .task[data-pattern]::before,
 .pattern-swatch[data-pattern]::before {
   content: '';
   position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: var(--pat);
+  inset: 3px;
+  border-radius: 3px;
+  background: var(--pc);
   opacity: var(--pattern-opacity);
+  -webkit-mask: var(--pat);
+  mask: var(--pat);
   pointer-events: none;
+}
+.dense .task[data-pattern]::before,
+.pattern-swatch.chip[data-pattern]::before {
+  inset: 2px;
+  border-radius: 2px;
+}
+.task.done[data-pattern]::before,
+.task.untitled[data-pattern]::before {
+  opacity: calc(var(--pattern-opacity) * 0.7);
 }
 .task[data-pattern] .task-label {
   /* Keep text crisp over the pattern. */
   text-shadow:
     0 0 3px var(--fill),
+    0 0 2px var(--fill),
     0 0 1px var(--fill);
 }
 .task.done[data-pattern] .task-label,
 .task.untitled[data-pattern] .task-label {
   text-shadow: none;
 }
-/* Patterns are white over a filled block, in its color over a pale one. */
 [data-pattern] {
   --pc: #fff;
 }
@@ -4474,38 +4486,44 @@ a.brand,
   --pc: var(--c);
 }
 [data-pattern='dots'] {
-  --pat: radial-gradient(circle, var(--pc) 1.4px, transparent 1.9px) 0 0 / 8px 8px;
+  --pat: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='9'%3E%3Ccircle cx='2.25' cy='2.25' r='1.6'/%3E%3Ccircle cx='6.75' cy='6.75' r='1.6'/%3E%3C/svg%3E");
 }
 [data-pattern='stripes'] {
-  --pat: repeating-linear-gradient(-45deg, var(--pc) 0 2px, transparent 2px 7px);
+  --pat: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10'%3E%3Cpath fill='none' stroke='black' stroke-width='3' d='M-2.5 2.5 L2.5 -2.5 M0 10 L10 0 M7.5 12.5 L12.5 7.5'/%3E%3C/svg%3E");
 }
 [data-pattern='zigzag'] {
-  --pat:
-    linear-gradient(135deg, var(--pc) 25%, transparent 25%) -5px 0 / 10px 10px,
-    linear-gradient(225deg, var(--pc) 25%, transparent 25%) -5px 0 / 10px 10px,
-    linear-gradient(315deg, var(--pc) 25%, transparent 25%) 0 0 / 10px 10px,
-    linear-gradient(45deg, var(--pc) 25%, transparent 25%) 0 0 / 10px 10px;
+  --pat: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath fill='none' stroke='black' stroke-width='1.5' stroke-linejoin='miter' d='M-0.6 6.4 L6 1.6 L12.6 6.4'/%3E%3C/svg%3E");
 }
 [data-pattern='waves'] {
-  --pat: radial-gradient(circle at 50% 0, transparent 4.6px, var(--pc) 5px 6.4px, transparent 6.8px) 0 0 / 12px 8px;
+  --pat: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='8'%3E%3Cpath fill='none' stroke='black' stroke-width='1.5' d='M0 5 C2.3 1.6 4.7 1.6 7 5 S11.7 8.4 14 5'/%3E%3C/svg%3E");
 }
 [data-pattern='grid'] {
-  --pat:
-    linear-gradient(var(--pc) 1.2px, transparent 1.2px) 0 0 / 9px 9px,
-    linear-gradient(90deg, var(--pc) 1.2px, transparent 1.2px) 0 0 / 9px 9px;
+  --pat: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'%3E%3Cpath fill='none' stroke='black' stroke-width='1' d='M0 0.5 H8 M0.5 0 V8'/%3E%3C/svg%3E");
 }
 [data-pattern='checks'] {
-  --pat: conic-gradient(var(--pc) 25%, transparent 0 50%, var(--pc) 0 75%, transparent 0) 0 0 / 10px 10px;
+  --pat: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'%3E%3Cpath d='M0 0 H4 V4 H0Z M4 4 H8 V8 H4Z'/%3E%3C/svg%3E");
+}
+[data-pattern='hatch'] {
+  --pat: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'%3E%3Cpath fill='none' stroke='black' stroke-width='1.1' d='M-1 1 L1 -1 M0 8 L8 0 M7 9 L9 7 M-1 7 L1 9 M0 0 L8 8 M7 -1 L9 1'/%3E%3C/svg%3E");
+}
+[data-pattern='bricks'] {
+  --pat: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' d='M1.5 2 H8.5 M7.5 6 H14.5 M-4.5 6 H2.5'/%3E%3C/svg%3E");
+}
+[data-pattern='triangles'] {
+  --pat: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='10'%3E%3Cpath d='M3 1 L5.8 5.2 H0.2Z M9 6 L11.8 10.2 H6.2Z'/%3E%3C/svg%3E");
+}
+[data-pattern='rings'] {
+  --pat: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11'%3E%3Cg fill='none' stroke='black' stroke-width='1.2'%3E%3Ccircle cx='2.75' cy='2.75' r='1.8'/%3E%3Ccircle cx='8.25' cy='8.25' r='1.8'/%3E%3C/g%3E%3C/svg%3E");
 }
 :root {
-  --pattern-opacity: 0.32;
+  --pattern-opacity: 0.42;
 }
 :root[data-theme='dark'] {
-  --pattern-opacity: 0.4;
+  --pattern-opacity: 0.5;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --pattern-opacity: 0.4;
+    --pattern-opacity: 0.5;
   }
 }
 

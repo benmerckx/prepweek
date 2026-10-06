@@ -1190,9 +1190,11 @@ html:has(.lp) {
 .lp-chip i::before {
   content: '';
   position: absolute;
-  inset: 0;
-  background: var(--pat);
+  inset: 1px;
+  background: #fff;
   opacity: var(--pattern-opacity);
+  -webkit-mask: var(--pat);
+  mask: var(--pat);
 }
 .lp-chip.ghost {
   border-style: dashed;
