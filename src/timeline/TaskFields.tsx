@@ -90,16 +90,16 @@ export function TimeField({ task }: { task: TaskView }) {
 }
 
 const COLOR_NAMES: Record<string, string> = {
-  '#4f7cff': 'Blue',
-  '#22a06b': 'Green',
-  '#e5484d': 'Red',
-  '#f59e0b': 'Amber',
-  '#8b5cf6': 'Violet',
-  '#06b6d4': 'Cyan',
-  '#ec4899': 'Pink',
-  '#64748b': 'Slate',
-  '#84cc16': 'Lime',
-  '#f97316': 'Orange',
+  '#3b7bff': 'Blue',
+  '#20b55c': 'Green',
+  '#f04438': 'Red',
+  '#f5b301': 'Amber',
+  '#9b5cff': 'Violet',
+  '#0fc2d8': 'Cyan',
+  '#f72585': 'Pink',
+  '#6b7c93': 'Slate',
+  '#8ccf12': 'Lime',
+  '#ff7b1c': 'Orange',
 };
 const titleCase = (s: string) => s[0]!.toUpperCase() + s.slice(1);
 

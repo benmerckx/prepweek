@@ -31,6 +31,6 @@ export const toggleTheme = () => {
     if (next === 'dark') localStorage.removeItem(KEY);
     else localStorage.setItem(KEY, next);
   } catch {}
-  for (const m of document.querySelectorAll<HTMLMetaElement>('meta[name=theme-color]')) m.content = next === 'dark' ? '#111318' : '#ffffff';
+  for (const m of document.querySelectorAll<HTMLMetaElement>('meta[name=theme-color]')) m.content = next === 'dark' ? '#1a1a17' : '#ffffff';
   listeners.forEach((l) => l());
 };

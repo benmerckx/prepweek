@@ -287,7 +287,7 @@ export class DragController {
     const lane = this.model.laneOf(s.taskId) ?? -1;
     if (p) {
       if (s.kind === 'create') {
-        const id = createTask({ userId: p.userId, start: p.start, end: p.end, title: '', color: p.color ?? '#4f7cff', lane, notes: '' });
+        const id = createTask({ userId: p.userId, start: p.start, end: p.end, title: '', color: p.color ?? '#3b7bff', lane, notes: '' });
         this.model.rememberLane(id, lane);
         this.end();
         this.cb.onSelect(id);

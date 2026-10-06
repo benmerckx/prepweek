@@ -13,16 +13,16 @@ import { loadChunk } from '../lib/chunks.ts';
 const SignInDialog = lazy(() => loadChunk(() => import('../timeline/Account.tsx'), '/?signin').then((m) => ({ default: m.SignInDialog })));
 
 const C = {
-  blue: '#4f7cff',
-  green: '#22a06b',
-  red: '#e5484d',
-  amber: '#f59e0b',
-  violet: '#8b5cf6',
-  cyan: '#06b6d4',
-  pink: '#ec4899',
-  slate: '#64748b',
-  lime: '#84cc16',
-  orange: '#f97316',
+  blue: '#3b7bff',
+  green: '#20b55c',
+  red: '#f04438',
+  amber: '#f5b301',
+  violet: '#9b5cff',
+  cyan: '#0fc2d8',
+  pink: '#f72585',
+  slate: '#6b7c93',
+  lime: '#8ccf12',
+  orange: '#ff7b1c',
 };
 
 const startPlanning = () => {

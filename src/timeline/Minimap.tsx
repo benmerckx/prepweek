@@ -197,7 +197,7 @@ export function Minimap({ model, vp, today, filter = null, span = TARGET_DAYS }:
         }
       }
       // Zoomed in (phones): weeks too, as the date of their Monday.
-      if (g.scale >= 6) {
+      if (g.scale >= 9) {
         o.font = '500 9.5px "Inter Variable", ui-sans-serif, system-ui, sans-serif';
         for (let d = startOfWeek(s0); d <= s1; d += 7) {
           const x = (d - s0) * g.scale;

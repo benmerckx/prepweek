@@ -5,10 +5,14 @@ import { isRule, occurrenceStart, parseSkip, splitOccurrence } from '../lib/recu
 // cell), so local edits, other tabs and a Cloudflare Durable Object can all
 // merge deterministically. See ./sync.ts for the wiring.
 
+// Ten hues spread around the wheel, punchy like a Monokai theme. Blocks
+// draw them a little deeper (see .task in styles.css) under white text.
 export const PALETTE = [
-  '#4f7cff', '#22a06b', '#e5484d', '#f59e0b', '#8b5cf6',
-  '#06b6d4', '#ec4899', '#64748b', '#84cc16', '#f97316',
+  '#3b7bff', '#20b55c', '#f04438', '#f5b301', '#9b5cff',
+  '#0fc2d8', '#f72585', '#6b7c93', '#8ccf12', '#ff7b1c',
 ] as const;
+/** The palette before, in the same order (sheets get the new colors). */
+const OLD_PALETTE = ['#4f7cff', '#22a06b', '#e5484d', '#f59e0b', '#8b5cf6', '#06b6d4', '#ec4899', '#64748b', '#84cc16', '#f97316'];
 
 export type UserRow = { name: string; color: string; order: number; email: string; team?: string; avatar?: string };
 export type TaskRow = {
@@ -98,7 +102,7 @@ store.setTablesSchema({
   milestones: {
     day: { type: 'number', default: 0 },
     title: { type: 'string', default: '' },
-    color: { type: 'string', default: '#8b5cf6' },
+    color: { type: 'string', default: '#9b5cff' },
   },
   // Who changed what, newest last. Written with each local command.
   activity: {
@@ -178,7 +182,7 @@ export type AttachmentRow = {
 export const PATTERNS = ['dots', 'stripes', 'zigzag', 'waves', 'triangles', 'rings'] as const;
 
 /** First is the default; not red, so milestones don't read as "today". */
-export const MILESTONE_COLORS = ['#8b5cf6', '#4f5bd5', '#06b6d4', '#22a06b', '#f59e0b', '#ef4444', '#ec4899', '#64748b'] as const;
+export const MILESTONE_COLORS = ['#9b5cff', '#4f5bd5', '#0fc2d8', '#20b55c', '#f5b301', '#f04438', '#f72585', '#6b7c93'] as const;
 
 const ALPHABET = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
 /** 16 random base62 chars (~95 bits); works outside secure contexts too. */
@@ -632,6 +636,36 @@ export const migrateClients = () => {
       store.setCell('projects', p, 'clientId', id);
     }
   });
+};
+
+/**
+ * Colors from the previous palette become their new counterpart: now for
+ * what's on this device, and later for whatever an older version (or the
+ * server) still brings in. Not an undo step or an activity entry.
+ */
+export const migrateColors = () => {
+  const next = new Map(OLD_PALETTE.map((c, i) => [c, PALETTE[i]!]));
+  const fix = (table: 'tasks' | 'projects' | 'users' | 'milestones', id: string) => {
+    const c = store.getCell(table, id, 'color');
+    const to = typeof c === 'string' ? next.get(c.toLowerCase()) : undefined;
+    if (to) store.setCell(table, id, 'color', to);
+  };
+  const tables = ['tasks', 'projects', 'users', 'milestones'] as const;
+  store.transaction(() => {
+    for (const t of tables) for (const id of store.getRowIds(t)) fix(t, id);
+  });
+  // Fixed after the change that brought them in (not inside its transaction).
+  const pending: [(typeof tables)[number], string][] = [];
+  const flush = () =>
+    store.transaction(() => {
+      for (const [t, id] of pending.splice(0)) fix(t, id);
+    });
+  for (const t of tables)
+    store.addCellListener(t, null, 'color', (_, __, rowId, ___, color) => {
+      if (typeof color !== 'string' || !next.has(color.toLowerCase())) return;
+      if (!pending.length) setTimeout(flush);
+      pending.push([t, rowId]);
+    });
 };
 
 /** Give a project and every task in it a pattern, in one step. */

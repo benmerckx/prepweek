@@ -73,17 +73,17 @@
 /* Dark: follows the system unless the theme toggle picked one. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --bg: #111318;
-    --panel: #15181e;
-    --panel-2: #1c2028;
-    --raised: #1a1d24;
-    --border: #262a33;
-    --border-strong: #333845;
+    --bg: #1a1a17;
+    --panel: #1f1f1b;
+    --panel-2: #282823;
+    --raised: #23231f;
+    --border: #31312b;
+    --border-strong: #424239;
     --hover: rgba(255, 255, 255, 0.045);
 
-    --text: #e8eaf0;
-    --text-dim: #959cab;
-    --text-faint: #646b7a;
+    --text: #f4f3ec;
+    --text-dim: #a6a496;
+    --text-faint: #74726a;
 
     --accent: #7c88ff;
     --accent-hover: #8f99ff;
@@ -95,7 +95,7 @@
     --grid-day: rgba(255, 255, 255, 0.035);
     --grid-week: rgba(255, 255, 255, 0.085);
     --weekend: rgba(255, 255, 255, 0.045);
-    --row-line: #1d2027;
+    --row-line: #262621;
 
     --block-tint: 26%;
     --block-tint-hover: 33%;
@@ -108,32 +108,32 @@
     --shadow-lift: 0 12px 28px -6px rgba(0, 0, 0, 0.7), 0 2px 6px rgba(0, 0, 0, 0.5);
     --ring: 0 0 0 3px rgba(124, 136, 255, 0.3);
 
-    --mm-bg: #15181e;
+    --mm-bg: #1f1f1b;
     --mm-band: rgba(255, 255, 255, 0.022);
     --mm-line: rgba(255, 255, 255, 0.18);
-    --mm-text: #7b8291;
-    --mm-text-strong: #e8eaf0;
+    --mm-text: #8a887d;
+    --mm-text-strong: #f4f3ec;
     --mm-slider: rgba(124, 136, 255, 0.16);
     --mm-slider-border: rgba(143, 153, 255, 0.8);
     --mm-today: #f87171;
-    --mm-hover: rgba(232, 234, 240, 0.45);
-    --mm-dim: rgba(21, 24, 30, 0.42);
+    --mm-hover: rgba(244, 243, 236, 0.45);
+    --mm-dim: rgba(26, 26, 23, 0.42);
     --mm-ink: #8f99ff;
     color-scheme: dark;
   }
 }
 :root[data-theme='dark'] {
-  --bg: #111318;
-  --panel: #15181e;
-  --panel-2: #1c2028;
-  --raised: #1a1d24;
-  --border: #262a33;
-  --border-strong: #333845;
+  --bg: #1a1a17;
+  --panel: #1f1f1b;
+  --panel-2: #282823;
+  --raised: #23231f;
+  --border: #31312b;
+  --border-strong: #424239;
   --hover: rgba(255, 255, 255, 0.045);
 
-  --text: #e8eaf0;
-  --text-dim: #959cab;
-  --text-faint: #646b7a;
+  --text: #f4f3ec;
+  --text-dim: #a6a496;
+  --text-faint: #74726a;
 
   --accent: #7c88ff;
   --accent-hover: #8f99ff;
@@ -145,7 +145,7 @@
   --grid-day: rgba(255, 255, 255, 0.035);
   --grid-week: rgba(255, 255, 255, 0.085);
   --weekend: rgba(255, 255, 255, 0.045);
-  --row-line: #1d2027;
+  --row-line: #262621;
 
   --block-tint: 26%;
   --block-tint-hover: 33%;
@@ -158,16 +158,16 @@
   --shadow-lift: 0 12px 28px -6px rgba(0, 0, 0, 0.7), 0 2px 6px rgba(0, 0, 0, 0.5);
   --ring: 0 0 0 3px rgba(124, 136, 255, 0.3);
 
-  --mm-bg: #15181e;
+  --mm-bg: #1f1f1b;
   --mm-band: rgba(255, 255, 255, 0.022);
   --mm-line: rgba(255, 255, 255, 0.18);
-  --mm-text: #7b8291;
-  --mm-text-strong: #e8eaf0;
+  --mm-text: #8a887d;
+  --mm-text-strong: #f4f3ec;
   --mm-slider: rgba(124, 136, 255, 0.16);
   --mm-slider-border: rgba(143, 153, 255, 0.8);
   --mm-today: #f87171;
-  --mm-hover: rgba(232, 234, 240, 0.45);
-  --mm-dim: rgba(21, 24, 30, 0.42);
+  --mm-hover: rgba(244, 243, 236, 0.45);
+  --mm-dim: rgba(26, 26, 23, 0.42);
   --mm-ink: #8f99ff;
   color-scheme: dark;
 }
@@ -1233,6 +1233,8 @@ svg {
   left: 0;
   border-radius: var(--radius-sm);
   background: var(--fill);
+  /* A slight sheen, so blocks stand out from the grid. */
+  background-image: linear-gradient(180deg, rgb(255 255 255 / 0.12), rgb(255 255 255 / 0) 55%, rgb(0 0 0 / 0.06));
   color: #fff;
   text-shadow: 0 1px 1px rgba(0, 0, 0, 0.18);
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.14);
@@ -4475,12 +4477,12 @@ a.brand,
 /* A shade lighter than the fill and a little toned down, so the white text
    on top stays readable. */
 [data-pattern] {
-  --pc: color-mix(in oklab, var(--c) 82%, #fff);
+  --pc: color-mix(in oklab, var(--fill, var(--c)) 82%, #fff);
   --pat-op: 0.65;
 }
 @supports (color: oklch(from red l c h)) {
   [data-pattern] {
-    --pc: oklch(from var(--c) calc(l + 0.08) calc(c * 1.1) h);
+    --pc: oklch(from var(--fill, var(--c)) calc(l + 0.14) calc(c * 1.1) h);
     --pat-op: 0.7;
   }
 }
@@ -4537,8 +4539,9 @@ a.brand,
   overflow: hidden;
   border: 1px solid rgba(0, 0, 0, 0.14);
   border-radius: 7px;
-  /* Like a block: its color, a touch deeper, with a white pattern. */
-  background: color-mix(in oklab, var(--c) 84%, #000);
+  /* Like a block: its color, a touch deeper, with its pattern. */
+  --fill: color-mix(in oklab, var(--c) 84%, #000);
+  background: var(--fill);
   cursor: pointer;
 }
 .pattern-swatch:hover {
@@ -4621,6 +4624,14 @@ a.brand,
 }
 
 /* Done tasks: quieter, with a check before the title. */
+@supports (color: oklch(from red l c h)) {
+  .task,
+  .pattern-swatch {
+    /* Every hue at about the same depth: light ones (gold, lime) darken
+       enough for white text, dark ones keep their punch. */
+    --fill: oklch(from var(--c) min(l, 0.64) calc(c * 1.04) h);
+  }
+}
 .task.done {
   --pc: var(--c);
   background: color-mix(in oklab, var(--c) 10%, var(--bg));

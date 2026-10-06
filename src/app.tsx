@@ -2,7 +2,7 @@
 // Loaded on demand by main.tsx, so the landing page doesn't download it.
 
 import type { Root } from 'react-dom/client';
-import { migrateClients, store } from './data/store.ts';
+import { migrateClients, migrateColors, store } from './data/store.ts';
 import { getServerHttp, startSync } from './data/sync.ts';
 import { seed } from './data/seed.ts';
 import { loadMe as loadIdentity } from './data/identity.ts';
@@ -61,6 +61,7 @@ export const startApp = async (root: Root, account: Promise<Me | null>) => {
     // Client names on projects become client rows (also when a device on an
     // older version adds one later).
     migrateClients();
+    migrateColors();
     let migrating = 0;
     store.addTableListener('projects', () => {
       clearTimeout(migrating);

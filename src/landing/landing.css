@@ -337,7 +337,7 @@ html:has(.lp) {
   gap: 6px;
 }
 .lp-note svg {
-  color: #22a06b;
+  color: #20b55c;
 }
 .lp-hero-stage {
   position: relative;
@@ -668,7 +668,7 @@ html:has(.lp) {
   38% {
     box-shadow:
       0 0 0 2px var(--bg),
-      0 0 0 3.5px #e5484d,
+      0 0 0 3.5px #f04438,
       0 16px 30px -10px rgb(0 0 0 / 0.5);
     scale: 1.03;
   }
@@ -1060,7 +1060,7 @@ html:has(.lp) {
     scale: 1.04;
     box-shadow:
       0 0 0 2px var(--bg),
-      0 0 0 3.5px #8b5cf6,
+      0 0 0 3.5px #9b5cff,
       0 14px 26px -10px rgb(0 0 0 / 0.5);
   }
 }
@@ -1084,7 +1084,7 @@ html:has(.lp) {
 .lp-live-ring {
   position: absolute;
   inset: -4px;
-  border: 2px solid #4f7cff;
+  border: 2px solid #3b7bff;
   border-radius: 9px;
   animation: lp-breathe 2.4s ease-in-out infinite;
 }
@@ -1275,10 +1275,10 @@ html:has(.lp) {
   border-radius: 50%;
 }
 .lp-status i.off {
-  background: #f59e0b;
+  background: #f5b301;
 }
 .lp-status i.on {
-  background: #22a06b;
+  background: #20b55c;
 }
 .lp-status-a {
   animation: lp-swap-a 5s infinite;
@@ -1517,7 +1517,7 @@ html:has(.lp) {
   position: absolute;
   inset: 8% 10%;
   border-radius: 40px;
-  background: color-mix(in oklab, #22a06b 14%, var(--bg));
+  background: color-mix(in oklab, #20b55c 14%, var(--bg));
   pointer-events: none;
 }
 .lp-phone {
@@ -1762,7 +1762,7 @@ html:has(.lp) {
     scale: 1.08;
     box-shadow:
       0 0 0 2px var(--bg),
-      0 0 0 3.5px #8b5cf6,
+      0 0 0 3.5px #9b5cff,
       0 12px 24px -8px rgb(0 0 0 / 0.5);
   }
 }
@@ -1836,7 +1836,7 @@ html:has(.lp) {
   88% {
     box-shadow:
       0 0 0 2px var(--bg),
-      0 0 0 3.5px #4f7cff;
+      0 0 0 3.5px #3b7bff;
   }
 }
 .lp-phone-sheet {
@@ -2023,8 +2023,8 @@ html:has(.lp) {
   width: 20px;
   height: 20px;
   border-radius: 6px;
-  background: color-mix(in oklab, #22a06b 18%, transparent);
-  color: #22a06b;
+  background: color-mix(in oklab, #20b55c 18%, transparent);
+  color: #20b55c;
 }
 .lp-import-card {
   display: flex;
@@ -2059,7 +2059,7 @@ html:has(.lp) {
   width: 40px;
   height: 46px;
   border-radius: 8px;
-  background: #22a06b;
+  background: #20b55c;
   color: #fff;
   font-size: 10.5px;
   font-weight: 750;
@@ -2153,12 +2153,12 @@ html:has(.lp) {
 .lp-final-inner::before {
   top: 38px;
   left: -60px;
-  background: #f59e0b;
+  background: #f5b301;
 }
 .lp-final-inner::after {
   right: -50px;
   bottom: 42px;
-  background: #ec4899;
+  background: #f72585;
 }
 @media (max-width: 640px) {
   .lp-final-inner {

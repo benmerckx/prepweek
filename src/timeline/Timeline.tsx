@@ -509,7 +509,7 @@ export function Timeline({ model }: { model: TimelineModel }) {
             setEditing(null);
             return;
           }
-          const color = getUser(userId)?.color ?? '#4f7cff';
+          const color = getUser(userId)?.color ?? '#3b7bff';
           const id = createTask({ userId, start: day, end: day, title: '', color, lane: -1, notes: '' });
           setSelected(id);
           setEditing(id);
