@@ -1013,7 +1013,7 @@ export function Timeline({ model }: { model: TimelineModel }) {
           <VisibleRange vp={vp} />
           <span>Drag the strip to scrub through time</span>
         </div>
-        <Minimap model={model} vp={vp} today={todayDay} filter={filter} />
+        <Minimap model={model} vp={vp} today={todayDay} filter={filter} span={compact ? 35 : undefined} />
       </div>
       {msEdit && <MilestoneEditor key={msEdit.id} id={msEdit.id} anchor={msEdit.anchor} fresh={msEdit.fresh} sheet={compact} onClose={() => setMsEdit(null)} />}
       {sharing && <ShareDialog onClose={() => setSharing(false)} />}

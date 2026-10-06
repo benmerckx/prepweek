@@ -7,7 +7,7 @@ import { onThemeChange } from '../lib/theme.ts';
 import { addMonths, formatDay, isWeekend, monthShort, startOfMonth, startOfWeek, ymd } from '../lib/dates.ts';
 
 // A VS Code–style scrubber for the time axis. The canvas shows ~6 months at
-// a time (or the whole range if it fits); like VS Code's minimap it scrolls
+// a time (about a month on phones, or the whole range if it fits); like VS Code's minimap it scrolls
 // proportionally with the main view, so the slider moves linearly with the
 // scroll position and you can traverse years with one drag. Clicking outside
 // the slider jumps there and keeps scrubbing.
@@ -21,6 +21,8 @@ interface Props {
   today: number;
   /** Search/filters: the matching work is highlighted on the strip. */
   filter?: TaskFilter;
+  /** Days the strip spans (less on phones, where the view is a few days). */
+  span?: number;
 }
 
 type Series = { week0: number; weeks: number; max: number; lines: { color: string; values: Float32Array }[]; hits: Uint8Array };
@@ -35,7 +37,9 @@ interface Geo {
   travel: number; // px the slider can travel
 }
 
-export function Minimap({ model, vp, today, filter = null }: Props) {
+export function Minimap({ model, vp, today, filter = null, span = TARGET_DAYS }: Props) {
+  const spanRef = useRef(span);
+  spanRef.current = span;
   const filterRef = useRef<TaskFilter>(filter);
   const invalidateRef = useRef(() => {});
   useEffect(() => {
@@ -63,7 +67,7 @@ export function Minimap({ model, vp, today, filter = null }: Props) {
       const W = canvas.clientWidth;
       const H = canvas.clientHeight;
       const total = Math.max(1, vp.rangeDays);
-      const scale = Math.max(W / total, W / TARGET_DAYS);
+      const scale = Math.max(W / total, W / spanRef.current);
       const mmDays = W / scale;
       const max = vp.maxScrollLeft();
       const f = max > 0 ? (vp.scroller?.scrollLeft ?? 0) / max : 0;
@@ -190,6 +194,22 @@ export function Minimap({ model, vp, today, filter = null }: Props) {
         if (w > 26 || mi === 0) {
           o.fillStyle = mi === 0 ? c['text-strong']! : c.text!;
           o.fillText(mi === 0 ? String(y) : monthShort(mi), x + 4, LABEL_H / 2 + 1);
+        }
+      }
+      // Zoomed in (phones): weeks too, as the date of their Monday.
+      if (g.scale >= 6) {
+        o.font = '500 9.5px "Inter Variable", ui-sans-serif, system-ui, sans-serif';
+        for (let d = startOfWeek(s0); d <= s1; d += 7) {
+          const x = (d - s0) * g.scale;
+          const sinceMonth = (d - startOfMonth(d)) * g.scale;
+          if (sinceMonth === 0) continue;
+          o.fillStyle = c.line!;
+          o.fillRect(Math.round(x), LABEL_H - 3, 1, 3);
+          if (sinceMonth < 30) continue; // the month's own label is there
+          o.fillStyle = c.text!;
+          o.globalAlpha = 0.7;
+          o.fillText(String(ymd(d).d), x + 3, LABEL_H / 2 + 1);
+          o.globalAlpha = 1;
         }
       }
 
