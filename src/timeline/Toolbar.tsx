@@ -6,7 +6,7 @@ import type { TimelineModel } from './model.ts';
 import { FilterMenu, ViewsMenu, type FilterState } from './Filters.tsx';
 import { NotificationsMenu } from './Discussion.tsx';
 import { PresenceAvatars } from './Presence.tsx';
-import { AccountButton, SheetSwitcher } from './Account.tsx';
+import { AccountButton, AccountMenuSection, SheetSwitcher } from './Account.tsx';
 import { canInstall, install, onInstallChange } from '../lib/install.ts';
 import { getTheme, onThemeChange, toggleTheme } from '../lib/theme.ts';
 import type { Peer } from '../data/presence.ts';
@@ -283,6 +283,7 @@ export const Toolbar = memo(function Toolbar(props: Props) {
           <Toggle label="Hide weekends" on={props.hideWeekends} onToggle={props.onToggleWeekends} />
           <Toggle label="Compact rows" on={props.dense} onToggle={props.onToggleDense} />
           <Toggle label="Dark mode" on={theme === 'dark'} onToggle={toggleTheme} />
+          <AccountMenuSection onSignIn={props.onSignIn} />
           </>
           )}
         </div>

@@ -407,6 +407,38 @@ export function AccountButton({ onSignIn, onWorkspace }: { onSignIn(): void; onW
   );
 }
 
+/**
+ * Phones: the account lives in the "…" menu (the toolbar has no room for
+ * the avatar); CSS shows this only on compact screens.
+ */
+export function AccountMenuSection({ onSignIn }: { onSignIn(): void }) {
+  const me = useAccount();
+  if (!me) return null;
+  return (
+    <div className="acct-in-menu">
+      <div className="menu-sep" />
+      {me.user ? (
+        <>
+          <div className="acct-head">
+            <Avatar name={me.user.name} src={me.user.avatar} size={30} />
+            <div>
+              <b>{me.user.name}</b>
+              <span>{me.user.email}</span>
+            </div>
+          </div>
+          <button className="menu-item" onClick={() => void signOut().then(() => location.reload())}>
+            Sign out
+          </button>
+        </>
+      ) : (
+        <button className="menu-item" onClick={onSignIn}>
+          Sign up or log in
+        </button>
+      )}
+    </div>
+  );
+}
+
 // --- Sign in / sign up --------------------------------------------------------------------
 
 function SignInForm({ next, compact, email: initialEmail = '' }: { next: string; compact?: boolean; email?: string }) {

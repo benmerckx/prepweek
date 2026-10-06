@@ -4398,7 +4398,24 @@ button.tag-chip {
   display: none;
 }
 .app.compact .brand.switcher {
-  max-width: 150px;
+  /* Phones: the sheet name gives way (ellipsis) so every button fits. */
+  flex: 0 1 auto;
+  min-width: 0;
+  gap: 0;
+}
+.app.compact .brand.switcher > svg {
+  display: none;
+}
+.app.compact .sheet-dd,
+.app.compact .sheet-btn {
+  min-width: 0;
+  max-width: 100%;
+}
+.app.compact .sheet-btn {
+  padding: 3px 4px;
+}
+.app.compact .toolbar > :not(.brand):not(.tb-spacer) {
+  flex-shrink: 0;
 }
 
 
@@ -5796,4 +5813,15 @@ button.tag-chip {
 .ui-action.danger,
 .ui-action.danger > svg {
   color: var(--danger);
+}
+
+/* Phones: account in the "…" menu instead of an avatar in the toolbar. */
+.acct-in-menu {
+  display: none;
+}
+.app.compact .acct-in-menu {
+  display: block;
+}
+.app.compact .tb-account {
+  display: none;
 }

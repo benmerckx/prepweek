@@ -90,12 +90,29 @@ export const startSync = async (sheetId: string, served = false) => {
     });
 };
 
+/**
+ * Sync messages are split into fragments of this size: a large sheet's
+ * payload can be many MB, and Cloudflare drops WebSocket messages over 1 MiB
+ * (the local dev server doesn't, so it only shows in production).
+ */
+const SYNC_FRAGMENT = 768 * 1024;
+/** Seconds to wait for a reply (large payloads take a while). */
+const SYNC_TIMEOUT = 30;
+
 const connect = async (server: string, sheetId: string) => {
   setStatus('connecting');
   // A function, so a reconnect after the share links are reset uses the new key.
   const ws = new ReconnectingWebSocket(() => withKey(`${server.replace(/\/$/, '')}/${encodeURIComponent(sheetId)}`));
   ws.addEventListener('close', () => setStatus('offline'));
-  const remote = await createWsSynchronizer(store, ws as unknown as WebSocket);
+  const remote = await createWsSynchronizer(
+    store,
+    ws as unknown as WebSocket,
+    SYNC_TIMEOUT,
+    undefined,
+    undefined,
+    (e) => console.warn('Sync error', e),
+    SYNC_FRAGMENT,
+  );
   // Re-sync after every (re)connect so offline edits propagate.
   ws.addEventListener('open', () => {
     setStatus('online');

@@ -39,8 +39,35 @@ const newToken = () => {
 };
 
 export class SheetDurableObject extends WsServerDurableObject {
-  override createPersister() {
-    return createDurableObjectSqlStoragePersister(createMergeableStore(), this.ctx.storage.sql);
+  // Stored "fragmented": a row per table/row/value. The default JSON mode
+  // keeps the whole sheet in one row, and Cloudflare caps a row at 2 MB, so a
+  // big sheet (a Teamweek import) silently stopped being saved: it lived in
+  // memory only and was gone for whoever connected after the object restarted.
+  override async createPersister() {
+    const sql = this.ctx.storage.sql;
+    const store = createMergeableStore();
+    const persister = createDurableObjectSqlStoragePersister(store, sql, { mode: 'fragmented' });
+    // Sheets saved before the switch: carry the JSON copy over, once.
+    const tables = new Set(sql.exec<{ name: string }>("SELECT name FROM sqlite_master WHERE type = 'table'").toArray().map((r) => r.name));
+    const migrated = tables.has('tinybase_tables') && sql.exec('SELECT 1 FROM tinybase_tables LIMIT 1').toArray().length > 0;
+    if (tables.has('tinybase') && !migrated) {
+      const old = createMergeableStore();
+      await createDurableObjectSqlStoragePersister(old, sql).load();
+      store.setMergeableContent(old.getMergeableContent());
+      await persister.save();
+    }
+    return persister;
+  }
+
+  // A big sheet (a Teamweek import: thousands of tasks) syncs in payloads of
+  // many megabytes, but Cloudflare drops WebSocket messages over 1 MiB. So
+  // payloads go in fragments (see SYNC_FRAGMENT in src/data/sync.ts), and
+  // replies that big may take longer than TinyBase's 1 second default.
+  override getFragmentSize() {
+    return 768 * 1024;
+  }
+  override getRequestTimeoutSeconds() {
+    return 30;
   }
 
   // --- Link sharing ---
