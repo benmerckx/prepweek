@@ -25,6 +25,8 @@ export const TaskBlock = memo(function TaskBlock({ task, scale, dims, selected, 
     return () => labelPinner.unregister(el);
   }, [left, width]);
   const days = workdays(task.start, task.end);
+  /** Tall blocks: title on top, details on a second line. */
+  const tall = dims.blockH >= 36;
   const cls = 'task' + (selected ? ' selected' : '') + (dragging ? ' dragging' : '') + (task.title ? '' : ' untitled') + (dimmed ? ' dimmed' : '');
   return (
     <div
@@ -41,29 +43,31 @@ export const TaskBlock = memo(function TaskBlock({ task, scale, dims, selected, 
     >
       {width >= 18 && <div className="handle start" data-handle="start" />}
       <div className="task-clip">
-        <div className="task-label">
+        <div className={'task-label' + (tall ? ' tall' : '')}>
           <span className="task-title">{task.title || 'Untitled'}</span>
-          {width > 120 && (
-            <span className="task-meta">
-              {task.project && task.project !== task.title && width > 190 ? `${task.project} · ` : ''}
-              {days}d
-            </span>
-          )}
-          {width > 90 && (task.files > 0 || task.notes || task.repeat || task.comments > 0) && (
-            <span className="task-badges">
-              {task.repeat && <Repeat size={12} />}
-              {task.comments > 0 && (
-                <>
-                  <Comment size={12} />
-                  {task.comments > 1 && task.comments}
-                </>
-              )}
-              {task.notes && <Notes size={12} />}
-              {task.files > 0 && (
-                <>
-                  <Paperclip size={12} />
-                  {task.files > 1 && task.files}
-                </>
+          {(tall ? width > 60 : width > 120) && (
+            <span className="task-sub">
+              <span className="task-meta">
+                {task.project && task.project !== task.title && width > (tall ? 110 : 190) ? `${task.project} · ` : ''}
+                {days}d
+              </span>
+              {width > 90 && (task.files > 0 || task.notes || task.repeat || task.comments > 0) && (
+                <span className="task-badges">
+                  {task.repeat && <Repeat size={12} />}
+                  {task.comments > 0 && (
+                    <>
+                      <Comment size={12} />
+                      {task.comments > 1 && task.comments}
+                    </>
+                  )}
+                  {task.notes && <Notes size={12} />}
+                  {task.files > 0 && (
+                    <>
+                      <Paperclip size={12} />
+                      {task.files > 1 && task.files}
+                    </>
+                  )}
+                </span>
               )}
             </span>
           )}

@@ -33,7 +33,7 @@ interface Win {
   r1: number;
 }
 
-const ZOOM_KEY = 'prepweek:zoom';
+const ZOOM_KEY = 'prepweek:zoom2';
 const WEEKENDS_KEY = 'prepweek:hideWeekends';
 const DENSITY_KEY = 'prepweek:density';
 const COLLAPSED_KEY = 'prepweek:collapsedTeams';
@@ -50,12 +50,18 @@ const writeFlag = (key: string, on: boolean) => {
     localStorage.setItem(key, on ? '1' : '0');
   } catch {}
 };
-const EDITOR_H = 380;
 
 const isCompact = () => matchMedia(COMPACT_QUERY).matches;
 
+/** Default zoom: just over two weeks on desktop, one week on a phone. */
+const defaultZoom = () => {
+  const compact = isCompact();
+  const width = innerWidth - (compact ? SIDEBAR_W_COMPACT : SIDEBAR_W);
+  return Math.round(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, width / (compact ? 7 : 16.5))));
+};
+
 const readZoom = () => {
-  const fallback = isCompact() ? 32 : 40;
+  const fallback = defaultZoom();
   try {
     const v = Number(localStorage.getItem(ZOOM_KEY));
     return v >= ZOOM_MIN && v <= ZOOM_MAX ? v : fallback;
@@ -133,6 +139,10 @@ export function Timeline({ model }: { model: TimelineModel }) {
   };
   const selectedRef = useRef(selected);
   selectedRef.current = selected;
+  const editingRef = useRef(editing);
+  editingRef.current = editing;
+  const readOnlyRef = useRef(readOnly);
+  readOnlyRef.current = readOnly;
   const [query, setQuery] = useState('');
   const q = query.trim().toLowerCase();
   const focus = model.getFocus();
@@ -471,7 +481,25 @@ export function Timeline({ model }: { model: TimelineModel }) {
             setEditing(null);
           }
         },
+        // Desktop: a click opens a block, or starts a new one on empty space
+        // (unless it's the click that dismisses an open editor).
+        onClickBlock: (id) => {
+          setSelected(id);
+          setEditing(id);
+        },
+        onClickEmpty: (userId, day, wasEditing) => {
+          if (wasEditing || readOnlyRef.current) {
+            setSelected(null);
+            setEditing(null);
+            return;
+          }
+          const color = getUser(userId)?.color ?? '#4f7cff';
+          const id = createTask({ userId, start: day, end: day, title: '', color, lane: -1, notes: '' });
+          setSelected(id);
+          setEditing(id);
+        },
         isSelected: (id) => id === selectedRef.current,
+        isEditing: () => editingRef.current !== null,
       }),
     [model, vp],
   );
@@ -662,6 +690,69 @@ export function Timeline({ model }: { model: TimelineModel }) {
     };
   }, []);
 
+  const lastPointer = useRef('mouse');
+
+  // --- Space + drag pans (hand cursor), and never starts a block. ---
+  const spaceDown = useRef(false);
+  const [spacePan, setSpacePan] = useState(false);
+  useEffect(() => {
+    const isControl = (t: EventTarget | null) => isTyping(t) || (t instanceof HTMLElement && !!t.closest('button, a, select, summary'));
+    const down = (e: KeyboardEvent) => {
+      if (e.code !== 'Space' || isControl(e.target) || document.querySelector('.modal-backdrop, .drawer-backdrop')) return;
+      e.preventDefault(); // no page scroll
+      if (!spaceDown.current) {
+        spaceDown.current = true;
+        setSpacePan(true);
+      }
+    };
+    const up = (e: KeyboardEvent) => {
+      if (e.code !== 'Space' || !spaceDown.current) return;
+      spaceDown.current = false;
+      setSpacePan(false);
+    };
+    const blur = () => {
+      spaceDown.current = false;
+      setSpacePan(false);
+    };
+    window.addEventListener('keydown', down);
+    window.addEventListener('keyup', up);
+    window.addEventListener('blur', blur);
+    return () => {
+      window.removeEventListener('keydown', down);
+      window.removeEventListener('keyup', up);
+      window.removeEventListener('blur', blur);
+    };
+  }, []);
+  const [panning, setPanning] = useState(false);
+  const startPan = (e: React.PointerEvent) => {
+    const s = vp.scroller;
+    if (!s || e.button !== 0) return;
+    e.preventDefault();
+    const x0 = e.clientX;
+    const y0 = e.clientY;
+    const left = s.scrollLeft;
+    const top = s.scrollTop;
+    setPanning(true);
+    const move = (ev: PointerEvent) => {
+      s.scrollLeft = left - (ev.clientX - x0);
+      s.scrollTop = top - (ev.clientY - y0);
+    };
+    const end = () => {
+      setPanning(false);
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', end);
+      window.removeEventListener('pointercancel', end);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', end);
+    window.addEventListener('pointercancel', end);
+  };
+  const onBodyPointerDown = (e: React.PointerEvent) => {
+    lastPointer.current = e.pointerType;
+    if (spaceDown.current) return startPan(e);
+    dragCtl.pointerDown(e.nativeEvent);
+  };
+
   const onDoubleClick = (e: React.MouseEvent) => {
     if (readOnly) {
       const el = (e.target as HTMLElement).closest<HTMLElement>('[data-task]');
@@ -674,7 +765,8 @@ export function Timeline({ model }: { model: TimelineModel }) {
       setEditing(el.dataset.task!);
       return;
     }
-    if ((e.target as HTMLElement).closest('[data-no-drag]')) return;
+    // With a mouse a single click already created it.
+    if ((e.target as HTMLElement).closest('[data-no-drag]') || lastPointer.current === 'mouse') return;
     const row = model.personAt(vp.yAt(e.clientY));
     if (!row) return;
     const day = Math.floor(vp.dayAt(e.clientX));
@@ -714,35 +806,19 @@ export function Timeline({ model }: { model: TimelineModel }) {
   const editTask = editing && !drag ? model.findTask(editing) : undefined;
   // Back button closes the editor instead of leaving the app.
   useBackToClose(!!editTask, closeEditor);
-  let editor = null;
-  if (editTask) {
-    const i = model.indexOfUser(editTask.userId);
-    const { pad, laneH, blockH } = model.dims;
-    const blockTop = (model.rowTops[i] ?? 0) + pad + editTask.lane * laneH;
-    // Open below the block, or above it when that would leave the viewport.
-    const below = blockTop + blockH + 6;
-    const viewBottom = (vp.scroller?.scrollTop ?? 0) + vp.viewHeight;
-    const top = below + EDITOR_H > viewBottom && blockTop - EDITOR_H - 6 > 0 ? blockTop - EDITOR_H - 6 : below;
-    editor = compact ? (
-      // A bottom sheet on phones, outside the scroller so it stays put.
-      createPortal(<Editor key={editTask.id} task={editTask} model={model} x={0} y={0} sheet readOnly={readOnly} onClose={closeEditor} />, document.body)
-    ) : (
-      <Editor
-        key={editTask.id}
-        task={editTask}
-        model={model}
-        readOnly={readOnly}
-        x={Math.max(0, scale.x(editTask.start))}
-        y={top}
-        onClose={closeEditor}
-      />
-    );
-  }
+  // Phones: a bottom sheet. Desktop: a panel on the right. Both live
+  // outside the scroller so they stay put while the timeline scrolls.
+  const editor = editTask
+    ? createPortal(
+        <Editor key={editTask.id} task={editTask} model={model} sheet={compact} side={!compact} readOnly={readOnly} onClose={closeEditor} />,
+        document.body,
+      )
+    : null;
 
   return (
     <div
       ref={appRef}
-      className={'app' + (drag ? ` is-${drag.kind}` : '') + (compact ? ' compact' : '') + (dense ? ' dense' : '') + (readOnly ? ' readonly' : '')}
+      className={'app' + (drag ? ` is-${drag.kind}` : '') + (compact ? ' compact' : '') + (dense ? ' dense' : '') + (readOnly ? ' readonly' : '') + (spacePan ? ' space-pan' : '') + (panning ? ' panning' : '')}
       style={{ ['--sidebar-w' as string]: `${sidebarW}px` }}
     >
       <Toolbar
@@ -847,7 +923,7 @@ export function Timeline({ model }: { model: TimelineModel }) {
           </div>
           <div
             className="body"
-            onPointerDown={(e) => dragCtl.pointerDown(e.nativeEvent)}
+            onPointerDown={onBodyPointerDown}
             onPointerMove={onBodyPointerMove}
             onPointerLeave={() => publish({ cur: null })}
             onDoubleClick={onDoubleClick}

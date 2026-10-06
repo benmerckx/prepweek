@@ -22,9 +22,10 @@ Open `/s/<anything>` for a separate sheet. The default sheet seeds demo data;
 | --- | --- |
 | Move (also to another person) | drag a block |
 | Change dates | drag a block's left/right edge |
-| Create | drag across empty space in a row, or double-click |
+| Create | click empty space in a row (desktop), drag across it, or long-press and drag (touch) |
 | Duplicate | hold <kbd>Alt</kbd> while dragging, or <kbd>⌘D</kbd> |
-| Edit | double-click a block, or <kbd>Enter</kbd> when selected |
+| Open details | click a block (desktop; tap twice on touch), or <kbd>Enter</kbd> when selected. Details open in a panel on the right (a bottom sheet on phones) |
+| Pan | hold <kbd>Space</kbd> and drag |
 | Nudge | <kbd>←</kbd>/<kbd>→</kbd> moves a day, <kbd>⇧</kbd> resizes, <kbd>↑</kbd>/<kbd>↓</kbd> changes person |
 | Cancel a drag | <kbd>Esc</kbd> |
 | Undo / redo | <kbd>⌘Z</kbd> / <kbd>⇧⌘Z</kbd> |
@@ -39,7 +40,7 @@ Open `/s/<anything>` for a separate sheet. The default sheet seeds demo data;
 | Repeat a task | **Repeat** in its editor (every workday/week/2 weeks/month, optional end date). Dragging the first one moves the series; dragging another detaches it |
 | Teams | click a name → **Team**. Team headers collapse; double-click one to rename the team |
 | Reorder people | drag a name up or down (long-press on touch); drop it under another team to move it there |
-| Hide weekends / compact rows | **⋯ → View** |
+| Hide weekends / compact rows / dark mode | **⋯ → View**; the moon/sun button in the toolbar toggles dark mode |
 | Comments | in a task's editor; type **@** to mention someone |
 | Activity | **⋯ → Activity**: every change, by whom; each task's editor has its own **History** |
 | Notifications | the bell: mentions, comments on your tasks and changes others make to your work |

@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react';
 import type { TimelineModel } from './model.ts';
-import type { Cluster } from '../lib/layout.ts';
 import type { Viewport } from './viewport.ts';
 import { getPeers, onPeers } from '../data/presence.ts';
+import { onThemeChange } from '../lib/theme.ts';
 import { addMonths, formatDay, isWeekend, monthShort, startOfMonth, startOfWeek, ymd } from '../lib/dates.ts';
 
 // A VS Code–style scrubber for the time axis. The canvas shows ~18 months at
@@ -13,20 +13,6 @@ import { addMonths, formatDay, isWeekend, monthShort, startOfMonth, startOfWeek,
 
 const TARGET_DAYS = 548;
 const LABEL_H = 16;
-/** Minimum band height per person (px) before people get grouped. */
-const MIN_BAND = 2.5;
-
-/** Clusters (sorted, non-overlapping) intersecting [d0, d1]. */
-function* clustersIn(cs: Cluster[], d0: number, d1: number) {
-  let lo = 0;
-  let hi = cs.length;
-  while (lo < hi) {
-    const mid = (lo + hi) >> 1;
-    if (cs[mid]!.end < d0) lo = mid + 1;
-    else hi = mid;
-  }
-  for (let i = lo; i < cs.length && cs[i]!.start <= d1; i++) yield cs[i]!;
-}
 
 interface Props {
   model: TimelineModel;
@@ -83,6 +69,56 @@ export function Minimap({ model, vp, today }: Props) {
     const cache = { canvas: document.createElement('canvas'), start: 0, days: 0, scale: 0, version: -1, H: 0, dpr: 0, theme: 0 };
     let themeGen = 0;
 
+    // Weekly series per block color, rebuilt when the data changes.
+    let seriesCache: { version: number; week0: number; weeks: number; max: number; lines: { color: string; values: Float32Array }[] } | null = null;
+    const getSeries = () => {
+      if (seriesCache?.version === model.version) return seriesCache;
+      const week0 = startOfWeek(vp.origin);
+      const weeks = Math.ceil((vp.rangeDays + 7) / 7) + 1;
+      const byColor = new Map<string, Float32Array>();
+      for (const row of model.rows)
+        for (const t of row.tasks) {
+          let a = byColor.get(t.color);
+          if (!a) byColor.set(t.color, (a = new Float32Array(weeks)));
+          for (let d = Math.max(t.start, week0); d <= t.end; d++) {
+            const k = ((d - week0) / 7) | 0;
+            if (k >= weeks) break;
+            if (!isWeekend(d)) a[k]! += 0.2; // 5 workdays → 1 block on average
+          }
+        }
+      // Smooth over ~5 weeks (triangular weights) so trends read as trends,
+      // not week-to-week noise.
+      const W5 = [1, 2, 3, 2, 1];
+      for (const [color, raw] of byColor) {
+        const out = new Float32Array(weeks);
+        for (let k = 0; k < weeks; k++) {
+          let sum = 0;
+          let wsum = 0;
+          for (let j = -2; j <= 2; j++) {
+            const v = raw[k + j];
+            if (v === undefined) continue;
+            sum += v * W5[j + 2]!;
+            wsum += W5[j + 2]!;
+          }
+          out[k] = sum / wsum;
+        }
+        byColor.set(color, out);
+      }
+      let max = 1;
+      const lines = [...byColor].map(([color, values]) => {
+        let total = 0;
+        for (const v of values) {
+          total += v;
+          if (v > max) max = v;
+        }
+        return { color, values, total };
+      });
+      // Biggest series first, so smaller ones draw on top.
+      lines.sort((a, b) => b.total - a.total);
+      seriesCache = { version: model.version, week0, weeks, max: max * 1.08, lines };
+      return seriesCache;
+    };
+
     const renderCache = (g: Geo, dpr: number) => {
       const days = (g.W * 3) / g.scale;
       cache.start = Math.floor(g.mmStart - g.W / g.scale);
@@ -124,43 +160,51 @@ export function Minimap({ model, vp, today }: Props) {
         }
       }
 
-      // Workload, not blocks: one band per person, shaded week by week by
-      // booked workdays (parallel tasks count extra). Free weeks fade out,
-      // busy and overbooked weeks get darker, and nothing is drawn per block. With many people, adjacent rows share a band
-      // and are averaged.
-      const rows = model.rows;
-      const avail = H - LABEL_H - 3;
-      const perBand = Math.max(1, Math.ceil((MIN_BAND * rows.length) / Math.max(1, avail)));
-      const bands = Math.ceil(rows.length / perBand);
-      const bandH = avail / Math.max(1, bands);
-      const vGap = bandH >= 4 ? 1 : 0;
-      const w0 = startOfWeek(s0);
-      const weeks = Math.ceil((s1 - w0 + 1) / 7);
-      const cellW = 7 * g.scale;
-      const load = new Float32Array(weeks);
-      o.fillStyle = c.ink!;
-      for (let b = 0; b < bands; b++) {
-        load.fill(0);
-        const first = b * perBand;
-        const last = Math.min(rows.length, first + perBand);
-        for (let i = first; i < last; i++) {
-          for (const cl of clustersIn(rows[i]!.clusters, w0, s1)) {
-            for (let d = Math.max(cl.start, w0); d <= Math.min(cl.end, s1); d++) {
-              if (!isWeekend(d)) load[((d - w0) / 7) | 0]! += cl.lanes;
-            }
-          }
-        }
-        const top = LABEL_H + 2 + b * bandH;
-        const n = last - first;
-        for (let k = 0; k < weeks; k++) {
-          const v = load[k]! / (5 * n); // 1 = one task every workday
-          if (v <= 0) continue;
-          // 0 → nothing, fully booked → mid tone, 1.5× (parallel work) → full.
-          o.globalAlpha = 0.08 + 0.72 * Math.min(1, v / 1.5);
-          o.fillRect((w0 + k * 7 - s0) * g.scale, top, cellW + 0.5, bandH - vGap);
-        }
-      }
+      // Kind and amount of work: one line per block color, all people
+      // combined. Each point is a week: how many blocks of that color run
+      // on an average workday. A shared y-scale over the whole range keeps
+      // the lines comparable while scrolling.
+      const series = getSeries();
+      const top = LABEL_H + 6;
+      const bottom = H - 3;
+      const plotH = bottom - top;
+      const k0 = Math.max(0, Math.floor((s0 - series.week0) / 7) - 1);
+      const k1 = Math.min(series.weeks - 1, Math.ceil((s1 - series.week0) / 7) + 1);
+      const xOf = (k: number) => (series.week0 + k * 7 + 3.5 - s0) * g.scale;
+      const yOf = (v: number) => bottom - (v / series.max) * plotH;
+      // Baseline.
+      o.fillStyle = c.line!;
+      o.globalAlpha = 0.6;
+      o.fillRect(0, bottom, cw, 1);
       o.globalAlpha = 1;
+      o.lineJoin = 'round';
+      o.lineCap = 'round';
+      for (const { color, values } of series.lines) {
+        // Smooth curve through the weekly points (midpoint quadratics).
+        const path = new Path2D();
+        let px = xOf(k0);
+        let py = yOf(values[k0]!);
+        path.moveTo(px, py);
+        for (let k = k0 + 1; k <= k1; k++) {
+          const x = xOf(k);
+          const y = yOf(values[k]!);
+          path.quadraticCurveTo(px, py, (px + x) / 2, (py + y) / 2);
+          px = x;
+          py = y;
+        }
+        path.lineTo(px, py);
+        const area = new Path2D(path);
+        area.lineTo(px, bottom);
+        area.lineTo(xOf(k0), bottom);
+        area.closePath();
+        o.fillStyle = color;
+        o.globalAlpha = 0.07;
+        o.fill(area);
+        o.globalAlpha = 1;
+        o.strokeStyle = color;
+        o.lineWidth = 1.75;
+        o.stroke(path);
+      }
 
       // Milestones: a marker in the label row and a thin line down.
       for (const m of model.milestones) {
@@ -178,9 +222,7 @@ export function Minimap({ model, vp, today }: Props) {
         o.fill();
       }
 
-      // Today.
-      o.fillStyle = c.today!;
-      o.fillRect(Math.round((today - s0) * g.scale), 0, 2, H);
+
     };
 
     const draw = () => {
@@ -252,6 +294,22 @@ export function Minimap({ model, vp, today }: Props) {
         ctx.globalAlpha = 1;
       }
 
+      // Today, on top of the slider: a full-height line and a pill.
+      const tx = Math.round((today + 0.5 - g.mmStart) * g.scale);
+      ctx.fillStyle = c.today!;
+      ctx.fillRect(tx - 1, LABEL_H - 1, 2, H - LABEL_H + 1);
+      ctx.font = '700 9.5px "Inter Variable", ui-sans-serif, system-ui, sans-serif';
+      const label = 'Today';
+      const lw = ctx.measureText(label).width + 10;
+      ctx.beginPath();
+      ctx.roundRect(tx - lw / 2, 1, lw, LABEL_H - 2, 4);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.textAlign = 'center';
+      ctx.fillText(label, tx, LABEL_H / 2 + 0.5);
+      ctx.textAlign = 'start';
+      ctx.font = '600 10px "Inter Variable", ui-sans-serif, system-ui, sans-serif';
+
       // Hover readout.
       if (st.hoverX >= 0 && !st.dragging) {
         const day = Math.floor(g.mmStart + st.hoverX / g.scale);
@@ -290,6 +348,7 @@ export function Minimap({ model, vp, today }: Props) {
         g = geo();
       }
       st.dragging = true;
+      wrap.classList.add('scrubbing');
       st.grabDx = x - g.sliderX;
       schedule();
     };
@@ -301,6 +360,7 @@ export function Minimap({ model, vp, today }: Props) {
     };
     const up = (e: PointerEvent) => {
       st.dragging = false;
+      wrap.classList.remove('scrubbing');
       if (e.pointerType === 'touch') st.hoverX = -1;
       if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
       schedule();
@@ -327,13 +387,11 @@ export function Minimap({ model, vp, today }: Props) {
     const offPeers = onPeers(schedule);
     const ro = new ResizeObserver(schedule);
     ro.observe(canvas);
-    const mq = matchMedia('(prefers-color-scheme: dark)');
-    const theme = () => {
+    const offTheme = onThemeChange(() => {
       readColors();
       themeGen++;
       schedule();
-    };
-    mq.addEventListener('change', theme);
+    });
     schedule();
     return () => {
       offPeers();
@@ -350,7 +408,7 @@ export function Minimap({ model, vp, today }: Props) {
       offVp();
       offModel();
       ro.disconnect();
-      mq.removeEventListener('change', theme);
+      offTheme();
     };
   }, [model, vp, today]);
 

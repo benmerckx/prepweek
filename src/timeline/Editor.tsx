@@ -11,16 +11,16 @@ import { Calendar, Check, Repeat, Trash } from '../ui/icons.tsx';
 interface Props {
   task: TaskView;
   model: TimelineModel;
-  x: number;
-  y: number;
   /** Render as a bottom sheet (phones). */
   sheet?: boolean;
+  /** Render as a panel on the right (desktop). */
+  side?: boolean;
   /** View-only link: show, don't edit. */
   readOnly?: boolean;
   onClose(): void;
 }
 
-export function Editor({ task, model, x, y, sheet, readOnly, onClose }: Props) {
+export function Editor({ task, model, sheet, side, readOnly, onClose }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
   /** The text field that last had focus, so picking a color can keep it. */
@@ -39,7 +39,12 @@ export function Editor({ task, model, x, y, sheet, readOnly, onClose }: Props) {
       titleRef.current?.select();
     }
     const away = (e: PointerEvent) => {
-      if (!ref.current?.contains(e.target as Node)) onClose();
+      const t = e.target as HTMLElement;
+      if (ref.current?.contains(t)) return;
+      // Side panel: clicks on the timeline are handled there (open another
+      // block, or close on empty space) so the panel doesn't flicker.
+      if (side && t.closest?.('.body')) return;
+      onClose();
     };
     // Defer so the click that opened us doesn't close us.
     const t = setTimeout(() => window.addEventListener('pointerdown', away, true));
@@ -48,6 +53,21 @@ export function Editor({ task, model, x, y, sheet, readOnly, onClose }: Props) {
       window.removeEventListener('pointerdown', away, true);
     };
   }, [task.id, onClose]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Side panel: keep the block being edited visible left of the panel.
+  useEffect(() => {
+    if (!side) return;
+    const t = setTimeout(() => {
+      const block = document.querySelector(`[data-task="${CSS.escape(task.id)}"]`);
+      const scroller = document.querySelector<HTMLElement>('.scroller');
+      if (!block || !scroller || !ref.current) return;
+      const b = block.getBoundingClientRect();
+      const panel = ref.current.getBoundingClientRect().left;
+      const start = scroller.getBoundingClientRect().left + 240;
+      if (b.left > panel - 80) scroller.scrollBy({ left: Math.min(b.left - start, b.right - panel + 48), behavior: 'smooth' });
+    }, 60);
+    return () => clearTimeout(t);
+  }, [side, task.id]);
 
   // Bottom sheet: keep the block being edited visible above the sheet.
   useEffect(() => {
@@ -96,9 +116,8 @@ export function Editor({ task, model, x, y, sheet, readOnly, onClose }: Props) {
   return (
     <div
       ref={ref}
-      className={'editor' + (sheet ? ' sheet' : '') + (dropping ? ' dropping' : '') + (readOnly ? ' readonly' : '')}
+      className={'editor' + (sheet ? ' sheet' : '') + (side ? ' side' : '') + (dropping ? ' dropping' : '') + (readOnly ? ' readonly' : '')}
       data-no-drag
-      style={sheet ? undefined : { transform: `translate(${x}px, ${y}px)` }}
       onPointerDown={(e) => e.stopPropagation()}
       // Drop or paste files to attach them (and keep the drop away from the
       // app-wide CSV import handler).

@@ -9,9 +9,10 @@ import { FilterMenu, ViewsMenu, type FilterState } from './Filters.tsx';
 import { NotificationsMenu } from './Discussion.tsx';
 import { PresenceAvatars } from './Presence.tsx';
 import { canInstall, install, onInstallChange } from '../lib/install.ts';
+import { getTheme, onThemeChange, toggleTheme } from '../lib/theme.ts';
 import type { Peer } from '../data/presence.ts';
 import type { ViewConfig } from '../data/store.ts';
-import { Check, ChevronLeft, ChevronRight, Close, Download, Eye, Folder, History, LinkIcon, Logo, Minus, More, People, Plus, Redo, Search as SearchIc, Undo, Upload } from '../ui/icons.tsx';
+import { Check, ChevronLeft, ChevronRight, Close, Download, Eye, Folder, History, LinkIcon, Logo, Minus, Moon, More, People, Plus, Redo, Search as SearchIc, Sun, Undo, Upload } from '../ui/icons.tsx';
 
 interface Props {
   colW: number;
@@ -70,6 +71,7 @@ export const Toolbar = memo(function Toolbar(props: Props) {
   }, []);
   const hist = useSyncExternalStore(onHistoryChange, historySnapshot);
   const installable = useSyncExternalStore(onInstallChange, canInstall);
+  const theme = useSyncExternalStore(onThemeChange, getTheme);
   const sync = useSyncExternalStore(onSyncStatus, getSyncStatus);
   // Re-render on edits only when what we show changes (counts, focus), not
   // on every recolor or drag.
@@ -144,6 +146,14 @@ export const Toolbar = memo(function Toolbar(props: Props) {
         <Upload />
         Import
       </button>
+      <button
+        className="btn icon tb-theme"
+        onClick={toggleTheme}
+        aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+        title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+      >
+        {theme === 'dark' ? <Sun /> : <Moon />}
+      </button>
       <details className="tb-more">
         <summary className="btn icon" aria-label="More" title="More">
           <More />
@@ -183,6 +193,7 @@ export const Toolbar = memo(function Toolbar(props: Props) {
           <div className="menu-label">View</div>
           <Toggle label="Hide weekends" on={props.hideWeekends} onToggle={props.onToggleWeekends} />
           <Toggle label="Compact rows" on={props.dense} onToggle={props.onToggleDense} />
+          <Toggle label="Dark mode" on={theme === 'dark'} onToggle={toggleTheme} />
           <div className="menu-sep" />
           {!props.readOnly && (
             <>

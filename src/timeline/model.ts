@@ -12,7 +12,7 @@ import { parseTags, type ProjectRow, type TaskRow, type UserRow } from '../data/
 // and each RowLayout is an immutable object, so React.memo'd rows re-render
 // only when their own content changed.
 
-/** Row geometry; 'compact' fits about a third more people on screen. */
+/** Row geometry. Comfortable rows leave room for ~10 stacked blocks; compact fits many more people. */
 export interface Dims {
   laneH: number; // block height + gap
   blockH: number;
@@ -21,8 +21,8 @@ export interface Dims {
   /** Height of a team header row. */
   teamH: number;
 }
-export const COMFORTABLE: Dims = { laneH: 30, blockH: 26, pad: 6, minLanes: 2, teamH: 34 };
-export const COMPACT: Dims = { laneH: 22, blockH: 19, pad: 4, minLanes: 1, teamH: 28 };
+export const COMFORTABLE: Dims = { laneH: 48, blockH: 44, pad: 8, minLanes: 10, teamH: 34 };
+export const COMPACT: Dims = { laneH: 30, blockH: 26, pad: 5, minLanes: 3, teamH: 28 };
 /** Key prefix of team header rows (can't collide with generated ids). */
 export const TEAM_ROW = 'team:';
 /** People without a team, when others have one. */

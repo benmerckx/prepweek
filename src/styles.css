@@ -59,14 +59,15 @@
   --mm-slider-border: rgba(79, 91, 213, 0.75);
   --mm-today: #ef4444;
   --mm-hover: rgba(21, 24, 33, 0.45);
-  --mm-dim: rgba(247, 248, 250, 0.6);
+  --mm-dim: rgba(247, 248, 250, 0.38);
   --mm-ink: #4f5bd5;
 
   color-scheme: light dark;
 }
 
+/* Dark: follows the system unless the theme toggle picked one. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
     --bg: #111318;
     --panel: #15181e;
     --panel-2: #1c2028;
@@ -111,9 +112,62 @@
     --mm-slider-border: rgba(143, 153, 255, 0.8);
     --mm-today: #f87171;
     --mm-hover: rgba(232, 234, 240, 0.45);
-    --mm-dim: rgba(21, 24, 30, 0.62);
+    --mm-dim: rgba(21, 24, 30, 0.42);
     --mm-ink: #8f99ff;
+    color-scheme: dark;
   }
+}
+:root[data-theme='dark'] {
+  --bg: #111318;
+  --panel: #15181e;
+  --panel-2: #1c2028;
+  --raised: #1a1d24;
+  --border: #262a33;
+  --border-strong: #333845;
+  --hover: rgba(255, 255, 255, 0.045);
+
+  --text: #e8eaf0;
+  --text-dim: #959cab;
+  --text-faint: #646b7a;
+
+  --accent: #7c88ff;
+  --accent-hover: #8f99ff;
+  --accent-soft: rgba(124, 136, 255, 0.14);
+  --accent-text: #0d0f14;
+  --today: #f87171;
+  --danger: #f87171;
+
+  --grid-day: rgba(255, 255, 255, 0.035);
+  --grid-week: rgba(255, 255, 255, 0.085);
+  --weekend: rgba(255, 255, 255, 0.018);
+  --row-line: #1d2027;
+
+  --block-tint: 26%;
+  --block-tint-hover: 33%;
+  --block-tint-strong: 40%;
+  --block-ink-base: #ffffff;
+  --block-ink-mix: 42%;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.6), 0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow-lift: 0 12px 28px -6px rgba(0, 0, 0, 0.7), 0 2px 6px rgba(0, 0, 0, 0.5);
+  --ring: 0 0 0 3px rgba(124, 136, 255, 0.3);
+
+  --mm-bg: #15181e;
+  --mm-band: rgba(255, 255, 255, 0.022);
+  --mm-line: rgba(255, 255, 255, 0.18);
+  --mm-text: #7b8291;
+  --mm-text-strong: #e8eaf0;
+  --mm-slider: rgba(124, 136, 255, 0.16);
+  --mm-slider-border: rgba(143, 153, 255, 0.8);
+  --mm-today: #f87171;
+  --mm-hover: rgba(232, 234, 240, 0.45);
+  --mm-dim: rgba(21, 24, 30, 0.42);
+  --mm-ink: #8f99ff;
+  color-scheme: dark;
+}
+:root[data-theme='light'] {
+  color-scheme: light;
 }
 
 /* =============================================================================
@@ -279,19 +333,38 @@ svg {
 .app.compact .seg > .btn:nth-last-child(2):has(+ .redo) {
   border-radius: 0 var(--radius) var(--radius) 0;
 }
+/* Zoom: quiet until you reach for it (pinch / ⌘-wheel are the main way). */
 .seg.zoom {
-  border: 1px solid var(--border);
-  background: var(--raised);
+  box-shadow: none;
 }
 .seg.zoom > .btn {
-  height: 30px;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
   border: none;
+  border-radius: var(--radius-sm);
   background: transparent;
+  color: var(--text-faint);
+}
+.seg.zoom > .btn:hover:not(:disabled) {
+  background: var(--hover);
+  color: var(--text);
 }
 .seg.zoom input {
-  width: 96px;
-  margin: 0 2px;
+  width: 0;
+  margin: 0;
+  opacity: 0;
   accent-color: var(--accent);
+  transition:
+    width 160ms ease,
+    opacity 160ms ease,
+    margin 160ms ease;
+}
+.seg.zoom:hover input,
+.seg.zoom:focus-within input {
+  width: 84px;
+  margin: 0 4px;
+  opacity: 1;
 }
 
 .modal select {
@@ -989,7 +1062,6 @@ svg {
   background: color-mix(in oklab, var(--c) var(--block-tint), var(--bg));
   color: color-mix(in oklab, var(--c) var(--block-ink-mix), var(--block-ink-base));
   box-shadow:
-    inset 3px 0 0 var(--c),
     inset 0 0 0 1px color-mix(in oklab, var(--c) 22%, transparent);
   cursor: grab;
   user-select: none;
@@ -1012,6 +1084,9 @@ svg {
   overflow: clip;
   border-radius: inherit;
   pointer-events: none;
+  /* Labels that don't fit fade out instead of ending in "…". */
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 14px), transparent calc(100% - 3px));
+  mask-image: linear-gradient(to right, #000 calc(100% - 14px), transparent calc(100% - 3px));
 }
 .task-label {
   display: flex;
@@ -1022,12 +1097,24 @@ svg {
   white-space: nowrap;
   pointer-events: none;
 }
+.task-label.tall {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+}
+.task-sub {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
 .task-title {
-  overflow: hidden;
   font-size: 12px;
   font-weight: 600;
   letter-spacing: -0.005em;
-  text-overflow: ellipsis;
+}
+.task-label.tall .task-title {
+  font-size: 13px;
+  line-height: 17px;
 }
 .task-meta {
   font-size: 11px;
@@ -1038,7 +1125,6 @@ svg {
 .task.untitled {
   background: color-mix(in oklab, var(--c) 8%, var(--bg));
   box-shadow:
-    inset 3px 0 0 var(--c),
     inset 0 0 0 1px color-mix(in oklab, var(--c) 45%, transparent);
 }
 .task.untitled .task-title {
@@ -1050,7 +1136,6 @@ svg {
   z-index: 1;
   background: color-mix(in oklab, var(--c) var(--block-tint-strong), var(--bg));
   box-shadow:
-    inset 3px 0 0 var(--c),
     0 0 0 1.5px var(--c),
     0 0 0 4px color-mix(in oklab, var(--c) 22%, transparent);
 }
@@ -1058,7 +1143,6 @@ svg {
   z-index: 5;
   background: color-mix(in oklab, var(--c) var(--block-tint-strong), var(--bg));
   box-shadow:
-    inset 3px 0 0 var(--c),
     0 0 0 1.5px var(--c),
     var(--shadow-lift);
   transition:
@@ -1363,8 +1447,11 @@ svg {
   inset: 0;
   width: 100%;
   height: 100%;
-  cursor: pointer;
+  cursor: grab;
   touch-action: none;
+}
+.minimap.scrubbing canvas {
+  cursor: grabbing;
 }
 
 /* =============================================================================
@@ -1650,6 +1737,7 @@ svg {
   width: auto;
 }
 .app.compact .tb-import,
+.app.compact .tb-theme,
 .app.compact .toolbar > .sync,
 .app.compact .redo,
 .app.compact .brand-name,
@@ -3904,4 +3992,51 @@ button.tag-chip {
   .pal-foot {
     display: none;
   }
+}
+.tb-theme {
+  flex: none;
+}
+
+/* Task details: a panel on the right (desktop). */
+.editor.side {
+  position: fixed;
+  top: 60px;
+  right: 10px;
+  bottom: 96px;
+  left: auto;
+  z-index: 50;
+  width: 380px;
+  max-height: none;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 16px;
+  box-shadow: var(--shadow), 0 24px 60px -24px rgb(0 0 0 / 0.3);
+  animation: side-in 180ms cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+.editor.side .editor-title {
+  font-size: 18px;
+}
+.editor.side .editor-actions {
+  margin-top: auto;
+  padding-top: 4px;
+}
+@keyframes side-in {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+}
+
+/* Space + drag pans the timeline. */
+.app.space-pan .body,
+.app.space-pan .body .task,
+.app.space-pan .body .handle {
+  cursor: grab;
+}
+.app.space-pan.panning .body,
+.app.space-pan.panning .body * {
+  cursor: grabbing !important;
+}
+.app.space-pan .body {
+  user-select: none;
 }

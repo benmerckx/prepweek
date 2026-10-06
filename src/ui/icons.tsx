@@ -234,3 +234,14 @@ export const Download = ({ size = 16 }: { size?: number }) => (
     <path d="M8 2.5v7.5M4.75 7 8 10.25 11.25 7M3 13.25h10" />
   </Svg>
 );
+export const Sun = ({ size = 16 }: { size?: number }) => (
+  <Svg size={size}>
+    <circle cx="8" cy="8" r="2.75" />
+    <path d="M8 1.75v1.25M8 13v1.25M1.75 8H3M13 8h1.25M3.6 3.6l.9.9M11.5 11.5l.9.9M3.6 12.4l.9-.9M11.5 4.5l.9-.9" />
+  </Svg>
+);
+export const Moon = ({ size = 16 }: { size?: number }) => (
+  <Svg size={size}>
+    <path d="M13.25 9.6A5.5 5.5 0 0 1 6.4 2.75a5.5 5.5 0 1 0 6.85 6.85Z" />
+  </Svg>
+);

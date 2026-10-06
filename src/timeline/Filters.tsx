@@ -150,7 +150,8 @@ export function ViewsMenu({ current, onApply }: { current: ViewConfig; onApply(c
   );
   const cur = norm(current);
   const active = views.find((v) => norm(v.config) === cur);
-  const isDefault = cur === norm({ hideWeekends: current.hideWeekends, dense: current.dense });
+  // Search and layout don't make a view "custom"; focus and filters do.
+  const isDefault = !current.focus?.length && !current.projects?.length && !current.tags?.length;
   const close = () => {
     ref.current?.removeAttribute('open');
     setNaming(null);

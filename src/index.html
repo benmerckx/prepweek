@@ -9,6 +9,13 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="prepweek" />
+    <!-- The theme picked with the toggle, before anything paints. -->
+    <script>
+      try {
+        var t = localStorage.getItem('prepweek:theme');
+        if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+      } catch (e) {}
+    </script>
     <!-- Boot screen: inline so it paints before the bundle and data load. -->
     <style>
       html,
@@ -71,16 +78,26 @@
         }
       }
       @media (prefers-color-scheme: dark) {
-        html,
-        body {
+        html:not([data-theme='light']),
+        html:not([data-theme='light']) body {
           background: #111318;
         }
-        .boot {
+        html:not([data-theme='light']) .boot {
           color: #959cab;
         }
-        .boot-bars i {
+        html:not([data-theme='light']) .boot-bars i {
           background-image: linear-gradient(90deg, #1c2028 0%, #262b35 50%, #1c2028 100%);
         }
+      }
+      html[data-theme='dark'],
+      html[data-theme='dark'] body {
+        background: #111318;
+      }
+      html[data-theme='dark'] .boot {
+        color: #959cab;
+      }
+      html[data-theme='dark'] .boot-bars i {
+        background-image: linear-gradient(90deg, #1c2028 0%, #262b35 50%, #1c2028 100%);
       }
       @media (prefers-reduced-motion: reduce) {
         .boot-mark,

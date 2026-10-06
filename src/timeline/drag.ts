@@ -48,6 +48,8 @@ interface Session {
   duplicate: boolean;
   /** Last computed preview, to avoid redundant model updates. */
   key: string;
+  /** The task editor was open when the press began. */
+  editing: boolean;
 }
 
 export interface DragCallbacks {
@@ -56,7 +58,12 @@ export interface DragCallbacks {
   onDragState(kind: DragKind | null, taskId: string | null): void;
   /** Touch tap (no drag) on a block, or on empty space (null). */
   onTap(id: string | null): void;
+  /** Mouse click (no drag) on a block. */
+  onClickBlock(id: string): void;
+  /** Mouse click (no drag) on empty space; `editing` = an editor was open. */
+  onClickEmpty(userId: string, day: number, editing: boolean): void;
   isSelected(id: string): boolean;
+  isEditing(): boolean;
 }
 
 const SLOP = 4;
@@ -100,6 +107,7 @@ export class DragController {
       timer: undefined,
       duplicate: e.altKey,
       key: '',
+      editing: this.cb.isEditing(),
     };
     if (block) {
       const task = this.model.findTask(block.dataset.task!);
@@ -270,7 +278,8 @@ export class DragController {
       this.end();
       const id = s.kind === 'create' ? null : s.taskId;
       if (s.touch) this.cb.onTap(id);
-      else this.cb.onSelect(id);
+      else if (id) this.cb.onClickBlock(id);
+      else this.cb.onClickEmpty(s.userId, s.anchor, s.editing);
       return;
     }
     this.update();
