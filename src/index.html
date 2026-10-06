@@ -4,6 +4,10 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
     <title>PrepWeek</title>
+    <meta name="description" content="PrepWeek is a fast, visual planner for teams: drag work onto people, stretch it across days, and everyone sees the change live." />
+    <meta property="og:title" content="PrepWeek: your team’s weeks, at a glance" />
+    <meta property="og:description" content="A fast, visual planner for teams. Live, offline-first, and it imports your Teamweek history." />
+    <meta property="og:type" content="website" />
     <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#111318" media="(prefers-color-scheme: dark)" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -19,6 +23,13 @@
       document.querySelectorAll('meta[name=theme-color]').forEach(function (m) {
         m.content = t === 'dark' ? '#111318' : '#ffffff';
       });
+      // New visitors get the landing page (see main.tsx): no "opening your
+      // sheet" screen for them.
+      try {
+        var p = location.pathname,
+          last = localStorage.getItem('prepweek:lastSheet');
+        if (p === '/welcome' || (p === '/' && (!last || last === 'demo'))) document.documentElement.dataset.landing = '';
+      } catch (e) {}
     </script>
     <!-- Boot screen: inline so it paints before the bundle and data load. -->
     <style>
@@ -102,6 +113,9 @@
       }
       html[data-theme='dark'] .boot-bars i {
         background-image: linear-gradient(90deg, #1c2028 0%, #262b35 50%, #1c2028 100%);
+      }
+      html[data-landing] .boot {
+        display: none;
       }
       @media (prefers-reduced-motion: reduce) {
         .boot-mark,
