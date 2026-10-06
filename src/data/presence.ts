@@ -37,6 +37,8 @@ const SEND_MS = 70;
 
 const self: Peer = { id: newId(), name: '', color: PALETTE[0], personId: '', view: null, sel: null, cur: null, at: 0 };
 const peers = new Map<string, Peer>();
+/** Peers heard through the relay: while there are none, nothing goes to it. */
+const remote = new Set<string>();
 const listeners = new Set<() => void>();
 let snapshot: Peer[] = [];
 let channel: BroadcastChannel | null = null;
@@ -70,16 +72,20 @@ const identify = () => {
   self.color = person?.color ?? hashColor(self.id);
 };
 
-const send = (msg: Msg) => {
+// Every message to the relay wakes its Durable Object, which is billed for
+// the time it stays awake. Alone on a sheet (the usual case), the relay only
+// needs my state when I connect, for the snapshot it gives newcomers; their
+// hello asks for a fresh one.
+const send = (msg: Msg, toRelay = remote.size > 0) => {
   const s = JSON.stringify(msg);
   channel?.postMessage(s);
-  if (socket?.readyState === WebSocket.OPEN) socket.send(s);
+  if (toRelay && socket?.readyState === WebSocket.OPEN) socket.send(s);
 };
-const flush = () => {
+const flush = (toRelay?: boolean) => {
   timer = undefined;
   lastSent = Date.now();
   self.at = lastSent;
-  send({ t: 'state', ...self });
+  send({ t: 'state', ...self }, toRelay);
 };
 
 /** Share part of my state (throttled). */
@@ -89,7 +95,7 @@ export const publish = (patch: Partial<Pick<Peer, 'view' | 'sel' | 'cur'>>) => {
   timer = setTimeout(flush, Math.max(0, SEND_MS - (Date.now() - lastSent)));
 };
 
-const receive = (raw: unknown) => {
+const receive = (raw: unknown, viaRelay = false) => {
   if (typeof raw !== 'string') return;
   let m: Msg;
   try {
@@ -99,10 +105,13 @@ const receive = (raw: unknown) => {
   }
   if (!m || typeof m.id !== 'string' || m.id === self.id) return;
   if (m.t === 'bye') {
+    remote.delete(m.id);
     if (peers.delete(m.id)) emit();
   } else if (m.t === 'hello') {
+    if (viaRelay) remote.add(m.id);
     flush();
   } else if (m.t === 'state') {
+    if (viaRelay) remote.add(m.id);
     peers.set(m.id, { ...m, at: Date.now() });
     emit();
   }
@@ -113,7 +122,7 @@ export const startPresence = () => {
   identify();
   onMeChange(() => {
     identify();
-    flush();
+    flush(true);
   });
   if ('BroadcastChannel' in window) {
     channel = new BroadcastChannel(`prepweek-presence:${getSheet()}`);
@@ -122,8 +131,11 @@ export const startPresence = () => {
   const http = getServerHttp();
   if (http) {
     socket = new ReconnectingWebSocket(() => withKey(`${http.replace(/^http/, 'ws')}/presence/${encodeURIComponent(getSheet())}`));
-    socket.addEventListener('message', (e) => receive(e.data));
-    socket.addEventListener('open', flush);
+    socket.addEventListener('message', (e) => receive(e.data, true));
+    socket.addEventListener('open', () => {
+      send({ t: 'hello', id: self.id }, true);
+      flush(true);
+    });
   }
   send({ t: 'hello', id: self.id });
   flush();
@@ -131,13 +143,13 @@ export const startPresence = () => {
     flush();
     const now = Date.now();
     let changed = false;
-    for (const [id, p] of peers) if (now - p.at > STALE_MS) changed = peers.delete(id) || changed;
+    for (const [id, p] of peers) if (now - p.at > STALE_MS) changed = (remote.delete(id), peers.delete(id)) || changed;
     if (changed) emit();
   }, HEARTBEAT_MS);
-  const bye = () => send({ t: 'bye', id: self.id });
+  const bye = () => send({ t: 'bye', id: self.id }, true);
   addEventListener('pagehide', bye);
   addEventListener('beforeunload', bye);
-  addEventListener('pageshow', (e) => (e as PageTransitionEvent).persisted && flush());
+  addEventListener('pageshow', (e) => (e as PageTransitionEvent).persisted && flush(true));
   // Hidden tabs keep their place but drop the pointer.
   document.addEventListener('visibilitychange', () => document.hidden && publish({ cur: null }));
 };

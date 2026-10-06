@@ -6,7 +6,7 @@
 //    when their content does; icons keep theirs, so bump CACHE when they change);
 //  - sync, presence, files, sharing and the account API go straight to the network.
 
-const CACHE = 'prepweek-v4';
+const CACHE = 'prepweek-v5';
 const SHELL = '/';
 const LIVE = /^\/(sync|presence|files|share|api|auth)\//;
 
@@ -55,7 +55,9 @@ self.addEventListener('fetch', (event) => {
       (hit) =>
         hit ??
         fetch(req).then((res) => {
-          if (res.ok && res.type === 'basic') {
+          // A missing old chunk comes back as the app's index.html (SPA
+          // fallback): don't keep that under the script's URL.
+          if (res.ok && res.type === 'basic' && !(res.headers.get('content-type') ?? '').includes('text/html')) {
             const copy = res.clone();
             caches.open(CACHE).then((c) => c.put(req, copy));
           }

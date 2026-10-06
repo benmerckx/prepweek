@@ -233,6 +233,10 @@ export default function RichNotes({ value, readOnly, placeholder = 'Notes  ·  t
   useEffect(() => () => flushRef.current(), []);
 
   const onChange = (state: EditorState) => {
+    // Only the person typing saves. Loading notes (on open, or someone else's
+    // edit) also changes the editor, and its markdown can come out slightly
+    // different (links, bullets): saving that would write for every viewer.
+    if (!focused) return;
     const md = state.read(() => $convertToMarkdownString(TRANSFORMERS, undefined, true));
     if (md === value) return;
     pending.current = md;

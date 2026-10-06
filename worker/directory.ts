@@ -110,8 +110,10 @@ export class DirectoryDurableObject extends DurableObject<Env> {
 
   // --- Sign-in -----------------------------------------------------------------
 
-  /** A one-time magic-link token for `email`. */
-  async createLogin(email: string, next: string): Promise<string> {
+  /** A one-time magic-link token for `email`; null if one was asked for under a minute ago. */
+  async createLogin(email: string, next: string): Promise<string | null> {
+    // Each link is an email we pay for: don't let anyone send them in a loop.
+    if (this.one('SELECT 1 FROM logins WHERE email = ? AND expires > ?', email.toLowerCase(), Date.now() + LOGIN_MS - 60_000)) return null;
     const token = randomId(24);
     this.sql.exec('DELETE FROM logins WHERE expires < ?', Date.now());
     this.sql.exec('INSERT INTO logins VALUES (?, ?, ?, ?)', await sha256(token), email.toLowerCase(), next, Date.now() + LOGIN_MS);
@@ -149,6 +151,7 @@ export class DirectoryDurableObject extends DurableObject<Env> {
       }
     }
     const token = randomId(32);
+    this.sql.exec('DELETE FROM sessions WHERE expires < ?', Date.now());
     this.sql.exec('INSERT INTO sessions VALUES (?, ?, ?)', await sha256(token), user.id, Date.now() + SESSION_MS);
     return { user, token, isNew };
   }
@@ -249,6 +252,7 @@ export class DirectoryDurableObject extends DurableObject<Env> {
   async invite(userId: string, workspaceId: string, email: string, role: WorkspaceRole): Promise<string> {
     this.requireRole(userId, workspaceId, 'admin');
     const token = randomId(18);
+    this.sql.exec('DELETE FROM invites WHERE expires < ?', Date.now());
     this.sql.exec('INSERT INTO invites VALUES (?, ?, ?, ?, ?, ?, ?)', token, workspaceId, email.toLowerCase(), role, userId, Date.now(), Date.now() + INVITE_MS);
     return token;
   }

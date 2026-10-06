@@ -1,7 +1,6 @@
 import { startLocalDb } from './localdb.ts';
 import { createBroadcastChannelSynchronizer } from 'tinybase/synchronizers/synchronizer-broadcast-channel';
 import { createWsSynchronizer } from 'tinybase/synchronizers/synchronizer-ws-client';
-import ReconnectingWebSocket from 'reconnecting-websocket';
 import { store } from './store.ts';
 import { seed } from './seed.ts';
 import { withKey } from './access.ts';
@@ -91,8 +90,9 @@ export const startSync = async (sheetId: string, served = false) => {
     local.compactSoon();
   }
 
-  const tabs = createBroadcastChannelSynchronizer(store, `prepweek:${sheetId}`);
-  await tabs.startSync();
+  // Other tabs: directly when there's no server. With one, each tab has its
+  // own connection, and changes heard from a tab would go up again from here.
+  if (!server) await createBroadcastChannelSynchronizer(store, `prepweek:${sheetId}`).startSync();
 
   // Never block first paint on the network: the local replica is already
   // usable, the server merges in when it answers.
@@ -119,25 +119,48 @@ const SYNC_FRAGMENT = 768 * 1024;
 /** Seconds to wait for a reply (large payloads take a while). */
 const SYNC_TIMEOUT = 30;
 
-const connect = async (server: string, sheetId: string) => {
-  setStatus('connecting');
-  // A function, so a reconnect after the share links are reset uses the new key.
-  const ws = new ReconnectingWebSocket(() => withKey(`${server.replace(/\/$/, '')}/${encodeURIComponent(sheetId)}`));
-  ws.addEventListener('close', () => setStatus('offline'));
-  const remote = await createWsSynchronizer(
-    store,
-    ws as unknown as WebSocket,
-    SYNC_TIMEOUT,
-    undefined,
-    undefined,
-    (e) => console.warn('Sync error', e),
-    SYNC_FRAGMENT,
-  );
-  // Re-sync after every (re)connect so offline edits propagate.
-  ws.addEventListener('open', () => {
-    setStatus('online');
-    remote.load().then(() => remote.save());
+/**
+ * Connects, and reconnects after every drop, with a fresh synchronizer each
+ * time: TinyBase's stops listening to its socket once that closes, so behind
+ * a reconnecting socket it went on sending edits but never received again.
+ * A new connection starts with a full (hash-based) sync, which also covers
+ * edits made offline. Resolves once the first attempt connected or failed.
+ */
+const connect = (server: string, sheetId: string) =>
+  new Promise<void>((resolveFirst) => {
+    let delay = 1000;
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    const open = async () => {
+      clearTimeout(retry);
+      retry = undefined;
+      // A function call, so a reconnect after the share links are reset uses the new key.
+      const ws = new WebSocket(withKey(`${server.replace(/\/$/, '')}/${encodeURIComponent(sheetId)}`));
+      let remote: Awaited<ReturnType<typeof createWsSynchronizer>> | undefined;
+      ws.addEventListener('close', () => {
+        void remote?.destroy();
+        remote = undefined;
+        setStatus('offline');
+        resolveFirst();
+        if (retry) return;
+        retry = setTimeout(open, delay);
+        delay = Math.min(delay * 2, 30_000);
+      });
+      try {
+        remote = await createWsSynchronizer(store, ws, SYNC_TIMEOUT, undefined, undefined, (e) => console.warn('Sync error', e), SYNC_FRAGMENT);
+        await remote.startSync();
+        if (ws.readyState === WebSocket.OPEN) {
+          delay = 1000;
+          setStatus('online');
+        }
+      } catch (e) {
+        // e.g. refused because the sheet is private and our link isn't valid.
+        console.warn('Sync connection failed', e);
+        ws.close();
+      }
+      resolveFirst();
+    };
+    setStatus('connecting');
+    void open();
+    // Back online: don't wait out the backoff.
+    addEventListener('online', () => retry && open());
   });
-  if (ws.readyState === ws.OPEN) setStatus('online');
-  await remote.startSync();
-};

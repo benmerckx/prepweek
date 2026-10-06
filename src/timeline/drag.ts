@@ -36,6 +36,8 @@ interface Session {
   grab: number;
   /** For create: the day under the pointer at pointerdown. */
   anchor: number;
+  /** The task's lane in the layout at pointerdown. */
+  lane0?: number;
   downX: number;
   downY: number;
   lastX: number;
@@ -117,7 +119,7 @@ export class DragController {
       // Grab offset from the edge being dragged, so the edge doesn't jump to
       // the pointer (matters for the offset touch knobs).
       const grab = kind === 'resize-end' ? col - sc.col(task.end + 1) : col - sc.col(task.start);
-      this.s = { ...base, kind, taskId: task.id, userId: task.userId, start: task.start, end: task.end, grab, anchor: 0 };
+      this.s = { ...base, kind, taskId: task.id, userId: task.userId, start: task.start, end: task.end, grab, anchor: 0, lane0: this.model.laneOf(task.id) };
     } else {
       // View-only: tapping a block selects it, nothing else.
       if (isReadOnly()) return;
@@ -295,7 +297,7 @@ export class DragController {
         return;
       }
       const orig = this.model.findTask(s.taskId);
-      const changed = !orig || orig.userId !== p.userId || orig.start !== p.start || orig.end !== p.end || this.model.laneOf(s.taskId) !== orig.lane;
+      const changed = !orig || orig.userId !== p.userId || orig.start !== p.start || orig.end !== p.end || lane !== (s.lane0 ?? -1);
       if (s.duplicate && orig) {
         const id = createTask({
           userId: p.userId,

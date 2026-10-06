@@ -276,7 +276,8 @@ export function Timeline({ model }: { model: TimelineModel }) {
       next.r1 = rb + 4;
     }
     winRef.current = next;
-    setWin(next);
+    // Unchanged (e.g. recomputed after a data change): skip the extra render.
+    setWin((prev) => (prev.d0 === next.d0 && prev.d1 === next.d1 && prev.r0 === next.r0 && prev.r1 === next.r1 ? prev : next));
   }, [model, vp]);
 
   // Scroll: rAF-throttled, never re-renders unless the window must move.

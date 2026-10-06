@@ -41,7 +41,14 @@ const cookies = (req: Request) =>
       .split(';')
       .map((c) => c.trim().split('='))
       .filter((p) => p.length === 2)
-      .map(([k, v]) => [k, decodeURIComponent(v!)]),
+      .map(([k, v]) => {
+        // Another site's malformed cookie on this domain mustn't break every request.
+        try {
+          return [k, decodeURIComponent(v!)];
+        } catch {
+          return [k, v];
+        }
+      }),
   );
 
 const cookie = (url: URL, name: string, value: string, maxAge: number) =>
@@ -116,6 +123,7 @@ export async function handleAuth(req: Request, env: Env, url: URL): Promise<Resp
     const { email, next } = (await req.json().catch(() => ({}))) as { email?: string; next?: string };
     if (!email || !EMAIL.test(email)) return fail('That doesn’t look like an email address');
     const token = await directory(env).createLogin(email, safeNext(next));
+    if (!token) return fail('A link is already on its way. Try again in a minute.', 429);
     const link = `${url.origin}/auth/verify?token=${encodeURIComponent(token)}`;
     if (canEmail(env)) {
       try {
@@ -183,8 +191,9 @@ export async function handleAuth(req: Request, env: Env, url: URL): Promise<Resp
     });
     if (!res.ok) return fail('Google sign-in failed', 400);
     const { id_token } = (await res.json()) as { id_token?: string };
+    if (!id_token?.includes('.')) return fail('Google sign-in failed', 400);
     // Received straight from Google over TLS, so its claims can be read as-is.
-    const claims = JSON.parse(atob((id_token ?? '').split('.')[1]!.replace(/-/g, '+').replace(/_/g, '/'))) as {
+    const claims = JSON.parse(atob(id_token.split('.')[1]!.replace(/-/g, '+').replace(/_/g, '/'))) as {
       email?: string;
       email_verified?: boolean;
       name?: string;
@@ -291,6 +300,12 @@ export async function handleApi(req: Request, env: Env, url: URL): Promise<Respo
     if (seg[0] === 'sheets') {
       if (!seg[1] && req.method === 'POST') {
         const id = body.id && /^[A-Za-z0-9_-]{6,40}$/.test(body.id) ? body.id : undefined;
+        // Only someone who may edit the sheet can put it in a workspace (which
+        // locks out everyone else without a link).
+        if (id) {
+          const byKey = await env.SHEETS.get(env.SHEETS.idFromName(`sync/${id}`)).keyRole(body.key ?? '');
+          if (byKey !== 'open' && byKey !== 'edit') return fail('Only editors can save this sheet to a workspace', 403);
+        }
         return json({ id: await dir.addSheet(user.id, body.workspaceId ?? '', body.name ?? '', id) });
       }
       if (seg[1] && req.method === 'PATCH') {

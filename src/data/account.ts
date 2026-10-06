@@ -3,6 +3,8 @@
 // server (or offline) everything here quietly reports "unavailable" and the
 // app works as a local, account-less planner.
 
+import { getKey } from './access.ts';
+
 export interface Account {
   id: string;
   email: string;
@@ -139,7 +141,7 @@ export const acceptInvite = async (token: string) => {
 
 /** A new sheet in a workspace, or (with `id`) put the current one there. */
 export const addSheet = async (workspaceId: string, name: string, id?: string) => {
-  const r = await api<{ id: string }>('POST', '/api/sheets', { workspaceId, name, id });
+  const r = await api<{ id: string }>('POST', '/api/sheets', { workspaceId, name, id, key: id ? getKey() : undefined });
   await loadMe();
   return r.id;
 };

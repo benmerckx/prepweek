@@ -75,6 +75,7 @@ export const startLocalDb = async (store: MergeableStore, name: string, legacyNa
   // --- Load: snapshot, then replay the log on top. ---
   let logCount = 0;
   let logRows = 0;
+  let stored = false;
   {
     const tx = db.transaction([SNAPSHOT, LOG], 'readonly');
     const [snapshot, log] = await Promise.all([
@@ -82,6 +83,7 @@ export const startLocalDb = async (store: MergeableStore, name: string, legacyNa
       req(tx.objectStore(LOG).getAll()) as Promise<Changes[]>,
     ]);
     logCount = log.length;
+    stored = !!snapshot || log.length > 0;
     for (const ch of log) logRows += rowsIn(ch);
     store.transaction(() => {
       if (snapshot) store.setMergeableContent(snapshot);
@@ -89,9 +91,13 @@ export const startLocalDb = async (store: MergeableStore, name: string, legacyNa
     });
   }
 
-  // One-time migration from the previous full-content persister.
+  // One-time migration from the previous full-content persister: only into a
+  // database that has nothing yet (loading replaces the whole store, so doing
+  // it again later would bring back old content), and only if the old one
+  // exists (opening it would create it).
   let migrated = false;
-  if (store.getRowCount('users') === 0 && store.getRowCount('tasks') === 0 && legacyName) {
+  const hasLegacy = async () => !indexedDB.databases || (await indexedDB.databases()).some((d) => d.name === legacyName);
+  if (!stored && legacyName && (await hasLegacy().catch(() => true))) {
     try {
       await createIndexedDbPersister(store, legacyName).load();
       migrated = store.getRowCount('tasks') > 0 || store.getRowCount('users') > 0;

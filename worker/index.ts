@@ -219,9 +219,13 @@ const json = (data: unknown, status = 200) =>
  * workspace, e.g. one started without an account, is open to whoever has
  * its unguessable address unless private links are on.
  */
-const sheetAccess = async (request: Request, env: Env, sheet: string, key: string) => {
+const sheetAccess = async (request: Request, env: Env, sheet: string, key: string, needKeys: boolean) => {
   const user = await sessionUser(request, env);
-  const [info, byKey] = await Promise.all([directory(env).sheet(sheet, user?.id ?? null), sheetStub(env, sheet).keyRole(key)]);
+  const info = await directory(env).sheet(sheet, user?.id ?? null);
+  // Asking the sheet's object wakes it, and starting loads every row of the
+  // sheet (billed as rows read). A member's access doesn't depend on links.
+  const member = !info.deleted && !!info.workspace && !!info.role;
+  const byKey = member && !needKeys ? 'open' : await sheetStub(env, sheet).keyRole(key);
   let role: Role;
   if (info.deleted) role = 'none';
   else if (info.workspace) role = info.role ? 'edit' : byKey === 'open' ? 'none' : byKey;
@@ -251,7 +255,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
   const sheet = decodeURIComponent(route[2]!);
   const key = url.searchParams.get('k') ?? '';
   const stub = sheetStub(env, sheet);
-  const { role, user, info, isPrivate } = await sheetAccess(request, env, sheet, key);
+  const { role, user, info, isPrivate } = await sheetAccess(request, env, sheet, key, kind === 'share');
 
   if (kind === 'share') {
     if (request.method === 'GET') {
@@ -310,6 +314,11 @@ async function files(request: Request, env: Env, url: URL): Promise<Response> {
     if (!obj) return new Response('Not found', { status: 404 });
     const headers = new Headers({ 'cache-control': 'private, max-age=31536000, immutable' });
     obj.writeHttpMetadata(headers);
+    // The type is whatever the uploader said: never let a file run as a page
+    // on this origin (an uploaded .html could call the API as the viewer).
+    headers.set('content-disposition', 'attachment');
+    headers.set('x-content-type-options', 'nosniff');
+    headers.set('content-security-policy', "sandbox; default-src 'none'");
     return new Response(obj.body, { headers });
   }
   return new Response('Method not allowed', { status: 405 });
