@@ -33,8 +33,9 @@ export function Editor({ task, model, sheet, side, readOnly, onClose }: Props) {
   };
 
   useEffect(() => {
-    // On phones only jump into the keyboard for a new (untitled) task.
-    if (!readOnly && (!sheet || !task.title)) {
+    // Only a new (untitled) task starts in its title; opening an existing
+    // one shouldn't grab focus or select text.
+    if (!readOnly && !task.title) {
       titleRef.current?.focus({ preventScroll: true });
       titleRef.current?.select();
     }

@@ -63,95 +63,98 @@ export function ProjectField({ task, model }: { task: TaskView; model: TimelineM
     setQ('');
   };
 
-  if (!open) {
-    return (
-      <button className="field-chip" onClick={() => setOpen(true)} title="Project">
-        <Folder size={14} />
-        {project ? (
-          <>
-            <span className="dot" style={{ background: project.color }} />
-            <span className="field-chip-text">
-              {project.name}
-              {project.client && <span className="dim"> · {project.client}</span>}
-            </span>
-          </>
-        ) : (
-          <span className="field-chip-text dim">No project</span>
-        )}
-        <ChevronDown size={14} />
-      </button>
-    );
-  }
+  const chip = (
+    <button className={'field-chip' + (open ? ' open' : '')} onClick={() => setOpen((o) => !o)} title="Project" aria-expanded={open}>
+      <Folder size={14} />
+      {project ? (
+        <>
+          <span className="dot" style={{ background: project.color }} />
+          <span className="field-chip-text">
+            {project.name}
+            {project.client && <span className="dim"> · {project.client}</span>}
+          </span>
+        </>
+      ) : (
+        <span className="field-chip-text dim">No project</span>
+      )}
+      <ChevronDown size={14} />
+    </button>
+  );
+  if (!open) return chip;
+  // A popover over the panel, not an inline list that pushes everything down.
   return (
-    <div className="combo">
-      <input
-        autoFocus
-        className="combo-input"
-        placeholder="Find or create a project…"
-        value={q}
-        onChange={(e) => {
-          setQ(e.currentTarget.value);
-          setHi(0);
-        }}
-        onKeyDown={(e) => {
-          if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-            e.preventDefault();
-            setHi((h) => (h + (e.key === 'ArrowDown' ? 1 : -1) + rows.length) % Math.max(1, rows.length));
-          } else if (e.key === 'Enter') {
-            e.preventDefault();
-            const row = rows[hi];
-            if (row) pick(row);
-          } else if (e.key === 'Escape') {
-            e.stopPropagation();
-            setOpen(false);
-            setQ('');
-          }
-        }}
-        onBlur={(e) => {
-          if (!e.currentTarget.parentElement?.contains(e.relatedTarget as Node)) {
-            setOpen(false);
-            setQ('');
-          }
-        }}
-      />
-      <div className="combo-list" role="listbox">
-        {rows.map((row, i) => {
-          const on = row.kind === 'project' ? row.p.id === task.projectId : row.kind === 'none' && !task.projectId;
-          return (
-            <button
-              key={row.kind === 'project' ? row.p.id : row.kind}
-              className={'combo-item' + (i === hi ? ' hi' : '')}
-              role="option"
-              aria-selected={on}
-              onMouseDown={(e) => e.preventDefault()}
-              onMouseEnter={() => setHi(i)}
-              onClick={() => pick(row)}
-            >
-              {row.kind === 'none' && <span className="dim">No project</span>}
-              {row.kind === 'project' && (
-                <>
-                  <span className="dot" style={{ background: row.p.color }} />
-                  <span className="combo-text">{row.p.name}</span>
-                  {row.p.client && <span className="combo-sub">{row.p.client}</span>}
-                </>
-              )}
-              {row.kind === 'create' && (
-                <>
-                  <Plus />
-                  <span className="combo-text">
-                    Create <b>{q.trim()}</b>
+    <div className="field-pop">
+      {chip}
+      <div className="combo pop">
+        <input
+          autoFocus
+          className="combo-input"
+          placeholder="Find or create a project…"
+          value={q}
+          onChange={(e) => {
+            setQ(e.currentTarget.value);
+            setHi(0);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+              e.preventDefault();
+              setHi((h) => (h + (e.key === 'ArrowDown' ? 1 : -1) + rows.length) % Math.max(1, rows.length));
+            } else if (e.key === 'Enter') {
+              e.preventDefault();
+              const row = rows[hi];
+              if (row) pick(row);
+            } else if (e.key === 'Escape') {
+              e.stopPropagation();
+              setOpen(false);
+              setQ('');
+            }
+          }}
+          onBlur={(e) => {
+            if (!e.currentTarget.closest('.field-pop')?.contains(e.relatedTarget as Node)) {
+              setOpen(false);
+              setQ('');
+            }
+          }}
+        />
+        <div className="combo-list" role="listbox">
+          {rows.map((row, i) => {
+            const on = row.kind === 'project' ? row.p.id === task.projectId : row.kind === 'none' && !task.projectId;
+            return (
+              <button
+                key={row.kind === 'project' ? row.p.id : row.kind}
+                className={'combo-item' + (i === hi ? ' hi' : '')}
+                role="option"
+                aria-selected={on}
+                onMouseDown={(e) => e.preventDefault()}
+                onMouseEnter={() => setHi(i)}
+                onClick={() => pick(row)}
+              >
+                {row.kind === 'none' && <span className="dim">No project</span>}
+                {row.kind === 'project' && (
+                  <>
+                    <span className="dot" style={{ background: row.p.color }} />
+                    <span className="combo-text">{row.p.name}</span>
+                    {row.p.client && <span className="combo-sub">{row.p.client}</span>}
+                  </>
+                )}
+                {row.kind === 'create' && (
+                  <>
+                    <Plus />
+                    <span className="combo-text">
+                      Create <b>{q.trim()}</b>
+                    </span>
+                  </>
+                )}
+                {on && (
+                  <span className="tb-check">
+                    <Check size={14} />
                   </span>
-                </>
-              )}
-              {on && (
-                <span className="tb-check">
-                  <Check size={14} />
-                </span>
-              )}
-            </button>
-          );
-        })}
-        {rows.length === 0 && <div className="combo-empty">No projects</div>}
+                )}
+              </button>
+            );
+          })}
+          {rows.length === 0 && <div className="combo-empty">No projects</div>}
+        </div>
       </div>
     </div>
   );

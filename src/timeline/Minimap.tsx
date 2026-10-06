@@ -33,7 +33,7 @@ interface Geo {
 export function Minimap({ model, vp, today }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
-  const state = useRef({ hoverX: -1, dragging: false, grabDx: 0, raf: 0, rebuild: 0, colors: {} as Record<string, string> });
+  const state = useRef({ hoverX: -1, dragging: false, grabDx: 0, raf: 0, rebuild: 0, colors: {} as Record<string, string>, shift: 0, glide: null as null | { from: number; to: number; s0: number; s1: number; timer: number } });
 
   useEffect(() => {
     const canvas = canvasRef.current!;
@@ -56,10 +56,27 @@ export function Minimap({ model, vp, today }: Props) {
       const mmDays = W / scale;
       const max = vp.maxScrollLeft();
       const f = max > 0 ? (vp.scroller?.scrollLeft ?? 0) / max : 0;
-      const mmStart = vp.origin + f * Math.max(0, total - mmDays);
+      // Proportional (like VS Code), plus a shift in days that a click sets
+      // so the clicked spot ends up under the pointer.
+      const base = vp.origin + f * Math.max(0, total - mmDays);
       const viewDays = vp.visibleDays;
-      const sliderX = (vp.firstVisibleDay - mmStart) * scale;
       const sliderW = Math.max(6, viewDays * scale);
+      const fv = vp.firstVisibleDay;
+      // Mid-glide after a click: blend the shift in with the scroll progress,
+      // so the strip moves smoothly instead of jumping.
+      const gl = st.glide;
+      if (gl) {
+        const p = gl.to === gl.from ? 1 : Math.min(1, Math.max(0, ((vp.scroller?.scrollLeft ?? 0) - gl.from) / (gl.to - gl.from)));
+        st.shift = gl.s0 + (gl.s1 - gl.s0) * p;
+      }
+      let mmStart = base + st.shift;
+      // Keep the handle on the strip (except mid-glide).
+      if (!gl) {
+        if ((fv - mmStart) * scale < 0) mmStart = fv;
+        else if ((fv - mmStart) * scale + sliderW > W) mmStart = fv - (W - sliderW) / scale;
+        st.shift = mmStart - base;
+      }
+      const sliderX = (fv - mmStart) * scale;
       return { W, H, scale, mmStart, sliderX, sliderW, travel: Math.max(1, W - viewDays * scale) };
     };
 
@@ -332,9 +349,18 @@ export function Minimap({ model, vp, today }: Props) {
     // Scrubbing.
     const setFromSlider = (sliderLeft: number) => {
       const g = geo();
-      const f = Math.min(1, Math.max(0, sliderLeft / g.travel));
+      const f = Math.min(1, Math.max(0, (sliderLeft + st.shift * g.scale) / g.travel));
       if (vp.scroller) vp.scroller.scrollLeft = f * vp.maxScrollLeft();
     };
+    const endGlide = () => {
+      if (!st.glide) return;
+      clearTimeout(st.glide.timer);
+      st.shift = st.glide.s1;
+      st.glide = null;
+      schedule();
+    };
+    const scroller = vp.scroller;
+    scroller?.addEventListener('scrollend', endGlide);
     const localX = (e: PointerEvent) => e.clientX - canvas.getBoundingClientRect().left;
     /** Over the handle (with a little slack so a thin one is still grabbable). */
     const onHandle = (x: number, g = geo()) => x >= g.sliderX - 4 && x <= g.sliderX + g.sliderW + 4;
@@ -344,12 +370,28 @@ export function Minimap({ model, vp, today }: Props) {
       const x = localX(e);
       const g = geo();
       if (!onHandle(x, g)) {
-        // Outside the handle: glide there so the handle ends up centred
-        // under the pointer. No drag starts here.
-        const f = Math.min(1, Math.max(0, (x - g.sliderW / 2) / g.travel));
-        vp.scroller?.scrollTo({ left: f * vp.maxScrollLeft(), behavior: 'smooth' });
+        // Outside the handle: glide so the clicked day is centred in the
+        // timeline, and shift the strip so that day (now the handle's centre)
+        // ends up right under the pointer. No drag starts here.
+        const day = g.mmStart + x / g.scale;
+        const max = vp.maxScrollLeft();
+        const left = Math.min(max, Math.max(0, vp.scale.xF(day) - vp.viewWidth / 2));
+        const total = Math.max(1, vp.rangeDays);
+        const baseEnd = vp.origin + (max > 0 ? left / max : 0) * Math.max(0, total - g.W / g.scale);
+        if (st.glide) clearTimeout(st.glide.timer);
+        const from = vp.scroller?.scrollLeft ?? 0;
+        st.glide = {
+          from,
+          to: left,
+          s0: st.shift,
+          s1: day - x / g.scale - baseEnd,
+          timer: setTimeout(endGlide, 2500) as unknown as number, // fallback for scrollend
+
+        };
+        vp.scroller?.scrollTo({ left, behavior: 'smooth' });
         return;
       }
+      endGlide();
       canvas.setPointerCapture(e.pointerId);
       st.dragging = true;
       wrap.classList.add('scrubbing');
@@ -400,6 +442,7 @@ export function Minimap({ model, vp, today }: Props) {
     });
     schedule();
     return () => {
+      scroller?.removeEventListener('scrollend', endGlide);
       offPeers();
       cancelAnimationFrame(st.raf);
       clearTimeout(st.rebuild);
