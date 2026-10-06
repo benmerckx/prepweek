@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { Attachments, attachFiles } from './Attachments.tsx';
 import { deleteTask, getTask, updateTask } from '../data/store.ts';
 import { RULES, RULE_LABELS, type Rule } from '../lib/recur.ts';
@@ -158,6 +158,7 @@ export function Editor({ task, model, sheet, side, readOnly, onClose, onRetarget
         if (e.key === 'Escape') onClose();
       }}
     >
+      {sheet && <SheetGrab sheet={ref} onClose={onClose} />}
       <button type="button" className="editor-close" aria-label="Close" title="Close (Esc)" onClick={onClose}>
         <Close />
       </button>
@@ -260,6 +261,61 @@ export function Editor({ task, model, sheet, side, readOnly, onClose, onRetarget
         </button>
       </div>
     </div>
+  );
+}
+
+/**
+ * The bottom sheet's handle: the sheet follows the finger down, and closes
+ * when let go far enough down (or flicked); otherwise it springs back.
+ */
+function SheetGrab({ sheet, onClose }: { sheet: RefObject<HTMLDivElement | null>; onClose(): void }) {
+  const drag = useRef<{ id: number; y0: number; dy: number; t: number; v: number } | null>(null);
+  const move = (dy: number) => {
+    const el = sheet.current;
+    if (el) el.style.transform = dy > 0 ? `translateY(${dy}px)` : '';
+  };
+  const settle = (close: boolean) => {
+    const el = sheet.current;
+    if (!el) return;
+    el.classList.remove('dragging-sheet');
+    el.classList.add('settling');
+    move(close ? el.offsetHeight + 40 : 0);
+    setTimeout(() => {
+      el.classList.remove('settling');
+      if (close) onClose();
+    }, 220);
+  };
+  return (
+    <div
+      className="sheet-grab"
+      aria-hidden
+      onPointerDown={(e) => {
+        e.currentTarget.setPointerCapture(e.pointerId);
+        drag.current = { id: e.pointerId, y0: e.clientY, dy: 0, t: e.timeStamp, v: 0 };
+        sheet.current?.classList.add('dragging-sheet');
+      }}
+      onPointerMove={(e) => {
+        const d = drag.current;
+        if (!d || d.id !== e.pointerId) return;
+        const dy = e.clientY - d.y0;
+        const dt = Math.max(1, e.timeStamp - d.t);
+        d.v = (dy - d.dy) / dt;
+        d.dy = dy;
+        d.t = e.timeStamp;
+        move(dy);
+      }}
+      onPointerUp={(e) => {
+        const d = drag.current;
+        if (!d || d.id !== e.pointerId) return;
+        drag.current = null;
+        const h = sheet.current?.offsetHeight ?? 400;
+        settle(d.dy > Math.min(140, h * 0.3) || (d.dy > 20 && d.v > 0.5));
+      }}
+      onPointerCancel={() => {
+        drag.current = null;
+        settle(false);
+      }}
+    />
   );
 }
 
