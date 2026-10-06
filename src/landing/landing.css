@@ -316,6 +316,72 @@ html:has(.lp) {
   gap: 12px;
   margin-top: 32px;
 }
+/* The ways in: each button says in a line below what it does. */
+.lp-ways {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 18px 14px;
+  margin-top: 32px;
+}
+.lp-way {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+  width: 196px;
+}
+.lp-way .lp-btn {
+  width: 100%;
+  justify-content: center;
+}
+.lp-way-caption {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--text-faint);
+  font-size: 12.5px;
+  line-height: 1.4;
+  text-align: center;
+  text-wrap: balance;
+}
+.lp-way.primary .lp-way-caption {
+  color: var(--text-dim);
+}
+.lp-way-face,
+.lp-nav-face {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.lp-nav-face {
+  width: 20px;
+  height: 20px;
+  margin-left: -4px;
+  box-shadow: 0 0 0 1.5px rgb(255 255 255 / 0.6);
+}
+.lp-final .lp-way-caption,
+.lp-final .lp-way.primary .lp-way-caption {
+  color: rgb(255 255 255 / 0.78);
+}
+@media (max-width: 640px) {
+  .lp-ways {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+    width: 100%;
+    max-width: 340px;
+    margin-right: auto;
+    margin-left: auto;
+  }
+  .lp-way {
+    width: auto;
+  }
+}
 .lp-note {
   display: flex;
   flex-wrap: wrap;
@@ -2131,7 +2197,8 @@ html:has(.lp) {
   padding: 88px 24px;
   overflow: hidden;
   border-radius: 28px;
-  background: var(--accent);
+  /* The deep accent in both themes, so white text reads on it. */
+  background: #4f5bd5;
   color: #fff;
   text-align: center;
 }
@@ -2172,7 +2239,7 @@ html:has(.lp) {
 }
 .lp-final .lp-btn.primary {
   background: #fff;
-  color: var(--accent);
+  color: #3f4bc4;
   box-shadow: 0 8px 24px -10px rgb(0 0 0 / 0.35);
 }
 .lp-final .lp-btn.primary:hover {
