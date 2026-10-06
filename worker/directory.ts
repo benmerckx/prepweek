@@ -181,6 +181,18 @@ export class DirectoryDurableObject extends DurableObject<Env> {
     if (name.trim()) this.sql.exec('UPDATE workspaces SET name = ? WHERE id = ?', name.trim().slice(0, 80), workspaceId);
   }
 
+  /**
+   * Delete a workspace (admins): its sheets are deleted too (they stay
+   * claimed, so their addresses never open again), members and invites go.
+   */
+  async deleteWorkspace(userId: string, workspaceId: string) {
+    this.requireRole(userId, workspaceId, 'admin');
+    this.sql.exec('UPDATE sheets SET deleted = 1 WHERE workspace_id = ?', workspaceId);
+    this.sql.exec('DELETE FROM invites WHERE workspace_id = ?', workspaceId);
+    this.sql.exec('DELETE FROM members WHERE workspace_id = ?', workspaceId);
+    this.sql.exec('DELETE FROM workspaces WHERE id = ?', workspaceId);
+  }
+
   async people(userId: string, workspaceId: string) {
     const me = this.role(userId, workspaceId);
     if (!me) throw new Error('Not a member of this workspace');
@@ -257,16 +269,17 @@ export class DirectoryDurableObject extends DurableObject<Env> {
 
   /** Who may do what on a sheet. `workspace: null` = not in any workspace. */
   async sheet(sheetId: string, userId: string | null) {
-    const s = this.one<{ name: string; workspace_id: string; workspace: string; deleted: number }>(
-      'SELECT s.name, s.workspace_id, s.deleted, w.name AS workspace FROM sheets s JOIN workspaces w ON w.id = s.workspace_id WHERE s.id = ?',
+    const s = this.one<{ name: string; workspace_id: string; workspace: string | null; deleted: number }>(
+      // LEFT JOIN: a deleted workspace's sheets must still read as claimed.
+      'SELECT s.name, s.workspace_id, s.deleted, w.name AS workspace FROM sheets s LEFT JOIN workspaces w ON w.id = s.workspace_id WHERE s.id = ?',
       sheetId,
     );
     if (!s) return { name: '', workspace: null, role: null, deleted: false };
     // A removed sheet stays claimed, so its URL never becomes open again.
-    if (s.deleted) return { name: s.name, workspace: { id: s.workspace_id, name: s.workspace }, role: null, deleted: true };
+    if (s.deleted) return { name: s.name, workspace: { id: s.workspace_id, name: s.workspace ?? '' }, role: null, deleted: true };
     return {
       name: s.name,
-      workspace: { id: s.workspace_id, name: s.workspace },
+      workspace: { id: s.workspace_id, name: s.workspace ?? '' },
       role: userId ? this.role(userId, s.workspace_id) : null,
       deleted: false,
     };

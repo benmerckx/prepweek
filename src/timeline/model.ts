@@ -206,7 +206,8 @@ export class TimelineModel {
 
   /** The person row at body y; a team header resolves to its first person. */
   personAt(y: number): RowLayout | undefined {
-    const i = this.rowAt(y);
+    // Clamped: below the last row (or with no rows at all) rowAt is past the end.
+    const i = Math.min(this.rows.length, Math.max(0, this.rowAt(y)));
     for (let j = i; j < this.rows.length; j++) if (this.rows[j]!.kind === 'person') return this.rows[j];
     for (let j = i - 1; j >= 0; j--) if (this.rows[j]!.kind === 'person') return this.rows[j];
     return undefined;

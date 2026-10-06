@@ -6,6 +6,7 @@ import {
   authConfig,
   createWorkspace,
   deleteSheet,
+  deleteWorkspace,
   forgetLastSheet,
   forgetMySheet,
   getMe,
@@ -31,7 +32,8 @@ import {
 import { getAccess, getSheetId, onAccess, reloadAccess } from '../data/access.ts';
 import { useBackToClose, useEscape } from '../lib/useBackToClose.ts';
 import { Select, type Option } from '../ui/Select.tsx';
-import { Check, ChevronDown, Close, LinkIcon, Logo, People as PeopleIcon, Plus, Trash } from '../ui/icons.tsx';
+import { ActionMenu } from '../ui/Menu.tsx';
+import { Check, ChevronDown, Close, LinkIcon, Logo, Pencil, People as PeopleIcon, Plus, Trash } from '../ui/icons.tsx';
 
 export const useAccount = () => useSyncExternalStore(onMe, getMe);
 const useAccess = () => useSyncExternalStore(onAccess, getAccess);
@@ -103,13 +105,44 @@ export function useAutoSave() {
 
 // --- Sheet switcher (left of the toolbar) -----------------------------------------
 
+/** A name edited in place: Enter or leaving saves, Escape cancels. */
+function RenameInput({ value, label, onDone }: { value: string; label: string; onDone(v: string | null): void }) {
+  return (
+    <input
+      className="tree-rename"
+      autoFocus
+      defaultValue={value}
+      aria-label={label}
+      onFocus={(e) => e.currentTarget.select()}
+      onBlur={(e) => onDone(e.currentTarget.value.trim() || null)}
+      onKeyDown={(e) => {
+        e.stopPropagation();
+        if (e.key === 'Enter') e.currentTarget.blur();
+        if (e.key === 'Escape') {
+          e.currentTarget.value = '';
+          e.currentTarget.blur();
+        }
+      }}
+    />
+  );
+}
+
 export function SheetSwitcher({ onSignIn, onWorkspace }: { onSignIn(): void; onWorkspace(id: string): void }) {
   const me = useAccount();
   const access = useAccess();
   const ref = useRef<HTMLDetailsElement>(null);
-  const [renaming, setRenaming] = useState(false);
+  /** The workspace or sheet whose name is being edited. */
+  const [renaming, setRenaming] = useState<string | null>(null);
   const [error, setError] = useState('');
   const current = getSheetId();
+  const act = async (fn: () => Promise<unknown>) => {
+    setError('');
+    try {
+      await fn();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  };
 
   // No accounts here (dev server, offline): just the brand.
   if (!me) {
@@ -126,7 +159,6 @@ export function SheetSwitcher({ onSignIn, onWorkspace }: { onSignIn(): void; onW
   const home = me.workspaces.find((w) => w.sheets.some((s) => s.id === current));
   const ws = home ? { id: home.id, name: home.name } : (access?.workspace ?? null);
   const name = home?.sheets.find((s) => s.id === current)?.name || access?.name || (ws ? 'Untitled sheet' : 'Untitled plan');
-  const member = !!home || (!!ws && me.workspaces.some((w) => w.id === ws.id));
   const newSheet = async (workspace?: Workspace) => {
     setError('');
     try {
@@ -144,38 +176,13 @@ export function SheetSwitcher({ onSignIn, onWorkspace }: { onSignIn(): void; onW
   return (
     <div className="brand switcher">
       <Logo />
-      <details className="tb-dd sheet-dd" ref={ref} onToggle={(e) => !e.currentTarget.open && (setRenaming(false), setError(''))}>
+      <details className="tb-dd sheet-dd" ref={ref} onToggle={(e) => !e.currentTarget.open && (setRenaming(null), setError(''))}>
         <summary className="sheet-btn" title="Sheets and workspaces">
           <span className="sheet-name">{name}</span>
           <span className="sheet-ws">{ws ? ws.name : me.user ? 'Not in a workspace' : 'Not saved to an account'}</span>
           <ChevronDown size={14} />
         </summary>
         <div className="tb-menu sheet-menu">
-          {renaming && member ? (
-            <form
-              className="view-save"
-              onSubmit={async (e) => {
-                e.preventDefault();
-                const v = new FormData(e.currentTarget).get('name') as string;
-                try {
-                  await renameSheet(current, v);
-                  await reloadAccess();
-                  setRenaming(false);
-                } catch (err) {
-                  setError(err instanceof Error ? err.message : String(err));
-                }
-              }}
-            >
-              <input name="name" autoFocus defaultValue={name} aria-label="Sheet name" />
-              <button className="btn primary small">Save</button>
-            </form>
-          ) : (
-            member && (
-              <button className="menu-item" onClick={() => setRenaming(true)}>
-                Rename “{name}”
-              </button>
-            )
-          )}
           {!me.user && (
             <div className="sheet-save">
               <b>Keep this plan</b>
@@ -191,37 +198,118 @@ export function SheetSwitcher({ onSignIn, onWorkspace }: { onSignIn(): void; onW
               </button>
             </div>
           )}
-          {me.workspaces.map((w) => (
-            <div key={w.id} className="sheet-group">
-              <div className="sheet-group-head">
-                <span>{w.name}</span>
-                <button
-                  className="link-btn"
-                  onClick={() => {
-                    closeMenu(ref.current);
-                    onWorkspace(w.id);
-                  }}
-                >
-                  <PeopleIcon />
-                  People
-                </button>
-              </div>
-              {w.sheets.map((s) => (
-                <a key={s.id} className={'tb-person' + (s.id === current ? ' on' : '')} href={`/s/${encodeURIComponent(s.id)}`}>
-                  <span className="fl-label">{s.name}</span>
-                  {s.id === current && (
-                    <span className="tb-check">
-                      <Check size={14} />
-                    </span>
+          <div className="tree">
+            {me.workspaces.map((w) => {
+              const admin = w.role === 'admin';
+              return (
+                <div key={w.id} className="tree-ws">
+                  <div className="tree-head">
+                    {renaming === w.id ? (
+                      <RenameInput
+                        value={w.name}
+                        label="Workspace name"
+                        onDone={(v) => {
+                          setRenaming(null);
+                          if (v && v !== w.name) void act(() => renameWorkspace(w.id, v));
+                        }}
+                      />
+                    ) : (
+                      <span className="tree-ws-name">{w.name}</span>
+                    )}
+                    <ActionMenu
+                      label={`${w.name} options`}
+                      className="tree-more"
+                      actions={[
+                        {
+                          id: 'people',
+                          label: admin ? 'People and invites' : 'People',
+                          icon: <PeopleIcon />,
+                          onAction: () => {
+                            closeMenu(ref.current);
+                            onWorkspace(w.id);
+                          },
+                        },
+                        ...(admin
+                          ? [
+                              { id: 'rename', label: 'Rename', icon: <Pencil size={14} />, onAction: () => setRenaming(w.id) },
+                              {
+                                id: 'delete',
+                                label: 'Delete workspace',
+                                icon: <Trash size={14} />,
+                                danger: true,
+                                onAction: () => {
+                                  const n = w.sheets.length;
+                                  if (!confirm(`Delete “${w.name}”${n ? ` and its ${n === 1 ? 'sheet' : `${n} sheets`}` : ''} for everyone? This can’t be undone.`)) return;
+                                  const here = w.sheets.some((x) => x.id === current);
+                                  void act(async () => {
+                                    await deleteWorkspace(w.id);
+                                    if (here) leaveSheet();
+                                  });
+                                },
+                              },
+                            ]
+                          : []),
+                      ]}
+                    />
+                    <button className="tree-add" title="New sheet" aria-label={`New sheet in ${w.name}`} onClick={() => void newSheet(w)}>
+                      <Plus />
+                    </button>
+                  </div>
+                  {w.sheets.map((sh) => (
+                    <div key={sh.id} className={'tree-sheet' + (sh.id === current ? ' on' : '')}>
+                      {renaming === sh.id ? (
+                        <RenameInput
+                          value={sh.name}
+                          label="Sheet name"
+                          onDone={(v) => {
+                            setRenaming(null);
+                            if (v && v !== sh.name)
+                              void act(async () => {
+                                await renameSheet(sh.id, v);
+                                if (sh.id === current) await reloadAccess();
+                              });
+                          }}
+                        />
+                      ) : (
+                        <a className="tree-link" href={`/s/${encodeURIComponent(sh.id)}`}>
+                          {sh.name}
+                        </a>
+                      )}
+                      <ActionMenu
+                        label={`${sh.name} options`}
+                        className="tree-more"
+                        actions={[
+                          { id: 'rename', label: 'Rename', icon: <Pencil size={14} />, onAction: () => setRenaming(sh.id) },
+                          ...(admin
+                            ? [
+                                {
+                                  id: 'delete',
+                                  label: 'Delete sheet',
+                                  icon: <Trash size={14} />,
+                                  danger: true,
+                                  onAction: () => {
+                                    if (!confirm(`Delete “${sh.name}” for everyone? It can’t be opened afterwards.`)) return;
+                                    void act(async () => {
+                                      await deleteSheet(sh.id);
+                                      if (sh.id === current) leaveSheet();
+                                    });
+                                  },
+                                },
+                              ]
+                            : []),
+                        ]}
+                      />
+                    </div>
+                  ))}
+                  {w.sheets.length === 0 && (
+                    <button className="tree-empty" onClick={() => void newSheet(w)}>
+                      No sheets yet · add one
+                    </button>
                   )}
-                </a>
-              ))}
-              <button className="menu-item" onClick={() => void newSheet(w)}>
-                <Plus />
-                New sheet
-              </button>
-            </div>
-          ))}
+                </div>
+              );
+            })}
+          </div>
           {!me.user && (
             <button className="menu-item" onClick={() => void newSheet()}>
               <Plus />
@@ -229,20 +317,23 @@ export function SheetSwitcher({ onSignIn, onWorkspace }: { onSignIn(): void; onW
             </button>
           )}
           {me.user && (
-            <button
-              className="menu-item"
-              onClick={async () => {
-                const n = prompt('Name the new workspace');
-                if (n?.trim()) {
-                  const id = await createWorkspace(n);
-                  closeMenu(ref.current);
-                  onWorkspace(id);
-                }
-              }}
-            >
-              <Plus />
-              New workspace
-            </button>
+            <>
+              {me.workspaces.length > 0 && <div className="menu-sep" />}
+              <button
+                className="menu-item tree-new-ws"
+                onClick={async () => {
+                  const n = prompt('Name the new workspace');
+                  if (n?.trim()) {
+                    const id = await createWorkspace(n);
+                    closeMenu(ref.current);
+                    onWorkspace(id);
+                  }
+                }}
+              >
+                <Plus />
+                New workspace
+              </button>
+            </>
           )}
           {error && <p className="editor-error">{error}</p>}
         </div>

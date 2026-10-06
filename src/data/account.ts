@@ -106,6 +106,11 @@ export const renameWorkspace = async (id: string, name: string) => {
   await api('PATCH', `/api/workspaces/${encodeURIComponent(id)}`, { name });
   await loadMe();
 };
+/** Admins: deletes the workspace and all its sheets. */
+export const deleteWorkspace = async (id: string) => {
+  await api('DELETE', `/api/workspaces/${encodeURIComponent(id)}`);
+  await loadMe();
+};
 export const getPeople = (workspaceId: string) => api<People>('GET', `/api/workspaces/${encodeURIComponent(workspaceId)}/people`);
 export const setMemberRole = (workspaceId: string, userId: string, role: 'admin' | 'member') =>
   api('PATCH', `/api/workspaces/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(userId)}`, { role });

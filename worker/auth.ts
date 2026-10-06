@@ -11,6 +11,7 @@
 //   PATCH  /api/me                         {name}
 //   POST   /api/workspaces                 {name}
 //   PATCH  /api/workspaces/:id             {name}
+//   DELETE /api/workspaces/:id             (admins; deletes its sheets)
 //   GET    /api/workspaces/:id/people
 //   PATCH  /api/workspaces/:id/members/:u  {role}
 //   DELETE /api/workspaces/:id/members/:u
@@ -231,6 +232,10 @@ export async function handleApi(req: Request, env: Env, url: URL): Promise<Respo
       if (!ws && req.method === 'POST') return json({ id: await dir.createWorkspace(user.id, body.name ?? '') });
       if (ws && seg.length === 2 && req.method === 'PATCH') {
         await dir.renameWorkspace(user.id, ws, body.name ?? '');
+        return json({ ok: true });
+      }
+      if (ws && seg.length === 2 && req.method === 'DELETE') {
+        await dir.deleteWorkspace(user.id, ws);
         return json({ ok: true });
       }
       if (ws && seg[2] === 'people') return json(await dir.people(user.id, ws));

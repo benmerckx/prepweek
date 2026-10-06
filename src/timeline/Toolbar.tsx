@@ -13,6 +13,7 @@ import { getTheme, onThemeChange, toggleTheme } from '../lib/theme.ts';
 import type { Peer } from '../data/presence.ts';
 import type { ViewConfig } from '../data/store.ts';
 import { navigate, useRoute, type Section } from '../lib/route.ts';
+import { isPopoverOpen } from '../ui/Select.tsx';
 import { Briefcase, Check, ChevronLeft, ChevronRight, Close, Download, Eye, Folder, History, LinkIcon, Moon, More, Redo, Search as SearchIc, Sun, Undo, Upload } from '../ui/icons.tsx';
 
 interface Props {
@@ -94,6 +95,8 @@ export const Toolbar = memo(function Toolbar(props: Props) {
   // Close dropdown menus on any press outside them.
   useEffect(() => {
     const away = (e: PointerEvent) => {
+      // A ⋯ menu inside a toolbar menu lives at the end of <body>.
+      if (isPopoverOpen()) return;
       for (const d of document.querySelectorAll<HTMLDetailsElement>('.toolbar details[open]'))
         if (!d.contains(e.target as Node)) d.removeAttribute('open');
     };
