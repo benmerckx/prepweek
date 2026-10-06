@@ -3,7 +3,6 @@ import { flushSync } from 'react-dom';
 import { canRedo, canUndo, isHistoryBusy, onHistoryChange, redo, store, undo } from '../data/store.ts';
 import { getSyncStatus, onSyncStatus } from '../data/sync.ts';
 import { seed } from '../data/seed.ts';
-import { ZOOM_MAX, ZOOM_MIN } from './viewport.ts';
 import type { TimelineModel } from './model.ts';
 import { FilterMenu, ViewsMenu, type FilterState } from './Filters.tsx';
 import { NotificationsMenu } from './Discussion.tsx';
@@ -14,7 +13,7 @@ import { getTheme, onThemeChange, toggleTheme } from '../lib/theme.ts';
 import type { Peer } from '../data/presence.ts';
 import type { ViewConfig } from '../data/store.ts';
 import { navigate, useRoute, type Section } from '../lib/route.ts';
-import { Briefcase, Check, ChevronLeft, ChevronRight, Close, Download, Eye, Folder, History, LinkIcon, Minus, Moon, More, People, Plus, Redo, Search as SearchIc, Sun, Undo, Upload } from '../ui/icons.tsx';
+import { Briefcase, Check, ChevronLeft, ChevronRight, Close, Download, Eye, Folder, History, LinkIcon, Moon, More, Redo, Search as SearchIc, Sun, Undo, Upload } from '../ui/icons.tsx';
 
 interface Props {
   colW: number;
@@ -89,7 +88,7 @@ export function SectionTabs({ current }: { current: Section }) {
 }
 
 export const Toolbar = memo(function Toolbar(props: Props) {
-  const { colW, model, onZoom, onToday, onPage } = props;
+  const { model, onToday, onPage } = props;
   const [searchOpen, setSearchOpen] = useState(false);
 
   // Close dropdown menus on any press outside them.
@@ -131,38 +130,12 @@ export const Toolbar = memo(function Toolbar(props: Props) {
           <ChevronRight />
         </button>
       </div>
-      <div className="seg zoom">
-        <button className="btn icon" onClick={() => onZoom(colW / 1.25)} aria-label="Zoom out" title="Zoom out (⌘−, pinch)">
-          <Minus />
-        </button>
-        <input
-          type="range"
-          min={Math.log(ZOOM_MIN)}
-          max={Math.log(ZOOM_MAX)}
-          step={0.01}
-          value={Math.log(colW)}
-          onChange={(e) => onZoom(Math.exp(Number(e.currentTarget.value)))}
-          aria-label="Zoom"
-        />
-        <button className="btn icon" onClick={() => onZoom(colW * 1.25)} aria-label="Zoom in" title="Zoom in (⌘+, pinch)">
-          <Plus />
-        </button>
-      </div>
       </>
       )}
-      <div className="seg">
-        <button className="btn icon" disabled={!(hist & 1) || !!(hist & 4)} onClick={() => void undo()} aria-label="Undo" title="Undo (⌘Z)">
-          {hist & 4 ? <span className="spinner" aria-label="Undoing" /> : <Undo />}
-        </button>
-        <button className="btn icon redo" disabled={!(hist & 2)} onClick={() => void redo()} aria-label="Redo" title="Redo (⇧⌘Z)">
-          <Redo />
-        </button>
-      </div>
       <div className="tb-spacer" />
       {plan && (
         <>
           <Search {...props} open={searchOpen} setOpen={setSearchOpen} />
-          <PeopleMenu {...props} />
           <FilterMenu model={model} filter={props.filter} onFilter={props.onFilter} onManageProjects={props.onManageProjects} />
         </>
       )}
@@ -181,14 +154,6 @@ export const Toolbar = memo(function Toolbar(props: Props) {
           <span className="sync-label">Offline</span>
         </div>
       )}
-      <button className="btn primary tb-share" onClick={props.onShare} title="Share this sheet">
-        <LinkIcon size={14} />
-        Share
-      </button>
-      <button className="btn tb-import" onClick={props.onImport} title="Import from Teamweek / Toggl Plan">
-        <Upload />
-        Import
-      </button>
       <button
         className="btn icon tb-theme"
         onClick={toggleTheme}
@@ -199,8 +164,9 @@ export const Toolbar = memo(function Toolbar(props: Props) {
       </button>
       <AccountButton onSignIn={props.onSignIn} onWorkspace={props.onWorkspace} />
       <details className="tb-more">
-        <summary className="btn icon" aria-label="More" title="More">
+        <summary className={'btn icon' + (model.getFocus() ? ' active' : '')} aria-label="More" title="More">
           <More />
+          {model.getFocus() && <span className="tb-badge">{model.getFocus()!.size}</span>}
         </summary>
         <div className="tb-menu" onClick={(e) => (e.currentTarget.parentElement as HTMLDetailsElement).removeAttribute('open')}>
           <div className="tb-menu-stats">
@@ -210,10 +176,31 @@ export const Toolbar = memo(function Toolbar(props: Props) {
               {SYNC_HELP[sync]}
             </div>
           </div>
-          <button className="menu-item" onClick={props.onImport}>
-            <Upload />
-            Import from Teamweek…
+          <button className="menu-item" onClick={props.onShare}>
+            <LinkIcon />
+            Share…
           </button>
+          {!props.readOnly && (
+            <button className="menu-item" onClick={props.onImport}>
+              <Upload />
+              Import from Teamweek…
+            </button>
+          )}
+          {!props.readOnly && (
+            <>
+              <button className="menu-item" disabled={!(hist & 1) || !!(hist & 4)} onClick={() => void undo()}>
+                {hist & 4 ? <span className="spinner" aria-label="Undoing" /> : <Undo />}
+                Undo
+                <kbd className="menu-kbd">⌘Z</kbd>
+              </button>
+              <button className="menu-item" disabled={!(hist & 2)} onClick={() => void redo()}>
+                <Redo />
+                Redo
+                <kbd className="menu-kbd">⇧⌘Z</kbd>
+              </button>
+            </>
+          )}
+          {plan && <FocusSection {...props} />}
           <button className="menu-item" onClick={props.onPalette}>
             <SearchIc />
             Command palette
@@ -344,41 +331,40 @@ function Search({ query, onQuery, matchCount, onNextMatch, open, setOpen }: Prop
 }
 
 /** Pick who to focus on; works the same on touch, where avatars are small. */
-function PeopleMenu({ model, onFocusPerson, onClearFocus }: Props) {
+/** Focus on people: a checklist inside the "…" menu (clicks keep it open). */
+function FocusSection({ model, onFocusPerson, onClearFocus }: Props) {
   const focus = model.getFocus();
-  const ref = useRef<HTMLDetailsElement>(null);
-  // The list is only built while the menu is open.
-  const [open, setOpen] = useState(false);
+  const people = model.allUsers();
+  if (!people.length) return null;
   return (
-    <details className="tb-people" ref={ref} onToggle={(e) => setOpen(e.currentTarget.open)}>
-      <summary className={'btn icon' + (focus ? ' active' : '')} aria-label="Focus on people" title="Focus on people">
-        <People />
-        {focus && <span className="tb-badge">{focus.size}</span>}
-      </summary>
-      <div className="tb-menu tb-people-menu">
-        <div className="tb-menu-stats">Focus on</div>
-        <button className={'tb-person' + (!focus ? ' on' : '')} onClick={() => { onClearFocus(); ref.current?.removeAttribute('open'); }}>
-          Everyone
-        </button>
-        <div className="tb-people-list">
-          {open && model.allUsers().map((u) => (
-            <button
-              key={u.id}
-              className={'tb-person' + (focus?.has(u.id) ? ' on' : '')}
-              // A checklist: tap to add/remove, the menu stays open.
-              onClick={() => onFocusPerson(u.id, true)}
-            >
-              <span className="tb-person-dot" style={{ background: u.color }} />
-              {u.name}
-              {focus?.has(u.id) && (
-                <span className="tb-check">
-                  <Check size={14} />
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
+    <div className="focus-section" onClick={(e) => e.stopPropagation()}>
+      <div className="menu-sep" />
+      <div className="menu-label">
+        Focus on
+        {focus && (
+          <button className="link-btn" onClick={onClearFocus}>
+            Everyone
+          </button>
+        )}
       </div>
-    </details>
+      <div className="tb-people-list">
+        {people.map((u) => (
+          <button
+            key={u.id}
+            className={'tb-person' + (focus?.has(u.id) ? ' on' : '')}
+            // A checklist: tap to add/remove, the menu stays open.
+            onClick={() => onFocusPerson(u.id, true)}
+          >
+            <span className="tb-person-dot" style={{ background: u.color }} />
+            {u.name}
+            {focus?.has(u.id) && (
+              <span className="tb-check">
+                <Check size={14} />
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }

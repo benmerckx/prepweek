@@ -135,24 +135,8 @@ export function Minimap({ model, vp, today, filter = null }: Props) {
             if (!isWeekend(d)) a[k]! += 0.2; // 5 workdays → 1 block on average
           }
         }
-      // Smooth over ~5 weeks (triangular weights) so trends read as trends,
-      // not week-to-week noise.
-      const W5 = [1, 2, 3, 2, 1];
-      for (const [color, raw] of byColor) {
-        const out = new Float32Array(weeks);
-        for (let k = 0; k < weeks; k++) {
-          let sum = 0;
-          let wsum = 0;
-          for (let j = -2; j <= 2; j++) {
-            const v = raw[k + j];
-            if (v === undefined) continue;
-            sum += v * W5[j + 2]!;
-            wsum += W5[j + 2]!;
-          }
-          out[k] = sum / wsum;
-        }
-        byColor.set(color, out);
-      }
+      // No smoothing across weeks: work added today shows from this week
+      // on, not as a slope through the weeks before.
       let max = 1;
       const lines = [...byColor].map(([color, values]) => {
         let total = 0;
@@ -219,7 +203,6 @@ export function Minimap({ model, vp, today, filter = null }: Props) {
       const plotH = bottom - top;
       const k0 = Math.max(0, Math.floor((s0 - series.week0) / 7) - 1);
       const k1 = Math.min(series.weeks - 1, Math.ceil((s1 - series.week0) / 7) + 1);
-      const xOf = (k: number) => (series.week0 + k * 7 + 3.5 - s0) * g.scale;
       // Baseline.
       o.fillStyle = c.line!;
       o.globalAlpha = 0.6;
@@ -231,23 +214,29 @@ export function Minimap({ model, vp, today, filter = null }: Props) {
       const drawLines = (ser: Series, faded: boolean) => {
         const yOfS = (v: number) => bottom - (v / ser.max) * plotH;
         for (const { color, values } of ser.lines) {
-          // Smooth curve through the weekly points (midpoint quadratics).
+          // Each week a plateau joined to the next by a short S-curve around
+          // the week boundary: the line rises where the work starts (a day
+          // or so early at most), not as a slope through earlier weeks.
           const path = new Path2D();
-          let px = xOf(k0);
+          const r = 1.25 * g.scale;
+          const x0 = (ser.week0 + k0 * 7 - s0) * g.scale;
           let py = yOfS(values[k0]!);
-          path.moveTo(px, py);
+          path.moveTo(x0, py);
+          let px = x0;
           for (let k = k0 + 1; k <= k1; k++) {
-            const x = xOf(k);
+            const xb = (ser.week0 + k * 7 - s0) * g.scale;
             const y = yOfS(values[k]!);
-            path.quadraticCurveTo(px, py, (px + x) / 2, (py + y) / 2);
-            px = x;
+            path.lineTo(xb - r, py);
+            path.bezierCurveTo(xb, py, xb, y, xb + r, y);
             py = y;
+            px = xb + r;
           }
+          px = (ser.week0 + (k1 + 1) * 7 - s0) * g.scale;
           path.lineTo(px, py);
           if (!faded) {
             const area = new Path2D(path);
             area.lineTo(px, bottom);
-            area.lineTo(xOf(k0), bottom);
+            area.lineTo(x0, bottom);
             area.closePath();
             o.fillStyle = color;
             o.globalAlpha = matches ? 0.14 : 0.07;

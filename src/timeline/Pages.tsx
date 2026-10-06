@@ -12,6 +12,7 @@ import {
   getUser,
   isReadOnly,
   recolorProject,
+  repatternProject,
   setProjectClient,
   store,
   updateClient,
@@ -21,6 +22,7 @@ import {
 import { formatDay, formatRange, today, workdays } from '../lib/dates.ts';
 import { navigate, routePath, type Route } from '../lib/route.ts';
 import { SectionTabs } from './Toolbar.tsx';
+import { PatternChip, PatternPicker } from './PatternPicker.tsx';
 import type { Client, Project, ProjectStats, TimelineModel } from './model.ts';
 import { Archive, Check, ChevronDown, Plus, Search as SearchIc, Trash } from '../ui/icons.tsx';
 
@@ -210,7 +212,7 @@ function ProjectTable({ projects, stats, showClient = true }: { projects: Projec
               <tr key={p.id} className={p.archived ? 'archived' : ''} onClick={() => navigate({ section: 'projects', id: p.id })}>
                 <td>
                   <Go to={{ section: 'projects', id: p.id }} className="cell-name">
-                    <span className="dot" style={{ background: p.color }} />
+                    <PatternChip color={p.color} pattern={p.pattern} />
                     {p.name}
                     {p.archived && <span className="badge">Archived</span>}
                   </Go>
@@ -404,7 +406,7 @@ function ProjectPage({ model, id, onOpenInPlan, onOpenTask }: { model: TimelineM
       </nav>
       <header className="page-head">
         <div className="page-title">
-          <span className="dot big" style={{ background: p.color }} />
+          <PatternChip color={p.color} pattern={p.pattern} big />
           <Field className="title-input" value={p.name} label="Project name" onSave={(v) => v && updateProject(id, { name: v }, 'Rename project')} />
           {p.archived && <span className="badge">Archived</span>}
         </div>
@@ -439,6 +441,10 @@ function ProjectPage({ model, id, onOpenInPlan, onOpenTask }: { model: TimelineM
                 <div className="page-field">
                   <span>Color</span>
                   <Swatches value={p.color} onPick={(c) => recolorProject(id, c)} />
+                </div>
+                <div className="page-field">
+                  <span>Pattern</span>
+                  <PatternPicker value={p.pattern ?? ''} color={p.color} onPick={(pat) => repatternProject(id, pat)} />
                 </div>
                 <div className="page-buttons">
                   <button className="btn" onClick={() => updateProject(id, { archived: !p.archived }, p.archived ? 'Restore project' : 'Archive project')}>

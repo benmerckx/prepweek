@@ -76,6 +76,8 @@ store.setTablesSchema({
     archived: { type: 'boolean', default: false },
     /** Markdown, like task notes. */
     notes: { type: 'string', default: '' },
+    /** Block pattern for its tasks ('' = solid). */
+    pattern: { type: 'string', default: '' },
   },
   clients: {
     name: { type: 'string', default: '' },
@@ -128,7 +130,7 @@ store.setTablesSchema({
   },
 });
 
-export type ProjectRow = { name: string; client: string; clientId: string; color: string; archived: boolean; notes: string };
+export type ProjectRow = { name: string; client: string; clientId: string; color: string; archived: boolean; notes: string; pattern: string };
 export type ClientRow = { name: string; color: string; archived: boolean; notes: string };
 export type ViewRow = { name: string; order: number; config: string };
 
@@ -527,9 +529,11 @@ export const createProject = (p: Partial<ProjectRow> & { name: string }): string
   const color = p.color ?? PALETTE[store.getRowCount('projects') % PALETTE.length]!;
   const { client = '', ...rest } = p;
   const cid = client.trim() ? clientIdFor(client) : '';
+  // A pattern of its own, so projects of the same color still tell apart.
+  const pattern = p.pattern ?? PATTERNS[Math.floor(Math.random() * PATTERNS.length)]!;
   commit('Add project', [['projects', id], ...(cid ? [['clients', cid] as [TableId, string]] : [])], () => {
     if (cid) ensureClient(cid, client.trim());
-    store.setRow('projects', id, { client: client.trim(), clientId: cid, archived: false, notes: '', ...rest, color });
+    store.setRow('projects', id, { client: client.trim(), clientId: cid, archived: false, notes: '', ...rest, color, pattern });
   });
   return id;
 };
@@ -625,6 +629,15 @@ export const migrateClients = () => {
       ensureClient(id, name);
       store.setCell('projects', p, 'clientId', id);
     }
+  });
+};
+
+/** Give a project and every task in it a pattern, in one step. */
+export const repatternProject = (id: string, pattern: string) => {
+  const tasks = store.getRowIds('tasks').filter((t) => store.getCell('tasks', t, 'projectId') === id);
+  commit(pattern ? 'Set project pattern' : 'Remove project pattern', [['projects', id], ...tasks.map((t) => ['tasks', t] as [TableId, string])], () => {
+    store.setCell('projects', id, 'pattern', pattern);
+    for (const t of tasks) store.setCell('tasks', t, 'pattern', pattern);
   });
 };
 

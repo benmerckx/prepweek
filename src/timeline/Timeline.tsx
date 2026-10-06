@@ -23,7 +23,7 @@ import { Toolbar } from './Toolbar.tsx';
 import { labelPinner } from './pin.ts';
 import { ImportDialog } from '../import/ImportDialog.tsx';
 import { MilestoneBand, MilestoneEditor, MilestoneLines, type MsDrag } from './Milestones.tsx';
-import { Flag, Plus } from '../ui/icons.tsx';
+import { Flag, Minus, Plus } from '../ui/icons.tsx';
 import { useBackToClose } from '../lib/useBackToClose.ts';
 import { createMilestone, createTask, createUser, deleteTask, getTask, getUser, MILESTONE_COLORS, redo, store, undo, updateTask, type ViewConfig } from '../data/store.ts';
 import { dayFromYMD, formatRange, startOfWeek, startOfYear, today as getToday, ymd } from '../lib/dates.ts';
@@ -966,6 +966,27 @@ export function Timeline({ model }: { model: TimelineModel }) {
           </div>
         </div>
       </div>
+      {!compact && !onPage && (
+        // Zoom: a quiet pill over the timeline's corner (pinch and ⌘-wheel
+        // are the main way); the slider opens on hover.
+        <div className="zoom-pill">
+          <button className="btn icon" onClick={() => zoomTo(colW / 1.25)} aria-label="Zoom out" title="Zoom out (⌘−, pinch)">
+            <Minus />
+          </button>
+          <input
+            type="range"
+            min={Math.log(ZOOM_MIN)}
+            max={Math.log(ZOOM_MAX)}
+            step={0.01}
+            value={Math.log(colW)}
+            onChange={(e) => zoomTo(Math.exp(Number(e.currentTarget.value)))}
+            aria-label="Zoom"
+          />
+          <button className="btn icon" onClick={() => zoomTo(colW * 1.25)} aria-label="Zoom in" title="Zoom in (⌘+, pinch)">
+            <Plus />
+          </button>
+        </div>
+      )}
       <div className="bottombar">
         <div className="bottombar-left">
           <VisibleRange vp={vp} />

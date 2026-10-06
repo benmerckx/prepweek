@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Attachments, attachFiles } from './Attachments.tsx';
-import { PALETTE, PATTERNS, deleteTask, getTask, updateTask } from '../data/store.ts';
+import { PALETTE, deleteTask, getTask, updateTask } from '../data/store.ts';
 import { RULES, RULE_LABELS } from '../lib/recur.ts';
 import { dayFromYMD, formatDay, formatRange, workdays, ymd } from '../lib/dates.ts';
 import type { TaskView, TimelineModel } from './model.ts';
@@ -8,6 +8,8 @@ import { ProjectField, TagField } from './Projects.tsx';
 import { Discussion } from './Discussion.tsx';
 
 // Lexical loads on first use, not on page load.
+import { PatternPicker } from './PatternPicker.tsx';
+
 const RichNotes = lazy(() => import('./RichNotes.tsx'));
 import { Calendar, Check, Repeat, Trash } from '../ui/icons.tsx';
 
@@ -208,21 +210,7 @@ export function Editor({ task, model, sheet, side, readOnly, onClose }: Props) {
             </button>
           ))}
         </div>
-        <div className="patterns" role="radiogroup" aria-label="Pattern" style={{ ['--c' as string]: task.color }}>
-          {['', ...PATTERNS].map((p) => (
-            <button
-              key={p || 'solid'}
-              className={'pattern-swatch' + (p === task.pattern ? ' on' : '') + (p ? '' : ' solid')}
-              data-pattern={p || undefined}
-              role="radio"
-              aria-checked={p === task.pattern}
-              aria-label={p ? `${p} pattern` : 'No pattern'}
-              title={p ? p[0]!.toUpperCase() + p.slice(1) : 'Solid'}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => updateTask(task.id, { pattern: p }, p ? 'Set pattern' : 'Remove pattern')}
-            />
-          ))}
-        </div>
+        <PatternPicker value={task.pattern} color={task.color} onPick={(p) => updateTask(task.id, { pattern: p }, p ? 'Set pattern' : 'Remove pattern')} />
         <Suspense fallback={<div className="rich-notes loading">{task.notes || 'Notes'}</div>}>
           <RichNotes
             key={task.series}

@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { createProject, joinTags, updateTask } from '../data/store.ts';
+import { createProject, getProject, joinTags, updateTask } from '../data/store.ts';
 import { Check, ChevronDown, Close, Folder, Plus, Tag } from '../ui/icons.tsx';
 import type { Project, TaskView, TimelineModel } from './model.ts';
 
@@ -44,10 +44,11 @@ export function ProjectField({ task, model }: { task: TaskView; model: TimelineM
 
   const pick = (row: (typeof rows)[number]) => {
     if (row.kind === 'none') updateTask(task.id, { projectId: '' }, 'Remove from project');
-    else if (row.kind === 'project') updateTask(task.id, { projectId: row.p.id, color: row.p.color }, 'Set project');
+    else if (row.kind === 'project') updateTask(task.id, { projectId: row.p.id, color: row.p.color, pattern: row.p.pattern ?? '' }, 'Set project');
     else {
-      const id = createProject({ name: q.trim(), color: task.color });
-      updateTask(task.id, { projectId: id }, 'Set project');
+      // The task's look becomes the project's (a random pattern if it has none).
+      const id = createProject({ name: q.trim(), color: task.color, ...(task.pattern ? { pattern: task.pattern } : {}) });
+      updateTask(task.id, { projectId: id, pattern: getProject(id)?.pattern ?? '' }, 'Set project');
     }
     setOpen(false);
     setQ('');
