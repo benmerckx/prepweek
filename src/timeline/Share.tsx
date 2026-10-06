@@ -1,6 +1,9 @@
-import { useState, useSyncExternalStore } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
-import { changeSharing, getAccess, hasServer, onAccess, shareLink } from '../data/access.ts';
+import { calendarLink, changeSharing, getAccess, hasServer, onAccess, shareLink } from '../data/access.ts';
+import { getMe } from '../data/identity.ts';
+import { store, type UserRow } from '../data/store.ts';
+import { Select } from '../ui/Select.tsx';
 import { useBackToClose, useEscape } from '../lib/useBackToClose.ts';
 import { Check, Close, LinkIcon, Lock, Trash } from '../ui/icons.tsx';
 
@@ -176,5 +179,78 @@ export function LockScreen({ signedIn, deleted, onSignIn }: { signedIn: boolean;
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * Subscribe to the plan in Google Calendar, Apple Calendar or Outlook: your
+ * own tasks, someone else's, or everyone's. The calendar app refreshes it.
+ */
+export function CalendarDialog({ onClose }: { onClose(): void }) {
+  useBackToClose(true, onClose);
+  useEscape(onClose);
+  const people = store
+    .getRowIds('users')
+    .map((id) => ({ id, ...(store.getRow('users', id) as UserRow) }))
+    .sort((a, b) => a.order - b.order);
+  const me = getMe().personId;
+  const [who, setWho] = useState(me && people.some((p) => p.id === me) ? me : 'all');
+  const [url, setUrl] = useState('');
+  const [error, setError] = useState('');
+  useEffect(() => {
+    if (!hasServer()) return;
+    let live = true;
+    setUrl('');
+    calendarLink(who)
+      .then((u) => live && setUrl(u))
+      .catch((e) => live && setError(e instanceof Error ? e.message : String(e)));
+    return () => {
+      live = false;
+    };
+  }, [who]);
+  const options = [{ value: 'all', label: 'Everyone (the whole plan)' }, ...people.map((p) => ({ value: p.id, label: p.id === me ? `${p.name} (you)` : p.name || 'Unnamed' }))];
+  return createPortal(
+    <div className="modal-backdrop" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal share" role="dialog" aria-label="Add to your calendar">
+        <header className="modal-head">
+          <h2>Add to your calendar</h2>
+          <button className="tb-search-btn" aria-label="Close" onClick={onClose}>
+            <Close />
+          </button>
+        </header>
+        <div className="share-body">
+          {!hasServer() ? (
+            <p className="share-note">This sheet lives only in this browser. Calendar links need the hosted version.</p>
+          ) : (
+            <>
+              <label className="cal-who">
+                <span>Whose plan</span>
+                <Select label="Whose plan" value={who} options={options} onChange={setWho} />
+              </label>
+              {url ? <CopyRow label="Calendar address" hint="Updates by itself, about every hour" url={url} /> : !error && <p className="share-note">Making a link…</p>}
+              {url && (
+                <a className="btn primary big cal-open" href={url.replace(/^https?:/, 'webcal:')}>
+                  Open in my calendar app
+                </a>
+              )}
+              <ul className="cal-how">
+                <li>
+                  <b>Google Calendar:</b> Other calendars, <i>+</i>, From URL, then paste the address.
+                </li>
+                <li>
+                  <b>Apple Calendar:</b> File, New Calendar Subscription.
+                </li>
+                <li>
+                  <b>Outlook:</b> Add calendar, Subscribe from web.
+                </li>
+              </ul>
+            </>
+          )}
+          {error && <p className="editor-error">{error}</p>}
+          <p className="share-foot">Anyone with this address can see these tasks. Resetting the sheet’s share links turns old calendar addresses off.</p>
+        </div>
+      </div>
+    </div>,
+    document.body,
   );
 }

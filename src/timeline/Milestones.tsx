@@ -138,7 +138,7 @@ export const MilestoneLines = memo(function MilestoneLines({ milestones, d0, d1,
         .map((m) => (
           <div
             key={m.id}
-            className="ms-col"
+            className={'ms-col' + (m.off ? ' off' : '')}
             style={{
               transform: `translateX(${scale.x(drag?.id === m.id ? drag.day : m.day)}px)`,
               width: Math.max(2, scale.w(drag?.id === m.id ? drag.day : m.day, drag?.id === m.id ? drag.day : m.day)),
@@ -236,6 +236,17 @@ export function MilestoneEditor({ id, anchor, sheet, fresh, onClose }: EditorPro
         <span>Date</span>
         <DatePicker label="Milestone date" value={m.day} onChange={(d) => d !== null && updateMilestone(id, { day: d }, 'Move milestone')} />
       </label>
+      <button
+        type="button"
+        className="menu-item menu-toggle ms-off"
+        role="switch"
+        aria-checked={!!m.off}
+        title="A public holiday or company day off: nobody counts as booked that day"
+        onClick={() => updateMilestone(id, { off: !m.off }, m.off ? 'Workday again' : 'Mark day off')}
+      >
+        Day off for everyone
+        <span className={'switch' + (m.off ? ' on' : '')} aria-hidden />
+      </button>
       <div className="swatches">
         {MILESTONE_COLORS.map((c) => (
           <button

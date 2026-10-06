@@ -1,7 +1,7 @@
 import { formatTime } from '../lib/times.ts';
 import { memo, useLayoutEffect, useRef } from 'react';
 import { labelPinner } from './pin.ts';
-import { Check, Comment, Notes, Paperclip, Repeat, People as PeopleIcon } from '../ui/icons.tsx';
+import { Away, Check, Comment, ListCheck, Notes, Paperclip, Repeat, People as PeopleIcon } from '../ui/icons.tsx';
 import { CHUNK, visibleTasks, type Dims, type RowLayout, type TaskView } from './model.ts';
 import type { Scale } from './scale.ts';
 import { formatRange, workdays } from '../lib/dates.ts';
@@ -29,14 +29,14 @@ export const TaskBlock = memo(function TaskBlock({ task, scale, dims, selected, 
   const days = workdays(task.start, task.end) || task.end - task.start + 1;
   /** Tall blocks: title on top, details on a second line. */
   const tall = dims.blockH >= 36;
-  const cls = 'task' + (task.done ? ' done' : '') + (selected ? ' selected' : '') + (dragging ? ' dragging' : '') + (task.title ? '' : ' untitled') + (dimmed ? ' dimmed' : '');
+  const cls = 'task' + (task.off ? ' off' : '') + (task.done ? ' done' : '') + (selected ? ' selected' : '') + (dragging ? ' dragging' : '') + (task.title ? '' : ' untitled') + (dimmed ? ' dimmed' : '');
   return (
     <div
       ref={ref}
       className={cls}
       data-task={task.id}
-      data-pattern={task.pattern || undefined}
-      title={[task.title || 'Untitled', task.project, formatRange(task.start, task.end), task.tags.map((t) => `#${t}`).join(' ')].filter(Boolean).join(' · ')}
+      data-pattern={(!task.off && task.pattern) || undefined}
+      title={[task.title || (task.off ? 'Time off' : 'Untitled'), task.project, formatRange(task.start, task.end), task.tags.map((t) => `#${t}`).join(' ')].filter(Boolean).join(' · ')}
       style={{
         transform: `translate(${left}px, ${dims.pad + task.lane * dims.laneH}px)`,
         width,
@@ -48,8 +48,8 @@ export const TaskBlock = memo(function TaskBlock({ task, scale, dims, selected, 
       <div className="task-clip">
         <div className={'task-label' + (tall ? ' tall' : '')}>
           <span className="task-title">
-            {task.done && <Check size={12} />}
-            {task.title || 'Untitled'}
+            {task.off ? <Away size={12} /> : task.done && <Check size={12} />}
+            {task.title || (task.off ? 'Time off' : 'Untitled')}
           </span>
           {(tall ? width > 60 : width > 120) && (
             <span className="task-sub">
@@ -62,8 +62,14 @@ export const TaskBlock = memo(function TaskBlock({ task, scale, dims, selected, 
                   .filter(Boolean)
                   .join(' · ')}
               </span>
-              {width > 90 && (task.files > 0 || task.notes || task.repeat || task.comments > 0 || task.people > 1) && (
+              {width > 90 && (task.files > 0 || task.notes || task.repeat || task.comments > 0 || task.people > 1 || task.checks > 0) && (
                 <span className="task-badges">
+                  {task.checks > 0 && (
+                    <span title={`Checklist: ${task.checked} of ${task.checks} done`}>
+                      <ListCheck size={12} />
+                      {task.checked}/{task.checks}
+                    </span>
+                  )}
                   {task.people > 1 && (
                     <span title={`Shared by ${task.people} people`}>
                       <PeopleIcon size={12} />

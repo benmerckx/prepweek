@@ -259,3 +259,23 @@ export const Swatch = ({ size = 16 }: { size?: number }) => (
     <path d="m5 12 4-8M8.5 12l4-8" />
   </Svg>
 );
+/** Time off: a plane reads well at 12px. */
+export const Away = ({ size = 16 }: { size?: number }) => (
+  <Svg size={size}>
+    <path d="M2 9.5 14 5.2c.6-.2.9.6.4.9L9.5 9 8 13.6l-1.4.4.6-4L4.4 11 3.3 12l-.9-.2.6-1.7L2 9.5Z" />
+  </Svg>
+);
+/** Dependencies: one block leading into the next. */
+export const Waits = ({ size = 16 }: { size?: number }) => (
+  <Svg size={size}>
+    <rect x="1.8" y="2.5" width="6" height="4" rx="1" />
+    <rect x="8.2" y="9.5" width="6" height="4" rx="1" />
+    <path d="M4.8 6.5v3.3a1.7 1.7 0 0 0 1.7 1.7h1.2M6.6 10.3l1.2 1.2-1.2 1.2" />
+  </Svg>
+);
+/** Checklist. */
+export const ListCheck = ({ size = 16 }: { size?: number }) => (
+  <Svg size={size}>
+    <path d="m2 4 1.2 1.2L5.5 3M2 10l1.2 1.2L5.5 9M8 4.2h6M8 10.2h6" />
+  </Svg>
+);

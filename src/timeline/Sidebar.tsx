@@ -1,9 +1,9 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { PALETTE, commit, deleteUser, getUser, isReadOnly, renameTeam, reorderUsers, store, updateUser } from '../data/store.ts';
-import { isWeekend } from '../lib/dates.ts';
+import { isWeekend, weekdayShort, ymd } from '../lib/dates.ts';
 import { useBackToClose } from '../lib/useBackToClose.ts';
-import { Check, ChevronDown, Trash } from '../ui/icons.tsx';
+import { Away, Check, ChevronDown, Trash } from '../ui/icons.tsx';
 import { getMe as getAccount, getPeople, type People } from '../data/account.ts';
 import { getAccess } from '../data/access.ts';
 import { identityMode, rowForEmail } from '../data/identity.ts';
@@ -194,6 +194,7 @@ export const Sidebar = memo(function Sidebar({ model, rows, tops, r0, r1, focuse
         lifted={lifted}
         focused={focused}
         today={today}
+        daysOff={model.daysOff}
         onFocusPerson={onFocusPerson}
         onEdit={openEditor}
       />,
@@ -204,7 +205,7 @@ export const Sidebar = memo(function Sidebar({ model, rows, tops, r0, r1, focuse
     const r = rows.find((x) => x.userId === lift.id);
     if (r)
       out.push(
-        <SidebarRow key={r.userId} row={r} top={lift.y} lifted focused={focused} today={today} onFocusPerson={onFocusPerson} onEdit={openEditor} />,
+        <SidebarRow key={r.userId} row={r} top={lift.y} lifted focused={focused} today={today} daysOff={model.daysOff} onFocusPerson={onFocusPerson} onEdit={openEditor} />,
       );
   }
 
@@ -273,25 +274,61 @@ const initials = (name: string) =>
 const LOAD_DAYS = 28;
 
 /**
- * Share of workdays in the next four weeks that have at least one task,
- * plus how much of it is parallel work (2+ tasks on the same day).
+ * Share of the workdays in the next four weeks someone is around for that
+ * have at least one task, how much of it is parallel work (2+ tasks on the
+ * same day), and until when they're away if they're off today. Weekends,
+ * days off for everyone and their own time off don't count.
  */
-const upcomingLoad = (row: RowLayout, today: number) => {
+const upcomingLoad = (row: RowLayout, today: number, daysOff: ReadonlySet<number>) => {
   const end = today + LOAD_DAYS - 1;
+  const work = new Map<number, number>();
+  const away = new Set<number>();
+  // Tasks are sorted by start; none is longer than maxSpan.
+  let lo = 0;
+  let hi = row.tasks.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (row.tasks[mid]!.start < today - row.maxSpan - 1) lo = mid + 1;
+    else hi = mid;
+  }
+  let awayEnd = -1;
+  for (let i = lo; i < row.tasks.length && row.tasks[i]!.start <= end + 60; i++) {
+    const t = row.tasks[i]!;
+    if (t.end < today) continue;
+    if (t.off) {
+      // Stretches of time off, to tell when they're back (looks past the window).
+      for (let d = t.start; d <= t.end; d++) away.add(d);
+      continue;
+    }
+    if (t.start > end) continue;
+    for (let d = Math.max(t.start, today); d <= Math.min(t.end, end); d++) work.set(d, (work.get(d) ?? 0) + 1);
+  }
   let booked = 0;
   let parallel = 0;
   let total = 0;
-  for (let d = today; d <= end; d++) if (!isWeekend(d)) total++;
-  for (const c of row.clusters) {
-    if (c.end < today) continue;
-    if (c.start > end) break;
-    for (let d = Math.max(c.start, today); d <= Math.min(c.end, end); d++) {
-      if (isWeekend(d)) continue;
-      booked++;
-      if (c.lanes > 1) parallel++;
+  for (let d = today; d <= end; d++) {
+    if (isWeekend(d) || daysOff.has(d) || away.has(d)) continue;
+    total++;
+    const n = work.get(d) ?? 0;
+    if (n) booked++;
+    if (n > 1) parallel++;
+  }
+  if (away.has(today)) {
+    // Last day off, carrying on over weekends and days off in between.
+    awayEnd = today;
+    for (let d = today + 1; d < today + 90; d++) {
+      if (away.has(d)) awayEnd = d;
+      else if (!isWeekend(d) && !daysOff.has(d)) break;
     }
   }
-  return { pct: total ? booked / total : 0, parallel: total ? parallel / total : 0 };
+  return { pct: total ? booked / total : 0, parallel: total ? parallel / total : 0, awayEnd };
+};
+
+/** "Mon 12": the first workday after `day`. */
+const backOn = (day: number, daysOff: ReadonlySet<number>) => {
+  let d = day + 1;
+  while (isWeekend(d) || daysOff.has(d)) d++;
+  return `${weekdayShort(d)} ${ymd(d).d}`;
 };
 
 interface RowProps {
@@ -300,12 +337,13 @@ interface RowProps {
   lifted?: boolean;
   focused: boolean;
   today: number;
+  daysOff: ReadonlySet<number>;
   onFocusPerson(id: string, additive: boolean): void;
   onEdit(id: string, el: HTMLElement): void;
 }
 
-const SidebarRow = memo(function SidebarRow({ row, top, lifted, focused, today, onFocusPerson, onEdit }: RowProps) {
-  const load = useMemo(() => upcomingLoad(row, today), [row.clusters, today]); // eslint-disable-line react-hooks/exhaustive-deps
+const SidebarRow = memo(function SidebarRow({ row, top, lifted, focused, today, daysOff, onFocusPerson, onEdit }: RowProps) {
+  const load = useMemo(() => upcomingLoad(row, today, daysOff), [row.tasks, today, daysOff]); // eslint-disable-line react-hooks/exhaustive-deps
   const first = row.name.split(/\s+/)[0];
   return (
     <div
@@ -326,13 +364,20 @@ const SidebarRow = memo(function SidebarRow({ row, top, lifted, focused, today, 
       <button className="person-name" onClick={(e) => onEdit(row.userId, e.currentTarget.parentElement!)} title={`${row.name} · click to edit, drag to reorder`}>
         <span className="person-full">{row.name}</span>
         <span className="person-first">{first}</span>
-        <span className="person-sub" title="Booked workdays in the next 4 weeks">
-          <span className="load">
-            <span className="load-fill" style={{ width: `${Math.round(load.pct * 100)}%` }} />
-            <span className="load-over" style={{ width: `${Math.round(load.parallel * 100)}%` }} />
+        {load.awayEnd >= 0 ? (
+          <span className="person-sub away" title="Time off today">
+            <Away size={12} />
+            Away, back {backOn(load.awayEnd, daysOff)}
           </span>
-          {Math.round(load.pct * 100)}% booked
-        </span>
+        ) : (
+          <span className="person-sub" title="Booked workdays in the next 4 weeks (time off and days off not counted)">
+            <span className="load">
+              <span className="load-fill" style={{ width: `${Math.round(load.pct * 100)}%` }} />
+              <span className="load-over" style={{ width: `${Math.round(load.parallel * 100)}%` }} />
+            </span>
+            {Math.round(load.pct * 100)}% booked
+          </span>
+        )}
       </button>
     </div>
   );

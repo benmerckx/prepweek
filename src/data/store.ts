@@ -1,5 +1,6 @@
 import { createMergeableStore, type Row } from 'tinybase';
 import { isRule, occurrenceStart, parseSkip, splitOccurrence } from '../lib/recur.ts';
+import { isWeekend } from '../lib/dates.ts';
 
 // One MergeableStore per "sheet". It is a CRDT (hybrid logical clocks per
 // cell), so local edits, other tabs and a Cloudflare Durable Object can all
@@ -45,6 +46,8 @@ export type TaskRow = {
    * first row's): content and dates are shared, comments and files too.
    */
   group?: string;
+  /** '' = work, 'off' = time off (holiday, leave, sick): not counted as booked. */
+  kind?: string;
 };
 
 export const store = createMergeableStore();
@@ -76,6 +79,7 @@ store.setTablesSchema({
     repeatUntil: { type: 'number', default: 0 },
     skip: { type: 'string', default: '' },
     group: { type: 'string', default: '' },
+    kind: { type: 'string', default: '' },
   },
   // Projects group tasks across people; a client groups projects.
   // `client` is the client's name as text (from before clients were their
@@ -109,6 +113,21 @@ store.setTablesSchema({
     day: { type: 'number', default: 0 },
     title: { type: 'string', default: '' },
     color: { type: 'string', default: '#9b5cff' },
+    /** A day off for everyone (a public holiday): nobody is booked on it. */
+    off: { type: 'boolean', default: false },
+  },
+  // "B waits for A": `to` can't start before `from` ends. Both are threads
+  // (a task for several people is one thread), see threadOf.
+  links: {
+    from: { type: 'string', default: '' },
+    to: { type: 'string', default: '' },
+  },
+  // Checklist items on a task (its thread).
+  checks: {
+    taskId: { type: 'string', default: '' },
+    text: { type: 'string', default: '' },
+    done: { type: 'boolean', default: false },
+    order: { type: 'number', default: 0 },
   },
   // Who changed what, newest last. Written with each local command.
   activity: {
@@ -173,7 +192,9 @@ export const joinTags = (tags: string[]): string => {
   return out.join(',');
 };
 
-export type MilestoneRow = { day: number; title: string; color: string };
+export type MilestoneRow = { day: number; title: string; color: string; off?: boolean };
+export type LinkRow = { from: string; to: string };
+export type CheckRow = { taskId: string; text: string; done: boolean; order: number };
 export type AttachmentRow = {
   taskId: string;
   kind: 'file' | 'link';
@@ -335,7 +356,7 @@ export const deleteComment = (id: string) => commit('Delete comment', [['comment
 // changes that arrived from other collaborators. Instead each local command
 // records the cells it changed, and undo only restores those cells.
 
-type TableId = 'users' | 'tasks' | 'milestones' | 'attachments' | 'projects' | 'clients' | 'views' | 'comments';
+type TableId = 'users' | 'tasks' | 'milestones' | 'attachments' | 'projects' | 'clients' | 'views' | 'comments' | 'links' | 'checks';
 type Snap = { table: TableId; id: string; row: Row | null };
 type Entry = { label: string; before: Snap[]; after: Snap[] };
 
@@ -532,12 +553,129 @@ export const updateTask = (id: string, patch: Partial<TaskRow>, label = 'Edit ta
   // in that row) applies to all of them.
   const shared = Object.entries(patch).filter(([k]) => k !== 'userId' && k !== 'lane' && k !== 'group');
   const others = shared.length ? groupMembers(id).filter((t) => t !== id) : [];
-  commit(label, [['tasks', id], ...others.map((t) => ['tasks', t] as [TableId, string])], () => {
+  // Work that waits for this task moves along when it would now start too early.
+  const moves = new Map<string, { start: number; end: number }>();
+  if ('start' in patch || 'end' in patch) {
+    const end = Math.max(patch.start ?? (store.getCell('tasks', id, 'start') as number), patch.end ?? (store.getCell('tasks', id, 'end') as number));
+    pushDependents(threadOf(id), end, moves);
+  }
+  const moved = [...moves.keys()].filter((t) => t !== id && !others.includes(t));
+  commit(label, [id, ...others, ...moved].map((t) => ['tasks', t] as [TableId, string]), () => {
     for (const [k, v] of Object.entries(patch)) store.setCell('tasks', id, k, v as string | number);
     for (const t of others) for (const [k, v] of shared) store.setCell('tasks', t, k, v as string | number);
+    for (const t of moved) {
+      store.setCell('tasks', t, 'start', moves.get(t)!.start);
+      store.setCell('tasks', t, 'end', moves.get(t)!.end);
+    }
   });
   return id;
 };
+
+// --- Dependencies ---------------------------------------------------------------
+
+/** Link rows as {id, from, to}. */
+export const allLinks = (): (LinkRow & { id: string })[] =>
+  store.getRowIds('links').map((id) => ({ id, ...(store.getRow('links', id) as LinkRow) }));
+
+/** Threads `thread` waits for, and threads waiting for it. */
+export const linksOf = (thread: string) => {
+  const links = allLinks();
+  return { waitsFor: links.filter((l) => l.to === thread), blocking: links.filter((l) => l.from === thread) };
+};
+
+const rowDates = (t: string) => {
+  const a = store.getCell('tasks', t, 'start') as number;
+  const b = store.getCell('tasks', t, 'end') as number;
+  return { start: Math.min(a, b), end: Math.max(a, b) };
+};
+
+/**
+ * Plan the moves that keep "waits for" true once `thread` ends on `end`:
+ * every task waiting for it that starts on or before that day moves to the
+ * next day (the next workday, for work that starts on workdays), keeping its
+ * length, and so on down the chain.
+ */
+const pushDependents = (thread: string, end: number, moves: Map<string, { start: number; end: number }>, depth = 0) => {
+  if (depth > 50) return;
+  for (const l of allLinks()) {
+    if (l.from !== thread) continue;
+    let latest = -Infinity;
+    for (const t of groupMembers(l.to)) {
+      const cur = moves.get(t) ?? rowDates(t);
+      if (cur.start > end) continue;
+      let start = end + 1;
+      if (!isWeekend(cur.start)) while (isWeekend(start)) start++;
+      const next = { start, end: cur.end + (start - cur.start) };
+      moves.set(t, next);
+      latest = Math.max(latest, next.end);
+    }
+    if (latest > -Infinity) pushDependents(l.to, latest, moves, depth + 1);
+  }
+};
+
+/** Would `from` → `to` close a loop (to already leads back to from)? */
+const leadsTo = (a: string, b: string, seen = new Set<string>()): boolean => {
+  if (a === b) return true;
+  if (seen.has(a)) return false;
+  seen.add(a);
+  return allLinks().some((l) => l.from === a && leadsTo(l.to, b, seen));
+};
+
+/**
+ * `to` waits for `from` (both task ids; links are kept between threads).
+ * The waiting task moves after the other one if it starts too early.
+ * Returns why it can't be linked, or ''.
+ */
+export const addLink = (fromId: string, toId: string): string => {
+  const from = threadOf(fromId);
+  const to = threadOf(toId);
+  if (from === to) return 'A task can’t wait for itself';
+  if (allLinks().some((l) => l.from === from && l.to === to)) return '';
+  if (leadsTo(to, from)) return 'That would make them wait for each other';
+  const id = newId();
+  const moves = new Map<string, { start: number; end: number }>();
+  const end = Math.max(...groupMembers(from).map((t) => rowDates(t).end));
+  // The waiting task (and what waits for it in turn) moves if it starts too early.
+  for (const t of groupMembers(to)) {
+    const cur = rowDates(t);
+    if (cur.start > end) continue;
+    let start = end + 1;
+    if (!isWeekend(cur.start)) while (isWeekend(start)) start++;
+    moves.set(t, { start, end: cur.end + (start - cur.start) });
+  }
+  if (moves.size) pushDependents(to, Math.max(...[...moves.values()].map((m) => m.end)), moves);
+  commit('Add dependency', [['links', id], ...[...moves.keys()].map((t) => ['tasks', t] as [TableId, string])], () => {
+    store.setRow('links', id, { from, to });
+    for (const [t, m] of moves) {
+      store.setCell('tasks', t, 'start', m.start);
+      store.setCell('tasks', t, 'end', m.end);
+    }
+  });
+  return '';
+};
+
+export const removeLink = (id: string) => commit('Remove dependency', [['links', id]], () => store.delRow('links', id));
+
+// --- Checklists ---------------------------------------------------------------------
+
+export const checksOf = (thread: string): (CheckRow & { id: string })[] =>
+  store
+    .getRowIds('checks')
+    .filter((c) => store.getCell('checks', c, 'taskId') === thread)
+    .map((id) => ({ id, ...(store.getRow('checks', id) as CheckRow) }))
+    .sort((a, b) => a.order - b.order);
+
+export const addCheck = (thread: string, text: string): string => {
+  const id = newId();
+  const order = Math.max(0, ...checksOf(thread).map((c) => c.order + 1));
+  commit('Add checklist item', [['checks', id]], () => store.setRow('checks', id, { taskId: thread, text: text.trim(), done: false, order }));
+  return id;
+};
+export const updateCheck = (id: string, patch: Partial<CheckRow>, label = 'Edit checklist item') =>
+  commit(label, [['checks', id]], () => {
+    for (const [k, v] of Object.entries(patch)) store.setCell('checks', id, k, v as string | number | boolean);
+  });
+export const deleteCheck = (id: string) => commit('Delete checklist item', [['checks', id]], () => store.delRow('checks', id));
 
 /** A new task stands alone (a duplicate doesn't join the original's people). */
 export const createTask = (task: TaskRow, id = newId()): string => {
@@ -593,11 +731,21 @@ export const deleteTask = (id: string, scope: 'one' | 'series' = 'one') => {
     });
     return;
   }
-  const atts = attachmentsOf(threadOf(base));
-  const touched = [...members.map((t) => ['tasks', t] as [TableId, string]), ...atts.map((a) => ['attachments', a] as [TableId, string])];
+  const thread = threadOf(base);
+  const atts = attachmentsOf(thread);
+  const links = allLinks().filter((l) => l.from === thread || l.to === thread).map((l) => l.id);
+  const checks = checksOf(thread).map((c) => c.id);
+  const touched = [
+    ...members.map((t) => ['tasks', t] as [TableId, string]),
+    ...atts.map((a) => ['attachments', a] as [TableId, string]),
+    ...links.map((l) => ['links', l] as [TableId, string]),
+    ...checks.map((c) => ['checks', c] as [TableId, string]),
+  ];
   commit('Delete task', touched, () => {
     for (const t of members) store.delRow('tasks', t);
     for (const a of atts) store.delRow('attachments', a);
+    for (const l of links) store.delRow('links', l);
+    for (const c of checks) store.delRow('checks', c);
   });
 };
 
@@ -833,6 +981,7 @@ export const applyImport = async (
       repeat?: string;
       repeatUntil?: number;
       group?: string;
+      kind?: string;
     }[];
   },
   mode: ImportMode = 'add',
@@ -946,6 +1095,7 @@ export const applyImport = async (
           repeat: t.repeat ?? '',
           repeatUntil: t.repeatUntil ?? 0,
           group: t.group ?? '',
+          kind: t.kind ?? '',
         });
       }
     }),

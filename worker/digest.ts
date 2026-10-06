@@ -73,6 +73,7 @@ type Task = {
   repeatUntil: number;
   skip: string;
   group: string;
+  kind: string;
 };
 
 /** One person's digest on one sheet; null when there's nothing to say. */
@@ -106,7 +107,8 @@ export const sheetDigest = (
     }
     myThreads.add(thread);
     rowOf.set(thread, id);
-    if (t.done) continue;
+    // Time off isn't work to do.
+    if (t.done || t.kind === 'off') continue;
     const runs = isRule(t.repeat)
       ? occurrences(
           t.start,

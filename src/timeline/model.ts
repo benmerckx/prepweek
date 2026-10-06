@@ -60,6 +60,11 @@ export interface TaskView {
   done: boolean;
   /** "10:30–11:00" for timed tasks, else ''. */
   time: string;
+  /** Time off (holiday, leave): drawn apart, not counted as booked. */
+  off: boolean;
+  /** Checklist items, and how many are ticked. */
+  checks: number;
+  checked: number;
 }
 
 export interface Project extends ProjectRow {
@@ -85,6 +90,8 @@ export interface Milestone {
   day: number;
   title: string;
   color: string;
+  /** A day off for everyone. */
+  off?: boolean;
 }
 
 export interface RowLayout {
@@ -227,6 +234,7 @@ export class TimelineModel {
     // Attachments first, so tasks are created with their badge counts.
     for (const id of store.getRowIds('attachments')) this.ingestAttachment(id);
     for (const id of store.getRowIds('comments')) this.ingestComment(id);
+    for (const id of store.getRowIds('checks')) this.ingestCheck(id);
     this.readMilestones();
     this.readProjects();
     for (const id of store.getRowIds('tasks')) this.ingestTask(id);
@@ -242,6 +250,7 @@ export class TimelineModel {
       // Attachment changes re-ingest their task so the block's badge updates.
       for (const id of ids('attachments', () => this.attachmentTask.keys())) for (const t of this.ingestAttachment(id)) touched.add(t);
       for (const id of ids('comments', () => this.commentTask.keys())) for (const t of this.ingestComment(id)) touched.add(t);
+      for (const id of ids('checks', () => this.checkInfo.keys())) for (const t of this.ingestCheck(id)) touched.add(t);
       // A renamed project relabels its blocks.
       if (has('projects') || has('clients')) {
         const changed = new Set(ids('projects', () => this.projectById.keys()));
@@ -252,7 +261,7 @@ export class TimelineModel {
       if (has('users')) this.usersDirty = true;
       if (has('milestones')) this.readMilestones();
       if (touched.size || has('users')) this.flush();
-      else if (has('milestones') || has('projects') || has('clients') || has('views')) this.finish();
+      else if (has('milestones') || has('projects') || has('clients') || has('views') || has('links')) this.finish();
     });
   }
 
@@ -424,6 +433,35 @@ export class TimelineModel {
       .getRowIds('milestones')
       .map((id) => ({ id, ...(this.store.getRow('milestones', id) as Omit<Milestone, 'id'>) }))
       .sort((a, b) => a.day - b.day || a.title.localeCompare(b.title));
+    this.daysOff = new Set(this.milestones.filter((m) => m.off).map((m) => m.day));
+  }
+  /** Days off for everyone (holiday milestones). */
+  daysOff = new Set<number>();
+
+  /** Checklist item → its thread and whether it's ticked; counts per thread. */
+  private checkInfo = new Map<string, { t: string; done: boolean }>();
+  private checkCount = new Map<string, { n: number; done: number }>();
+  private ingestCheck(id: string): string[] {
+    const affected: string[] = [];
+    const prev = this.checkInfo.get(id);
+    if (prev) {
+      const c = this.checkCount.get(prev.t)!;
+      c.n--;
+      if (prev.done) c.done--;
+      this.checkInfo.delete(id);
+      affected.push(prev.t);
+    }
+    if (this.store.hasRow('checks', id)) {
+      const t = this.store.getCell('checks', id, 'taskId') as string;
+      const done = !!this.store.getCell('checks', id, 'done');
+      this.checkInfo.set(id, { t, done });
+      let c = this.checkCount.get(t);
+      if (!c) this.checkCount.set(t, (c = { n: 0, done: 0 }));
+      c.n++;
+      if (done) c.done++;
+      affected.push(t);
+    }
+    return affected.flatMap((t) => [t, ...this.threadRows(t)]).filter((t) => this.store.hasRow('tasks', t));
   }
 
   private commentTask = new Map<string, string>();
@@ -539,6 +577,9 @@ export class TimelineModel {
       pattern: r.pattern ?? '',
       done: !!r.done,
       time: r.time ?? '',
+      off: r.kind === 'off',
+      checks: this.checkCount.get(r.group || id)?.n ?? 0,
+      checked: this.checkCount.get(r.group || id)?.done ?? 0,
     };
     let m = this.byUser.get(r.userId);
     if (!m) this.byUser.set(r.userId, (m = new Map()));
@@ -603,6 +644,9 @@ export class TimelineModel {
         pattern: base?.pattern ?? '',
         done: base?.done ?? false,
         time: base?.time ?? '',
+        off: base?.off ?? false,
+        checks: base?.checks ?? 0,
+        checked: base?.checked ?? 0,
       };
       views.push(v);
       items.push({ id: v.id, start: v.start, end: v.end, lane: p.lane ?? this.prevLane.get(p.id) });

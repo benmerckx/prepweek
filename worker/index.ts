@@ -10,7 +10,8 @@
 //   wss://<host>/sync/<sheetId>      → Durable Object named "sync/<sheetId>"
 //   wss://<host>/presence/<sheetId>  → presence relay for the sheet
 //   /files/<sheetId>/<id>            → attachment bytes in R2
-//   /share/<sheetId>                 → GET sharing state, POST enable/rotate/disable
+//   /share/<sheetId>                 → GET sharing state, POST enable/rotate/disable/feed
+//   /ical/<sheetId>/<person|all>.ics?f=<feed key> → calendar feed (no cookie: calendar apps)
 //   /auth/*, /api/*                  → accounts, workspaces, sheets (auth.ts)
 // Everything else is served from ../dist (the Bun-built app).
 import { DurableObject } from 'cloudflare:workers';
@@ -19,6 +20,7 @@ import { createDurableObjectSqlStoragePersister } from 'tinybase/persisters/pers
 import { WsServerDurableObject } from 'tinybase/synchronizers/synchronizer-ws-server-durable-object';
 import { directory, handleApi, handleAuth, sessionUser } from './auth.ts';
 import { sendDigests, sheetDigest } from './digest.ts';
+import { buildCalendar } from './ical.ts';
 import type { Env } from './env.ts';
 
 export { DirectoryDurableObject } from './directory.ts';
@@ -166,6 +168,20 @@ export class SheetDurableObject extends WsServerDurableObject {
     return this.sheetStore ? sheetDigest(this.sheetStore, email, day, since) : null;
   }
 
+  /** The secret in calendar feed links; made on first use, replaced with the share links. */
+  async feedKey(): Promise<string> {
+    let k = await this.ctx.storage.get<string>('feedKey');
+    if (!k) await this.ctx.storage.put('feedKey', (k = newToken()));
+    return k;
+  }
+
+  /** A calendar feed, if `key` is the sheet's feed key. */
+  async calendar(key: string, who: string, name: string, origin: string, sheet: string): Promise<string | null> {
+    const k = await this.ctx.storage.get<string>('feedKey');
+    if (!k || key !== k || !this.sheetStore) return null;
+    return buildCalendar(this.sheetStore, who, name, Date.now(), (id) => `${origin}/s/${encodeURIComponent(sheet)}?task=${encodeURIComponent(id)}`);
+  }
+
   async shareKeys(): Promise<Share | null> {
     return (await this.ctx.storage.get<Share>('share')) ?? null;
   }
@@ -178,6 +194,8 @@ export class SheetDurableObject extends WsServerDurableObject {
     }
     const share = { edit: newToken(), view: newToken() };
     await this.ctx.storage.put<Share>('share', share);
+    // Old calendar links stop working along with the old share links.
+    if (action === 'rotate') await this.ctx.storage.delete('feedKey');
     // Everyone reconnects and is checked against the new links.
     this.kick('Sharing links changed');
     return share;
@@ -333,6 +351,15 @@ async function handle(request: Request, env: Env): Promise<Response> {
   }
   if (url.pathname.startsWith('/auth/')) return handleAuth(request, env, url);
   if (url.pathname.startsWith('/api/')) return handleApi(request, env, url);
+  const ical = /^\/ical\/([^/]+)\/([^/]+)\.ics$/.exec(url.pathname);
+  if (ical) {
+    const sheet = decodeURIComponent(ical[1]!);
+    const info = await directory(env).sheet(sheet, null);
+    if (info.deleted) return new Response('Not found', { status: 404 });
+    const body = await sheetStub(env, sheet).calendar(url.searchParams.get('f') ?? '', decodeURIComponent(ical[2]!), info.name, url.origin, sheet);
+    if (body === null) return new Response('This calendar link has expired', { status: 404 });
+    return new Response(body, { headers: { 'content-type': 'text/calendar; charset=utf-8', 'cache-control': 'private, max-age=300', 'content-disposition': 'inline; filename="prepweek.ics"' } });
+  }
   const route = /^\/(sync|files|presence|share)\/([^/]+)/.exec(url.pathname);
   if (!route) return env.ASSETS.fetch(request);
   const kind = route[1]!;
@@ -347,8 +374,11 @@ async function handle(request: Request, env: Env): Promise<Response> {
       return json({ role, private: isPrivate, ...keys, name: info.name, workspace: info.workspace, signedIn: !!user, deleted: info.deleted });
     }
     if (request.method === 'POST') {
-      if (role !== 'edit') return forbidden();
+      if (role === 'none') return forbidden();
       if (request.headers.get('origin') && request.headers.get('origin') !== url.origin) return forbidden();
+      // Anyone who may see the sheet may subscribe to it in their calendar.
+      if (url.searchParams.has('feed')) return json({ feed: await stub.feedKey() });
+      if (role !== 'edit') return forbidden();
       const { action } = (await request.json().catch(() => ({}))) as { action?: string };
       if (action !== 'enable' && action !== 'rotate' && action !== 'disable') return json({ error: 'Unknown action' }, 400);
       const keys = await stub.setSharing(action);

@@ -8,8 +8,9 @@ import { ProjectField, TagField } from './Projects.tsx';
 import { Discussion } from './Discussion.tsx';
 
 import { DateField, LookField, PeopleField, TimeField } from './TaskFields.tsx';
+import { Checklist, KindField, LinksField } from './Planning.tsx';
 import { DatePicker, Select, isPopoverOpen, type Option } from '../ui/Select.tsx';
-import { Calendar, Check, Clock, Close, Folder, People as PeopleIcon, Repeat, Swatch, Tag, Trash } from '../ui/icons.tsx';
+import { Away, Calendar, Check, Clock, Close, Folder, People as PeopleIcon, Repeat, Swatch, Tag, Trash, Waits } from '../ui/icons.tsx';
 import { loadChunk } from '../lib/chunks.ts';
 
 // Lexical loads on first use, not on page load.
@@ -209,18 +210,30 @@ export function Editor({ task, model, sheet, side, readOnly, onClose, onRetarget
           <Prop icon={<Clock size={15} />} label="Time">
             <TimeField task={task} />
           </Prop>
-          <Prop icon={<Folder size={15} />} label="Project">
-            <ProjectField task={task} model={model} />
+          <Prop icon={<Away size={15} />} label="Type">
+            <KindField task={task} />
           </Prop>
-          <Prop icon={<Tag size={15} />} label="Tags">
-            <TagField task={task} model={model} />
-          </Prop>
+          {!task.off && (
+            <>
+              <Prop icon={<Waits size={15} />} label="Waits for">
+                <LinksField task={task} readOnly={readOnly} onOpen={onRetarget} />
+              </Prop>
+              <Prop icon={<Folder size={15} />} label="Project">
+                <ProjectField task={task} model={model} />
+              </Prop>
+              <Prop icon={<Tag size={15} />} label="Tags">
+                <TagField task={task} model={model} />
+              </Prop>
+            </>
+          )}
           <Prop icon={<Repeat size={15} />} label="Repeat">
             <RepeatField task={task} />
           </Prop>
-          <Prop icon={<Swatch size={15} />} label="Color">
-            <LookField task={task} readOnly={readOnly} />
-          </Prop>
+          {!task.off && (
+            <Prop icon={<Swatch size={15} />} label="Color">
+              <LookField task={task} readOnly={readOnly} />
+            </Prop>
+          )}
         </div>
         <section className="editor-notes-section">
           <h3 className="editor-section-title">Description</h3>
@@ -234,6 +247,7 @@ export function Editor({ task, model, sheet, side, readOnly, onClose, onRetarget
             />
           </Suspense>
         </section>
+        {!task.off && <Checklist task={task} readOnly={readOnly} />}
       </fieldset>
       <Attachments taskId={task.thread} onError={setError} />
       {error && <p className="editor-error">{error}</p>}

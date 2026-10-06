@@ -6293,3 +6293,297 @@ a.menu-item {
   align-items: center;
   gap: 2px;
 }
+
+/* Time off: a quiet hatched band in the person's row, not a colored block. */
+.task.off,
+.task.off.done {
+  background: repeating-linear-gradient(135deg, color-mix(in oklab, var(--text) 9%, transparent) 0 5px, transparent 5px 10px), var(--panel);
+  color: var(--text-dim);
+  text-shadow: none;
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+.task.off .task-title {
+  opacity: 1;
+  text-decoration: none;
+  font-weight: 560;
+}
+.task.off.selected {
+  box-shadow:
+    inset 0 0 0 1.5px var(--text-dim),
+    0 0 0 2px color-mix(in oklab, var(--text) 18%, transparent);
+}
+.ms-col.off {
+  background: repeating-linear-gradient(-45deg, color-mix(in oklab, var(--text) 7%, transparent) 0 6px, transparent 6px 12px), var(--weekend);
+}
+.ms-off {
+  width: 100%;
+  margin: 2px 0 6px;
+  padding: 0 2px;
+  font: inherit;
+  font-size: 13.5px;
+}
+.ms-off:hover {
+  background: none;
+}
+.person-sub.away {
+  gap: 5px;
+  color: var(--text-dim);
+  font-weight: 560;
+}
+
+/* --- Task details: type, dependencies, checklist (Planning.tsx) --- */
+.kind-seg {
+  display: inline-flex;
+  width: max-content;
+  padding: 2px;
+  border-radius: 8px;
+  background: var(--panel-2);
+}
+.kind-seg button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 560;
+  cursor: pointer;
+}
+.kind-seg button.on {
+  background: var(--bg);
+  color: var(--text);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.12), 0 0 0 1px var(--border);
+}
+.links-field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 2px 0;
+}
+.link-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  height: 28px;
+  padding: 0 4px 0 0;
+  border-radius: 14px;
+  background: var(--panel-2);
+  font-size: 12.5px;
+}
+.link-chip.late {
+  background: color-mix(in oklab, var(--danger, #e5484d) 14%, var(--panel-2));
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--danger, #e5484d) 45%, transparent);
+}
+.link-chip-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: 100%;
+  padding: 0 6px 0 10px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.link-chip-open .dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 3px;
+}
+.link-chip-title {
+  overflow: hidden;
+  max-width: 150px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.link-chip-sub {
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+.links-then {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  margin-top: 2px;
+}
+.links-then-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: 2px;
+  color: var(--text-faint);
+  font-size: 12px;
+}
+.links-field .editor-error {
+  width: 100%;
+  margin: 2px 0 0;
+}
+.checklist {
+  display: grid;
+  gap: 6px;
+  margin-top: 18px;
+}
+.checklist .editor-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.checklist-count {
+  color: var(--text-faint);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.checklist-bar {
+  overflow: hidden;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--panel-2);
+}
+.checklist-bar span {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent-solid);
+  transition: width 200ms;
+}
+.checklist ul {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.checklist li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 0 2px 0 4px;
+  border-radius: 6px;
+}
+.checklist li:hover {
+  background: var(--hover);
+}
+.check-box {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 5px;
+  background: none;
+  color: transparent;
+  cursor: pointer;
+}
+.check-box.on {
+  border-color: var(--accent-solid);
+  background: var(--accent-solid);
+  color: #fff;
+}
+.check-text,
+.check-add {
+  flex: 1;
+  min-width: 0;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 13.5px;
+  outline: none;
+}
+.checklist li.done .check-text {
+  color: var(--text-faint);
+  text-decoration: line-through;
+}
+.checklist li .person-chip-x {
+  opacity: 0;
+}
+.checklist li:hover .person-chip-x,
+.checklist li:focus-within .person-chip-x {
+  opacity: 1;
+}
+.check-add {
+  padding-left: 30px;
+  color: var(--text);
+}
+.check-add::placeholder {
+  color: var(--text-faint);
+}
+@media (hover: none) {
+  .checklist li .person-chip-x {
+    opacity: 1;
+  }
+}
+/* Dependency arrows (Links.tsx), under the blocks. */
+.dep-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+.dep-layer path {
+  fill: none;
+  stroke: color-mix(in oklab, var(--text) 38%, transparent);
+  stroke-width: 1.5;
+}
+.dep-layer path.on {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+.dep-layer path.late {
+  stroke: var(--danger);
+  stroke-dasharray: 4 3;
+}
+.dep-layer marker path {
+  fill: color-mix(in oklab, var(--text) 38%, transparent);
+  stroke: none;
+}
+.dep-layer marker.dep-on path {
+  fill: var(--accent);
+}
+.dep-layer marker.dep-late path {
+  fill: var(--danger);
+}
+/* Calendar feed dialog (Share.tsx) */
+.cal-who {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  font-weight: 560;
+}
+.btn.cal-open {
+  justify-self: start;
+  width: fit-content;
+  color: var(--accent-text);
+  text-decoration: none;
+}
+.cal-how {
+  display: grid;
+  gap: 4px;
+  margin: 4px 0 0;
+  padding-left: 18px;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+.cal-how b {
+  color: var(--text);
+  font-weight: 600;
+}

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, use
 import { createPortal } from 'react-dom';
 import { CHUNK, COMFORTABLE, COMPACT, type TimelineModel } from './model.ts';
 import { Scale } from './scale.ts';
+import { LinkLayer } from './Links.tsx';
 import { COMPACT_QUERY, HEADER_H, SIDEBAR_W, SIDEBAR_W_COMPACT, Viewport, ZOOM_MAX, ZOOM_MIN } from './viewport.ts';
 import { DragController, type DragKind } from './drag.ts';
 import { Header } from './Header.tsx';
@@ -14,7 +15,7 @@ import { ActivityPanel } from './Discussion.tsx';
 import { watchDesktopNotifications } from '../data/notify.ts';
 import { publish, startPresence, type Peer } from '../data/presence.ts';
 import { PresenceLayer } from './Presence.tsx';
-import { LockScreen, ShareDialog, useAccess } from './Share.tsx';
+import { CalendarDialog, LockScreen, ShareDialog, useAccess } from './Share.tsx';
 import { CommandPalette, type Command } from './Palette.tsx';
 import { isSynced, onSyncStatus } from '../data/sync.ts';
 import { SignInDialog, WorkspaceDialog, useAccount, useAutoSave } from './Account.tsx';
@@ -89,6 +90,8 @@ export function Timeline({ model }: { model: TimelineModel }) {
   const access = useAccess();
   const readOnly = access?.role === 'view';
   const [sharing, setSharing] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const openCalendar = useCallback(() => setCalendarOpen(true), []);
   const openShare = useCallback(() => setSharing(true), []);
   // Accounts: sign in, workspace people, and saving a plan started here.
   const [signingIn, setSigningIn] = useState(false);
@@ -677,6 +680,7 @@ export function Timeline({ model }: { model: TimelineModel }) {
   const goToday = useCallback(() => vp.scrollToDay(todayDay - 2, 0, true), [vp, todayDay]);
   const page = useCallback((dir: -1 | 1) => vp.scroller?.scrollBy({ left: dir * vp.viewWidth * 0.8, behavior: 'smooth' }), [vp]);
   const openImport = useCallback(() => setImporting({ file: null }), []);
+  const exportCsv = useCallback(() => void import('../import/export.ts').then((m) => m.downloadPlanCsv(document.title.replace(/ – PrepWeek$/, ''))), []);
 
   // --- Command palette (⌘K) ---
   const [palette, setPalette] = useState(false);
@@ -693,6 +697,8 @@ export function Timeline({ model }: { model: TimelineModel }) {
       { label: 'Find tasks', keys: '/', keywords: 'search', run: () => document.querySelector<HTMLInputElement>('.tb-search input')?.focus() },
       { label: 'Activity', keywords: 'history changelog log who changed', run: openActivity },
       { label: 'Share…', keywords: 'link invite view only private', run: openShare },
+      { label: 'Export as CSV', keywords: 'download spreadsheet excel backup', run: exportCsv },
+      { label: 'Add to your calendar…', keywords: 'ical ics google outlook apple subscribe feed', run: openCalendar },
     ];
     if (!readOnly)
       c.push(
@@ -706,7 +712,7 @@ export function Timeline({ model }: { model: TimelineModel }) {
         { label: 'Redo', keys: '⇧⌘Z', run: redo },
       );
     return c;
-  }, [goToday, zoomTo, hideWeekends, toggleWeekends, dense, toggleDense, model, openActivity, openShare, readOnly, manageProjects, openImport]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [goToday, zoomTo, hideWeekends, toggleWeekends, dense, toggleDense, model, openActivity, openShare, readOnly, manageProjects, openImport, exportCsv, openCalendar]); // eslint-disable-line react-hooks/exhaustive-deps
   const paletteFocus = useCallback((id: string) => focusPerson(id), [focusPerson]);
   const paletteProject = useCallback((id: string) => setFilterState({ projects: [id], tags: [] }), []);
 
@@ -898,6 +904,8 @@ export function Timeline({ model }: { model: TimelineModel }) {
         onFocusPerson={focusPerson}
         onClearFocus={clearFocus}
         onImport={openImport}
+        onExport={exportCsv}
+        onCalendar={openCalendar}
         hideWeekends={hideWeekends}
         onToggleWeekends={toggleWeekends}
         dense={dense}
@@ -996,6 +1004,7 @@ export function Timeline({ model }: { model: TimelineModel }) {
           >
             <GridBackground d0={win.d0} d1={win.d1} scale={scale} height={bodyH} today={todayDay} />
             <MilestoneLines milestones={model.milestones} d0={win.d0} d1={win.d1} scale={scale} height={bodyH} drag={msDrag} />
+            <LinkLayer model={model} scale={scale} version={model.version} width={bodyW} height={bodyH} selected={selected ? (model.findTask(selected)?.thread ?? null) : null} />
             {rendered}
             {rows.length === 0 && !focus && !readOnly && synced && (
               <EmptySheet
@@ -1040,6 +1049,7 @@ export function Timeline({ model }: { model: TimelineModel }) {
       </div>
       {msEdit && <MilestoneEditor key={msEdit.id} id={msEdit.id} anchor={msEdit.anchor} fresh={msEdit.fresh} sheet={compact} onClose={() => setMsEdit(null)} />}
       {sharing && <ShareDialog onClose={() => setSharing(false)} />}
+      {calendarOpen && <CalendarDialog onClose={() => setCalendarOpen(false)} />}
       {palette && (
         <CommandPalette
           model={model}

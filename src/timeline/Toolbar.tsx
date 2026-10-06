@@ -13,7 +13,7 @@ import type { Peer } from '../data/presence.ts';
 import type { ViewConfig } from '../data/store.ts';
 import { navigate, useRoute, type Section } from '../lib/route.ts';
 import { isPopoverOpen } from '../ui/Select.tsx';
-import { Briefcase, Check, People, ChevronLeft, ChevronRight, Close, Download, Eye, Folder, History, LinkIcon, Moon, More, Redo, Search as SearchIc, Sun, Undo, Upload } from '../ui/icons.tsx';
+import { Briefcase, Calendar, Check, People, ChevronLeft, ChevronRight, Close, Download, Eye, Folder, History, LinkIcon, Moon, More, Redo, Search as SearchIc, Sun, Undo, Upload } from '../ui/icons.tsx';
 
 interface Props {
   colW: number;
@@ -28,6 +28,8 @@ interface Props {
   onFocusPerson(id: string, additive?: boolean): void;
   onClearFocus(): void;
   onImport(): void;
+  onExport(): void;
+  onCalendar(): void;
   hideWeekends: boolean;
   onToggleWeekends(): void;
   dense: boolean;
@@ -226,6 +228,14 @@ export const Toolbar = memo(function Toolbar(props: Props) {
               Import from Teamweek…
             </button>
           )}
+          <button className="menu-item" onClick={props.onExport}>
+            <Download />
+            Export as CSV
+          </button>
+          <button className="menu-item" onClick={props.onCalendar}>
+            <Calendar />
+            Add to your calendar…
+          </button>
           {!props.readOnly && (
             <>
               <button className="menu-item" disabled={!(hist & 1) || !!(hist & 4)} onClick={() => void undo()}>

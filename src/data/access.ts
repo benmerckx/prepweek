@@ -105,6 +105,18 @@ export const changeSharing = async (action: 'enable' | 'rotate' | 'disable') => 
   return next;
 };
 
+/**
+ * A calendar subscription address for `who` (a person row id, or 'all'):
+ * Google, Apple and Outlook calendars subscribe to it and keep it fresh.
+ */
+export const calendarLink = async (who: string): Promise<string> => {
+  if (!server) throw new Error('Calendar links need the hosted version (a sync server).');
+  const res = await fetch(withKey(`${server}/share/${encodeURIComponent(sheet)}?feed=1`), { method: 'POST' });
+  if (!res.ok) throw new Error(`Couldn’t make a calendar link (${res.status})`);
+  const { feed } = (await res.json()) as { feed: string };
+  return `${server}/ical/${encodeURIComponent(sheet)}/${encodeURIComponent(who)}.ics?f=${encodeURIComponent(feed)}`;
+};
+
 export const shareLink = (k?: string) => {
   const u = new URL(`/s/${encodeURIComponent(sheet)}`, location.origin);
   if (k) u.searchParams.set('k', k);

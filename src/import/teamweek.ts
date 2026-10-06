@@ -13,7 +13,7 @@ import { PALETTE } from '../data/store.ts';
 
 export const FIELDS = [
   'title', 'assignee', 'email', 'start', 'end', 'project', 'client', 'notes', 'tags', 'segment', 'status', 'color', 'estimate',
-  'startTime', 'endTime', 'attachments', 'taskId', 'repeats',
+  'startTime', 'endTime', 'attachments', 'taskId', 'repeats', 'kind',
 ] as const;
 export type Field = (typeof FIELDS)[number];
 export type Mapping = Partial<Record<Field, number>>;
@@ -37,6 +37,7 @@ export const FIELD_LABELS: Record<Field, string> = {
   status: 'Status',
   color: 'Color',
   estimate: 'Estimate',
+  kind: 'Type',
 };
 
 /** Normalized header synonyms, best first. */
@@ -58,6 +59,7 @@ const SYNONYMS: Record<Field, string[]> = {
   repeats: ['repeats', 'repeat', 'recurrence', 'recurring', 'repeatrule'],
   status: ['taskstatus', 'status', 'state', 'done', 'completed'],
   color: ['color', 'colour', 'hex', 'taskcolor', 'projectcolor'],
+  kind: ['type', 'kind', 'tasktype'],
   estimate: ['estimatedminutes', 'estimateminutes', 'estimatesminutes', 'estimate', 'estimatedtime', 'estimatedhours', 'estimates'],
 };
 
@@ -192,6 +194,8 @@ export interface PlannedTask {
   repeatUntil: Day;
   /** Shared by several people: the id of the first one's block ('' = not shared). */
   group?: string;
+  /** 'off' for time off (from PrepWeek's own export). */
+  kind?: string;
 }
 
 export interface ImportPlan {
@@ -351,6 +355,7 @@ export const buildPlan = (rows: string[][], opts: ImportOptions, existing: Exist
       .split(/\s+|,(?=https?:)/)
       .filter((u) => /^https?:\/\//.test(u));
     const taskId = cell(row, 'taskId');
+    const kind = /^(time ?off|off|leave|holiday|vacation|absence|away)$/i.test(cell(row, 'kind').trim()) ? 'off' : '';
     const client = cell(row, 'client');
 
     // Deterministic ids from what the file says (not from who it matched on
@@ -364,7 +369,7 @@ export const buildPlan = (rows: string[][], opts: ImportOptions, existing: Exist
     for (const [i, p] of assignees.entries()) {
       const id = ids[i]!;
       if (!tasks.has(id)) p.tasks++;
-      tasks.set(id, { id, personKey: p.key, start, end, title, color, notes, project, client, tags, done, time, links: i ? [] : links, repeat, repeatUntil: 0, ...(group ? { group } : {}) });
+      tasks.set(id, { id, personKey: p.key, start, end, title, color, notes, project, client, tags, done, time, links: i ? [] : links, repeat, repeatUntil: 0, ...(group ? { group } : {}), ...(kind ? { kind } : {}) });
       if (start < min) min = start;
       if (end > max) max = end;
     }
