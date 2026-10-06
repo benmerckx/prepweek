@@ -121,8 +121,12 @@ export function Editor({ task, model, sheet, side, readOnly, onClose, onRetarget
 
   const saveTitle = () => {
     const v = titleRef.current?.value.trim() ?? '';
-    if (v !== task.title) updateTask(task.id, { title: v }, 'Rename task');
+    if (v !== task.title && getTask(task.id)) updateTask(task.id, { title: v }, 'Rename task');
   };
+  // Closing another way (Esc, clicking elsewhere) keeps what was typed too.
+  const saveTitleRef = useRef(saveTitle);
+  saveTitleRef.current = saveTitle;
+  useEffect(() => () => saveTitleRef.current(), []);
 
   return (
     <div

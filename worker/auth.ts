@@ -1,7 +1,8 @@
 // Sign-in and the account API.
 //
 //   POST /auth/email            {email, next}  → sends a magic link
-//   GET  /auth/verify?token=…   (the magic link) → session cookie, redirect
+//   GET  /auth/verify?token=…   (the magic link) → a Continue button, which
+//   POST /auth/verify {token}     → session cookie, redirect
 //   GET  /auth/google?next=…    → Google sign-in (when configured)
 //   GET  /auth/google/callback
 //   POST /auth/logout
@@ -34,6 +35,27 @@ const COOKIE = 'pw_session';
 const OAUTH_COOKIE = 'pw_oauth';
 
 export const directory = (env: Env) => env.DIRECTORY.get(env.DIRECTORY.idFromName('global'));
+
+/**
+ * Access is checked when a connection opens, so after a change close the
+ * open ones: they reconnect and are checked again. With `wipe`, the sheets
+ * were deleted: free their storage and attachment files too.
+ */
+const dropConnections = async (env: Env, sheets: string[], wipe = false) => {
+  await Promise.all(
+    sheets.map(async (id) => {
+      const sheet = env.SHEETS.get(env.SHEETS.idFromName(`sync/${id}`));
+      await Promise.all([wipe ? sheet.wipe() : sheet.kick(), env.PRESENCE.get(env.PRESENCE.idFromName(id)).kick()]);
+      if (!wipe || !env.FILES) return;
+      for (let cursor: string | undefined; ; ) {
+        const page = await env.FILES.list({ prefix: `${id}/`, cursor });
+        if (page.objects.length) await env.FILES.delete(page.objects.map((o) => o.key));
+        if (!page.truncated) break;
+        cursor = page.cursor;
+      }
+    }),
+  );
+};
 
 const cookies = (req: Request) =>
   Object.fromEntries(
@@ -151,8 +173,27 @@ export async function handleAuth(req: Request, env: Env, url: URL): Promise<Resp
     return fail('Email sign-in isn’t configured on this server yet', 501);
   }
 
-  if (path === '/auth/verify') {
-    const login = await directory(env).consumeLogin(url.searchParams.get('token') ?? '');
+  if (path === '/auth/verify' && req.method === 'GET') {
+    // Mail scanners (Outlook Safe Links and the like) open links before the
+    // person does, which used up the one-time token. Opening the link only
+    // shows a button; signing in takes the POST it sends.
+    const token = escapeHtml(url.searchParams.get('token') ?? '');
+    return new Response(
+      `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Sign in to PrepWeek</title>
+<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f5f6f8;font:16px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#14161c}
+main{background:#fff;border-radius:16px;padding:36px 32px;box-shadow:0 1px 3px rgba(20,22,28,.08);text-align:center;max-width:340px;margin:16px}
+img{display:block;margin:0 auto 22px}h1{font-size:20px;margin:0 0 6px}p{margin:0 0 22px;color:#5b6170}
+button{font:inherit;font-weight:600;color:#fff;background:#4f5bd5;border:0;border-radius:10px;padding:12px 28px;cursor:pointer}button:hover{background:#4350c4}
+@media (prefers-color-scheme:dark){body{background:#111318;color:#eceef2}main{background:#1a1a17;box-shadow:none}p{color:#a3a9b6}}</style></head>
+<body><main><img src="/icons/icon-192.png" width="56" height="56" alt=""><h1>Sign in to PrepWeek</h1><p>Continue to finish signing in.</p>
+<form method="post" action="/auth/verify"><input type="hidden" name="token" value="${token}"><button autofocus>Continue</button></form></main></body></html>`,
+      { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'referrer-policy': 'no-referrer' } },
+    );
+  }
+
+  if (path === '/auth/verify' && req.method === 'POST') {
+    const form = await req.formData().catch(() => null);
+    const login = await directory(env).consumeLogin(String(form?.get('token') ?? ''));
     if (!login) return Response.redirect(`${url.origin}/?signin`, 302);
     return signedIn(env, url, login.email, login.next);
   }
@@ -245,13 +286,13 @@ export async function handleApi(req: Request, env: Env, url: URL): Promise<Respo
         return json({ ok: true });
       }
       if (ws && seg.length === 2 && req.method === 'DELETE') {
-        await dir.deleteWorkspace(user.id, ws);
+        await dropConnections(env, await dir.deleteWorkspace(user.id, ws), true);
         return json({ ok: true });
       }
       if (ws && seg[2] === 'people') return json(await dir.people(user.id, ws));
       if (ws && seg[2] === 'members' && seg[3]) {
         if (req.method === 'PATCH') await dir.setRole(user.id, ws, seg[3], body.role === 'admin' ? 'admin' : 'member');
-        else if (req.method === 'DELETE') await dir.removeMember(user.id, ws, seg[3]);
+        else if (req.method === 'DELETE') await dropConnections(env, await dir.removeMember(user.id, ws, seg[3]));
         return json({ ok: true });
       }
       if (ws && seg[2] === 'invites' && req.method === 'POST') {
@@ -310,10 +351,11 @@ export async function handleApi(req: Request, env: Env, url: URL): Promise<Respo
       }
       if (seg[1] && req.method === 'PATCH') {
         await dir.updateSheet(user.id, seg[1], { name: body.name, workspaceId: body.workspaceId });
+        if (body.workspaceId) await dropConnections(env, [seg[1]]);
         return json({ ok: true });
       }
       if (seg[1] && req.method === 'DELETE') {
-        await dir.removeSheet(user.id, seg[1]);
+        if (await dir.removeSheet(user.id, seg[1])) await dropConnections(env, [seg[1]], true);
         return json({ ok: true });
       }
     }

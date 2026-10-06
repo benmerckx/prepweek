@@ -203,12 +203,14 @@ export class DirectoryDurableObject extends DurableObject<Env> {
    * Delete a workspace (admins): its sheets are deleted too (they stay
    * claimed, so their addresses never open again), members and invites go.
    */
-  async deleteWorkspace(userId: string, workspaceId: string) {
+  async deleteWorkspace(userId: string, workspaceId: string): Promise<string[]> {
     this.requireRole(userId, workspaceId, 'admin');
+    const sheets = this.all<{ id: string }>('SELECT id FROM sheets WHERE workspace_id = ? AND deleted = 0', workspaceId).map((s) => s.id);
     this.sql.exec('UPDATE sheets SET deleted = 1 WHERE workspace_id = ?', workspaceId);
     this.sql.exec('DELETE FROM invites WHERE workspace_id = ?', workspaceId);
     this.sql.exec('DELETE FROM members WHERE workspace_id = ?', workspaceId);
     this.sql.exec('DELETE FROM workspaces WHERE id = ?', workspaceId);
+    return sheets;
   }
 
   async people(userId: string, workspaceId: string) {
@@ -240,11 +242,12 @@ export class DirectoryDurableObject extends DurableObject<Env> {
     this.sql.exec('UPDATE members SET role = ? WHERE workspace_id = ? AND user_id = ?', role, workspaceId, targetId);
   }
 
-  /** Remove someone (admins), or leave (anyone). */
-  async removeMember(userId: string, workspaceId: string, targetId: string) {
+  /** Remove someone (admins), or leave (anyone). Returns the workspace's sheets. */
+  async removeMember(userId: string, workspaceId: string, targetId: string): Promise<string[]> {
     if (targetId !== userId) this.requireRole(userId, workspaceId, 'admin');
     if (this.role(targetId, workspaceId) === 'admin' && this.admins(workspaceId) <= 1) throw new Error('A workspace needs at least one admin');
     this.sql.exec('DELETE FROM members WHERE workspace_id = ? AND user_id = ?', workspaceId, targetId);
+    return this.all<{ id: string }>('SELECT id FROM sheets WHERE workspace_id = ? AND deleted = 0', workspaceId).map((s) => s.id);
   }
 
   // --- Invites -----------------------------------------------------------------
@@ -329,10 +332,11 @@ export class DirectoryDurableObject extends DurableObject<Env> {
   }
 
   /** Delete a sheet (admins): nobody can open it any more. */
-  async removeSheet(userId: string, sheetId: string) {
+  async removeSheet(userId: string, sheetId: string): Promise<boolean> {
     const s = this.one<{ workspace_id: string }>('SELECT workspace_id FROM sheets WHERE id = ?', sheetId);
-    if (!s) return;
+    if (!s) return false;
     this.requireRole(userId, s.workspace_id, 'admin');
     this.sql.exec('UPDATE sheets SET deleted = 1 WHERE id = ?', sheetId);
+    return true;
   }
 }

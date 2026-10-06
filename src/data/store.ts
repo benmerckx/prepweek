@@ -222,7 +222,31 @@ let actor = { name: '', id: '' };
 export const setActor = (a: { name: string; id: string }) => (actor = a);
 export const getActor = () => actor;
 
-const ACTIVITY_MAX = 4000;
+// The log is a ring per device: entries reuse ids (`<device>~<n % SLOTS>`),
+// so it stays bounded without deleting rows. A deleted row isn't gone in a
+// mergeable store (it stays as a tombstone, synced and stored for good), and
+// trimming the oldest entries used to cost writes and free nothing.
+const ACTIVITY_SLOTS = 400;
+const nextActivityId = (() => {
+  let device = '';
+  let n = Math.floor(Math.random() * ACTIVITY_SLOTS);
+  try {
+    device = localStorage.getItem('prepweek:device') ?? '';
+    if (!device) localStorage.setItem('prepweek:device', (device = newId()));
+  } catch {}
+  device ||= newId();
+  return () => {
+    try {
+      // Read each time: other tabs on this device share the counter.
+      n = Number(localStorage.getItem('prepweek:activity-n')) || n;
+    } catch {}
+    n = (n + 1) % ACTIVITY_SLOTS;
+    try {
+      localStorage.setItem('prepweek:activity-n', String(n));
+    } catch {}
+    return `${device}~${n}`;
+  };
+})();
 const MERGE_MS = 2 * 60_000;
 let lastLog: { id: string; key: string; at: number } | null = null;
 
@@ -250,7 +274,7 @@ function logActivity(label: string, before: Snap[], after: Snap[]) {
     lastLog.at = now;
     return;
   }
-  const id = newId();
+  const id = nextActivityId();
   store.setRow('activity', id, {
     at: now,
     by: actor.name,
@@ -261,11 +285,6 @@ function logActivity(label: string, before: Snap[], after: Snap[]) {
     owner: (row?.userId as string) ?? '',
   });
   lastLog = { id, key, at: now };
-  // Keep the log bounded: drop the oldest entries now and then.
-  if (store.getRowCount('activity') > ACTIVITY_MAX) {
-    const ids = store.getSortedRowIds('activity', 'at');
-    for (const old of ids.slice(0, ids.length - ACTIVITY_MAX + 500)) store.delRow('activity', old);
-  }
 }
 
 // --- Comments ---
@@ -355,12 +374,28 @@ export const commit = (label: string, touches: [TableId, string][], mutate: () =
     mutate();
     after = touches.map(([t, id]) => snap(t, id));
     changed = before.some((b, i) => JSON.stringify(b.row) !== JSON.stringify(after[i]!.row));
-    if (changed) logActivity(label, before, after);
+    // A blank new task isn't news yet: its first edit is.
+    const blank = label === 'Create task' && after[0]?.row?.title === '';
+    if (changed && !blank) logActivity(label, before, after);
   });
   if (!changed) return;
   undoStack.push({ label, before, after });
   if (undoStack.length > 200) undoStack.shift();
   redoStack.length = 0;
+  emitHistory();
+};
+
+/**
+ * Take back a task made by a click that was then left as it was (a stray
+ * click on empty space), with its undo step: as if it never happened.
+ */
+export const discardNewTask = (id: string) => {
+  const top = undoStack.at(-1);
+  if (top?.label !== 'Create task' || top.after[0]?.id !== id || !store.hasRow('tasks', id)) return;
+  if (JSON.stringify(store.getRow('tasks', id)) !== JSON.stringify(top.after[0].row)) return;
+  if (attachmentsOf(id).length || store.getRowIds('comments').some((c) => store.getCell('comments', c, 'taskId') === id)) return;
+  undoStack.pop();
+  store.delRow('tasks', id);
   emitHistory();
 };
 
@@ -750,12 +785,20 @@ export const applyImport = async (
 ) => {
   const ids = new Map<string, string>();
   const replace = mode === 'replace';
+  // Rows the file brings again are overwritten, not deleted and re-added
+  // (that wrote each one twice, and leaves a tombstone).
+  const kept = new Set([
+    ...plan.people.flatMap((p) => (p.existingId ? [`users/${p.existingId}`] : [])),
+    ...plan.tasks.map((t) => `tasks/${t.id}`),
+    ...plan.tasks.flatMap((t) => (t.links ?? []).map((_, i) => `attachments/${t.id}-a${i}`)),
+  ]);
   const removed: [TableId, string][] = replace
-    ? [
-        ...store.getRowIds('users').map((id) => ['users', id] as [TableId, string]),
-        ...store.getRowIds('tasks').map((id) => ['tasks', id] as [TableId, string]),
-        ...store.getRowIds('attachments').map((id) => ['attachments', id] as [TableId, string]),
-      ]
+    ? (['users', 'tasks', 'attachments'] as const).flatMap((table) =>
+        store
+          .getRowIds(table)
+          .filter((id) => !kept.has(`${table}/${id}`))
+          .map((id) => [table, id] as [TableId, string]),
+      )
     : [];
   // Projects are matched by name (case-insensitive) and created if missing.
   // They are never removed by 'replace', like milestones.
@@ -830,14 +873,17 @@ export const applyImport = async (
     },
     ...chunks(plan.tasks).map((part) => () => {
       for (const t of part) {
-        store.setRow('tasks', t.id, {
+        // Adding again: keep what was done to the task here (its lane,
+        // pattern, skipped occurrences). Replacing: the file wins.
+        const set = !replace && store.hasRow('tasks', t.id) ? store.setPartialRow : store.setRow;
+        set('tasks', t.id, {
           userId: ids.get(t.personKey)!,
           start: t.start,
           end: t.end,
           title: t.title,
           color: t.color,
           notes: t.notes,
-          lane: -1,
+          ...(set === store.setRow ? { lane: -1 } : {}),
           projectId: t.project ? (projectIds.get(t.project.trim().toLowerCase()) ?? '') : '',
           tags: joinTags(parseTags(t.tags)),
           done: !!t.done,
@@ -849,7 +895,15 @@ export const applyImport = async (
     }),
     ...chunks(links).map((part) => () => {
       for (const a of part)
-        store.setRow('attachments', a.id, { taskId: a.taskId, kind: 'link', name: a.name, url: a.url, mime: '', size: 0, created: Date.now() });
+        store.setRow('attachments', a.id, {
+          taskId: a.taskId,
+          kind: 'link',
+          name: a.name,
+          url: a.url,
+          mime: '',
+          size: 0,
+          created: (store.getCell('attachments', a.id, 'created') as number | undefined) ?? Date.now(),
+        });
     }),
   ];
   await commitInChunks(`${replace ? 'Replace with' : 'Import'} ${plan.tasks.length} tasks`, touches, steps, onProgress);

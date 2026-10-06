@@ -38,26 +38,56 @@ const newToken = () => {
     .replace(/\//g, '_');
 };
 
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
 export class SheetDurableObject extends WsServerDurableObject {
+  // Set by createPersister, which TinyBase calls from its constructor: before
+  // this class's own fields exist, so no private field or initializer here.
+  declare sheetStore: ReturnType<typeof createMergeableStore> | undefined;
+
   // Stored "fragmented": a row per table/row/value. The default JSON mode
   // keeps the whole sheet in one row, and Cloudflare caps a row at 2 MB, so a
   // big sheet (a Teamweek import) silently stopped being saved: it lived in
   // memory only and was gone for whoever connected after the object restarted.
   override async createPersister() {
     const sql = this.ctx.storage.sql;
-    const store = createMergeableStore();
+    const store = (this.sheetStore = createMergeableStore());
     // Once loaded, TinyBase saves the whole store straight back: every row
     // deleted and inserted again, each time the object starts. For a big sheet
     // that is tens of thousands of rows written for nothing, and the free tier
     // allows 100,000 a day. So writes are dropped until that first save is done.
     let skipWrites = false;
     const writes = /^\s*(INSERT|DELETE|UPDATE)\b/i;
-    const quiet = new Proxy(sql, {
-      get: (target, key) =>
-        key === 'exec'
-          ? (query: string, ...args: unknown[]) => (skipWrites && writes.test(query) ? target.exec('SELECT 1') : target.exec(query, ...args))
-          : Reflect.get(target, key, target),
-    });
+    // TinyBase saves each changed row as a DELETE and then an INSERT of the
+    // same key: with the primary key index, about 4 rows written where an
+    // UPDATE is 1. So a DELETE waits to see what follows; an INSERT into the
+    // same table becomes an UPDATE (an INSERT still if there was nothing to
+    // update), anything else runs the DELETE first.
+    let pending: { table: string; where: string; args: unknown[] } | null = null;
+    const flush = () => {
+      if (pending) sql.exec(`DELETE FROM ${pending.table} WHERE ${pending.where}`, ...pending.args);
+      pending = null;
+    };
+    const exec = (query: string, ...args: unknown[]) => {
+      if (skipWrites && writes.test(query)) return sql.exec('SELECT 1');
+      const del = /^DELETE FROM (\S+) WHERE (.+)$/s.exec(query);
+      const ins = /^INSERT INTO (\S+) \(.+, value_data, timestamp, hash\) VALUES/s.exec(query);
+      if (ins && pending?.table === ins[1]) {
+        const { table, where, args: whereArgs } = pending;
+        pending = null;
+        const update = sql.exec(`UPDATE ${table} SET value_data = ?, timestamp = ?, hash = ? WHERE ${where}`, ...args.slice(-3), ...whereArgs);
+        return update.rowsWritten > 0 ? update : sql.exec(query, ...args);
+      }
+      flush();
+      if (del && !/IS NOT NULL/.test(del[2]!)) {
+        pending = { table: del[1]!, where: del[2]!, args };
+        // A save runs synchronously: whatever is left runs right after it.
+        queueMicrotask(flush);
+        return sql.exec('SELECT 1');
+      }
+      return sql.exec(query, ...args);
+    };
+    const quiet = new Proxy(sql, { get: (target, key) => (key === 'exec' ? exec : Reflect.get(target, key, target)) });
     const persister = createDurableObjectSqlStoragePersister(store, quiet, { mode: 'fragmented' });
     // Sheets saved before the switch: carry the JSON copy over, once.
     const tables = new Set(sql.exec<{ name: string }>("SELECT name FROM sqlite_master WHERE type = 'table'").toArray().map((r) => r.name));
@@ -67,6 +97,7 @@ export class SheetDurableObject extends WsServerDurableObject {
       await createDurableObjectSqlStoragePersister(old, sql).load();
       store.setMergeableContent(old.getMergeableContent());
       await persister.save();
+      sql.exec('DROP TABLE tinybase');
     }
     skipWrites = true;
     let saving = false;
@@ -118,6 +149,17 @@ export class SheetDurableObject extends WsServerDurableObject {
     return 'none';
   }
 
+  /** Close every connection: they reconnect, and are checked again. */
+  kick(reason = 'Access changed') {
+    for (const ws of this.ctx.getWebSockets()) ws.close(4001, reason);
+  }
+
+  /** The sheet was deleted: drop its connections and free its storage. */
+  async wipe() {
+    this.kick('Sheet deleted');
+    await this.ctx.storage.deleteAll();
+  }
+
   async shareKeys(): Promise<Share | null> {
     return (await this.ctx.storage.get<Share>('share')) ?? null;
   }
@@ -131,11 +173,34 @@ export class SheetDurableObject extends WsServerDurableObject {
     const share = { edit: newToken(), view: newToken() };
     await this.ctx.storage.put<Share>('share', share);
     // Everyone reconnects and is checked against the new links.
-    for (const ws of this.ctx.getWebSockets()) ws.close(4001, 'Sharing links changed');
+    this.kick('Sharing links changed');
     return share;
   }
 
+  /**
+   * Attachment files whose attachment was removed: at most weekly, when
+   * someone connects. Only files over a week old, so a just-uploaded file
+   * whose row hasn't arrived yet (or an undo soon after) is safe.
+   */
+  async #collectFiles(sheet: string) {
+    const files = (this.env as Env).FILES;
+    if (!files || !this.sheetStore) return;
+    if (Date.now() - ((await this.ctx.storage.get<number>('filesCollected')) ?? 0) < WEEK_MS) return;
+    await this.ctx.storage.put('filesCollected', Date.now());
+    const live = new Set(this.sheetStore.getRowIds('attachments'));
+    const prefix = `${sheet}/`;
+    for (let cursor: string | undefined; ; ) {
+      const page = await files.list({ prefix, cursor });
+      const stale = page.objects.filter((o) => !live.has(o.key.slice(prefix.length)) && o.uploaded.getTime() < Date.now() - WEEK_MS);
+      if (stale.length) await files.delete(stale.map((o) => o.key));
+      if (!page.truncated) break;
+      cursor = page.cursor;
+    }
+  }
+
   override async fetch(request: Request) {
+    const sheet = /^\/sync\/([^/]+)/.exec(new URL(request.url).pathname)?.[1];
+    if (sheet) this.ctx.waitUntil(this.#collectFiles(decodeURIComponent(sheet)).catch((e) => console.error('collect files', e)));
     const role = request.headers.get('x-prepweek-role');
     const response = await super.fetch!(request);
     // Mark view-only sockets; the mark lives on the socket (survives hibernation).
@@ -167,6 +232,10 @@ export class SheetDurableObject extends WsServerDurableObject {
  * on the socket itself (survives hibernation) so newcomers get a snapshot.
  */
 export class PresenceDurableObject extends DurableObject {
+  kick() {
+    for (const ws of this.ctx.getWebSockets()) ws.close(4001, 'Access changed');
+  }
+
   override async fetch(request: Request) {
     if (request.headers.get('upgrade') !== 'websocket') return new Response('Expected a WebSocket', { status: 426 });
     const { 0: client, 1: server } = new WebSocketPair();
@@ -247,6 +316,11 @@ export default {
 
 async function handle(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
+  // A deploy that didn't come from wrangler.toml (e.g. edited in the dashboard).
+  if (!env.DIRECTORY || !env.SHEETS || !env.PRESENCE) {
+    if (!/^\/(sync|files|presence|share|auth|api)\//.test(url.pathname)) return env.ASSETS.fetch(request);
+    return new Response('Server misconfigured: the Durable Object bindings (SHEETS, PRESENCE, DIRECTORY) are missing. Deploy with wrangler.toml.', { status: 500 });
+  }
   if (url.pathname.startsWith('/auth/')) return handleAuth(request, env, url);
   if (url.pathname.startsWith('/api/')) return handleApi(request, env, url);
   const route = /^\/(sync|files|presence|share)\/([^/]+)/.exec(url.pathname);
@@ -268,6 +342,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
       const { action } = (await request.json().catch(() => ({}))) as { action?: string };
       if (action !== 'enable' && action !== 'rotate' && action !== 'disable') return json({ error: 'Unknown action' }, 400);
       const keys = await stub.setSharing(action);
+      if (action !== 'enable') await env.PRESENCE.get(env.PRESENCE.idFromName(sheet)).kick();
       return json({ role, private: !!keys, ...keys, name: info.name, workspace: info.workspace, signedIn: !!user });
     }
     return new Response('Method not allowed', { status: 405 });

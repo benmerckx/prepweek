@@ -26,7 +26,7 @@ import { ImportDialog } from '../import/ImportDialog.tsx';
 import { MilestoneBand, MilestoneEditor, MilestoneLines, type MsDrag } from './Milestones.tsx';
 import { Flag, Minus, Plus } from '../ui/icons.tsx';
 import { useBackToClose } from '../lib/useBackToClose.ts';
-import { createMilestone, createTask, createUser, deleteTask, getTask, getUser, MILESTONE_COLORS, redo, store, undo, updateTask, type ViewConfig } from '../data/store.ts';
+import { createMilestone, createTask, createUser, deleteTask, discardNewTask, getTask, getUser, MILESTONE_COLORS, redo, store, undo, updateTask, type ViewConfig } from '../data/store.ts';
 import { dayFromYMD, formatRange, startOfWeek, startOfYear, today as getToday, ymd } from '../lib/dates.ts';
 
 interface Win {
@@ -156,6 +156,8 @@ export function Timeline({ model }: { model: TimelineModel }) {
   const selectedRef = useRef(selected);
   selectedRef.current = selected;
   const editingRef = useRef(editing);
+  /** The task the last click on empty space made, while its editor is open. */
+  const clickedNew = useRef<string | null>(null);
   editingRef.current = editing;
   const readOnlyRef = useRef(readOnly);
   readOnlyRef.current = readOnly;
@@ -515,6 +517,7 @@ export function Timeline({ model }: { model: TimelineModel }) {
           }
           const color = getUser(userId)?.color ?? '#3b7bff';
           const id = createTask({ userId, start: day, end: day, title: '', color, lane: -1, notes: '' });
+          clickedNew.current = id;
           setSelected(id);
           setEditing(id);
         },
@@ -653,6 +656,13 @@ export function Timeline({ model }: { model: TimelineModel }) {
   }, [model, vp, zoomTo, todayDay, focusPerson]);
 
   const closeEditor = useCallback(() => setEditing(null), []);
+  // A task made by a click and closed untouched was a stray click: undo it.
+  useEffect(() => {
+    if (clickedNew.current && editing !== clickedNew.current) {
+      discardNewTask(clickedNew.current);
+      clickedNew.current = null;
+    }
+  }, [editing]);
   // Stable callbacks so the memoized toolbar skips re-rendering on edits.
   const goToday = useCallback(() => vp.scrollToDay(todayDay - 2, 0, true), [vp, todayDay]);
   const page = useCallback((dir: -1 | 1) => vp.scroller?.scrollBy({ left: dir * vp.viewWidth * 0.8, behavior: 'smooth' }), [vp]);
@@ -795,6 +805,7 @@ export function Timeline({ model }: { model: TimelineModel }) {
     if (!row) return;
     const day = Math.floor(vp.dayAt(e.clientX));
     const id = createTask({ userId: row.userId, start: day, end: day, title: '', color: row.color, lane: -1, notes: '' });
+    clickedNew.current = id;
     setSelected(id);
     setEditing(id);
   };
