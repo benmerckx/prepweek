@@ -21,7 +21,7 @@ Each concept comes as:
 | 06 | Drag | A block picked up by a teammate's cursor | Rubik Bold |
 | 07 | Happy week | A calendar page that's pleased with its week | Nunito Black |
 | 08 | Name blocks | The name itself as two blocks; one logo for both backgrounds | Outfit Bold |
-| 09 | Packed + drag | 04 and 06 together: a teammate's cursor drops the last block into its slot, bottom right. The wordmark is set tight with optically even spacing; where letters touch, the earlier one is in front and cuts a thin gap out of the later one. `-logo-duo` sets "Week" in indigo | Rubik ExtraBold |
+| 09 | Packed + drag | 04 and 06 together: a teammate's cursor drops the last block into its slot, bottom right. `-logo-duo` sets "Week" in indigo | Rubik ExtraBold |
 
 The wordmarks are outlined, so the files look the same without the fonts
 installed. All of these typefaces are free under the SIL Open Font License.
