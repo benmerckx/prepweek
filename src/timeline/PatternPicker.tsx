@@ -1,20 +1,20 @@
 import { PATTERNS } from '../data/store.ts';
 
-/** Solid or one of the block patterns, previewed in `color`. */
+/** The block patterns, previewed in `color`; picking the active one turns it off. */
 export function PatternPicker({ value, color, onPick }: { value: string; color: string; onPick(pattern: string): void }) {
   return (
-    <div className="patterns" role="radiogroup" aria-label="Pattern" style={{ ['--c' as string]: color }}>
-      {['', ...PATTERNS].map((p) => (
+    <div className="patterns" role="group" aria-label="Pattern" style={{ ['--c' as string]: color }}>
+      {PATTERNS.map((p) => (
         <button
-          key={p || 'solid'}
-          className={'pattern-swatch' + (p === value ? ' on' : '') + (p ? '' : ' solid')}
-          data-pattern={p || undefined}
-          role="radio"
-          aria-checked={p === value}
-          aria-label={p ? `${p} pattern` : 'No pattern'}
-          title={p ? p[0]!.toUpperCase() + p.slice(1) : 'Solid'}
+          key={p}
+          type="button"
+          className={'pattern-swatch' + (p === value ? ' on' : '')}
+          data-pattern={p}
+          aria-pressed={p === value}
+          aria-label={`${p} pattern`}
+          title={p === value ? 'No pattern' : p[0]!.toUpperCase() + p.slice(1)}
           onMouseDown={(e) => e.preventDefault()}
-          onClick={() => onPick(p)}
+          onClick={() => onPick(p === value ? '' : p)}
         />
       ))}
     </div>

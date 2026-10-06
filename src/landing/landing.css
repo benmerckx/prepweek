@@ -1191,8 +1191,8 @@ html:has(.lp) {
   content: '';
   position: absolute;
   inset: 1px;
-  background: #fff;
-  opacity: var(--pattern-opacity);
+  background: var(--pc);
+  opacity: var(--pat-op);
   -webkit-mask: var(--pat);
   mask: var(--pat);
 }

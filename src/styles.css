@@ -4408,7 +4408,8 @@ a.brand,
 /* =============================================================================
    Block patterns: an optional fill of small, crisp SVG tiles used as a mask,
    inset from the block's edge so a frame of solid color stays around it.
-   White over a filled block, the block's own color over a pale one. Names
+   A brighter tint of the block's color over a filled block, the color itself
+   over a pale one. Names
    from retired patterns (grid, checks, hatch, bricks) show a kept one.
    ========================================================================== */
 
@@ -4419,7 +4420,7 @@ a.brand,
   inset: 3px;
   border-radius: 3px;
   background: var(--pc);
-  opacity: var(--pattern-opacity);
+  opacity: var(--pat-op);
   /* An unknown pattern name shows no pattern rather than a wash. */
   -webkit-mask: var(--pat, linear-gradient(transparent, transparent));
   mask: var(--pat, linear-gradient(transparent, transparent));
@@ -4429,10 +4430,6 @@ a.brand,
 .pattern-swatch.chip[data-pattern]::before {
   inset: 2px;
   border-radius: 2px;
-}
-.task.done[data-pattern]::before,
-.task.untitled[data-pattern]::before {
-  opacity: calc(var(--pattern-opacity) * 0.7);
 }
 .task[data-pattern] .task-label {
   /* Keep text crisp over the pattern. */
@@ -4446,33 +4443,41 @@ a.brand,
   text-shadow: none;
 }
 [data-pattern] {
-  --pc: #fff;
+  --pc: color-mix(in oklab, var(--c) 70%, #fff);
+  --pat-op: 0.85;
+}
+@supports (color: oklch(from red l c h)) {
+  [data-pattern] {
+    --pc: oklch(from var(--c) calc(l + 0.14) calc(c * 1.15) h);
+    --pat-op: 1;
+  }
 }
 .task.untitled[data-pattern],
 .task.done[data-pattern] {
   --pc: var(--c);
+  --pat-op: calc(var(--pattern-opacity) * 0.8);
 }
 [data-pattern='dots'],
 [data-pattern='grid'] {
-  --pat: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='9'%3E%3Ccircle cx='2.25' cy='2.25' r='1.6'/%3E%3Ccircle cx='6.75' cy='6.75' r='1.6'/%3E%3C/svg%3E");
+  --pat: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='13' height='13'%3E%3Ccircle cx='3.25' cy='3.25' r='2.3'/%3E%3Ccircle cx='9.75' cy='9.75' r='2.3'/%3E%3C/svg%3E");
 }
 [data-pattern='stripes'],
 [data-pattern='hatch'] {
-  --pat: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10'%3E%3Cpath fill='none' stroke='black' stroke-width='3' d='M-2.5 2.5 L2.5 -2.5 M0 10 L10 0 M7.5 12.5 L12.5 7.5'/%3E%3C/svg%3E");
+  --pat: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14'%3E%3Cpath fill='none' stroke='black' stroke-width='4.4' d='M-3.5 3.5 L3.5 -3.5 M0 14 L14 0 M10.5 17.5 L17.5 10.5'/%3E%3C/svg%3E");
 }
 [data-pattern='zigzag'] {
-  --pat: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath fill='none' stroke='black' stroke-width='1.5' stroke-linejoin='miter' d='M-0.6 6.4 L6 1.6 L12.6 6.4'/%3E%3C/svg%3E");
+  --pat: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='11'%3E%3Cpath fill='none' stroke='black' stroke-width='2.1' stroke-linejoin='miter' d='M-0.8 8.7 L8 2.3 L16.8 8.7'/%3E%3C/svg%3E");
 }
 [data-pattern='waves'],
 [data-pattern='bricks'] {
-  --pat: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='8'%3E%3Cpath fill='none' stroke='black' stroke-width='1.5' d='M0 5 C2.3 1.6 4.7 1.6 7 5 S11.7 8.4 14 5'/%3E%3C/svg%3E");
+  --pat: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='11'%3E%3Cpath fill='none' stroke='black' stroke-width='2.1' d='M0 7 C3.3 2.4 6.7 2.4 10 7 S16.7 11.6 20 7'/%3E%3C/svg%3E");
 }
 [data-pattern='triangles'],
 [data-pattern='checks'] {
-  --pat: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='10'%3E%3Cpath d='M3 1 L5.8 5.2 H0.2Z M9 6 L11.8 10.2 H6.2Z'/%3E%3C/svg%3E");
+  --pat: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='17' height='14'%3E%3Cpath d='M4.25 1.5 L8.2 7.5 H0.3Z M12.75 8.5 L16.7 14.5 H8.8Z'/%3E%3C/svg%3E");
 }
 [data-pattern='rings'] {
-  --pat: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11'%3E%3Cg fill='none' stroke='black' stroke-width='1.2'%3E%3Ccircle cx='2.75' cy='2.75' r='1.8'/%3E%3Ccircle cx='8.25' cy='8.25' r='1.8'/%3E%3C/g%3E%3C/svg%3E");
+  --pat: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16'%3E%3Cg fill='none' stroke='black' stroke-width='1.7'%3E%3Ccircle cx='4' cy='4' r='2.6'/%3E%3Ccircle cx='12' cy='12' r='2.6'/%3E%3C/g%3E%3C/svg%3E");
 }
 :root {
   --pattern-opacity: 0.42;
@@ -4510,14 +4515,6 @@ a.brand,
 .pattern-swatch.on {
   border-color: var(--c);
   box-shadow: 0 0 0 2px var(--raised), 0 0 0 3.5px var(--c);
-}
-.pattern-swatch.solid::after {
-  content: '';
-  position: absolute;
-  inset: 4px 6px;
-  border-radius: 3px;
-  background: var(--c);
-  opacity: 0.18;
 }
 
 /* Busy states */
@@ -4865,11 +4862,11 @@ a.brand,
   width: 30px;
   height: 18px;
 }
-.look-pop {
-  padding: 12px;
+.ui-pop.look-pop {
+  padding: 16px;
 }
 .look-dialog {
-  width: 252px;
+  width: 236px;
   outline: none;
 }
 .look-label {
@@ -4893,12 +4890,12 @@ a.brand,
 }
 .look-dialog .patterns {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
 }
 .look-dialog .pattern-swatch {
   width: auto;
-  height: 30px;
+  height: 34px;
 }
 
 /* Description and comments get the room. */
