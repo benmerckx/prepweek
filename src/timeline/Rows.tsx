@@ -1,3 +1,4 @@
+import { formatTime } from '../lib/times.ts';
 import { memo, useLayoutEffect, useRef } from 'react';
 import { labelPinner } from './pin.ts';
 import { Check, Comment, Notes, Paperclip, Repeat } from '../ui/icons.tsx';
@@ -54,7 +55,7 @@ export const TaskBlock = memo(function TaskBlock({ task, scale, dims, selected, 
             <span className="task-sub">
               <span className="task-meta">
                 {[
-                  task.time,
+                  task.time && formatTime(task.time),
                   task.project && task.project !== task.title && width > (tall ? 110 : 190) ? task.project : '',
                   task.time && days === 1 ? '' : `${days}d`,
                 ]

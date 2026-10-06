@@ -86,8 +86,8 @@ export const Check = ({ size = 16 }: { size?: number }) => (
     <path d="m3.5 8.5 3 3 6-7" />
   </Svg>
 );
-export const Calendar = () => (
-  <Svg>
+export const Calendar = ({ size = 16 }: { size?: number }) => (
+  <Svg size={size}>
     <rect x="2.5" y="3.25" width="11" height="10.25" rx="2" />
     <path d="M2.5 6.5h11M5.5 1.75v2.5M10.5 1.75v2.5" />
   </Svg>
@@ -255,5 +255,17 @@ export const Sun = ({ size = 16 }: { size?: number }) => (
 export const Moon = ({ size = 16 }: { size?: number }) => (
   <Svg size={size}>
     <path d="M13.25 9.6A5.5 5.5 0 0 1 6.4 2.75a5.5 5.5 0 1 0 6.85 6.85Z" />
+  </Svg>
+);
+export const Clock = ({ size = 16 }: { size?: number }) => (
+  <Svg size={size}>
+    <circle cx="8" cy="8" r="5.75" />
+    <path d="M8 5v3.25l2 1.25" />
+  </Svg>
+);
+export const Swatch = ({ size = 16 }: { size?: number }) => (
+  <Svg size={size}>
+    <rect x="2.5" y="4" width="11" height="8" rx="2" />
+    <path d="m5 12 4-8M8.5 12l4-8" />
   </Svg>
 );

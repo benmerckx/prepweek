@@ -836,7 +836,20 @@ export function Timeline({ model }: { model: TimelineModel }) {
   else if (enterId.current !== editTask.id) enterId.current = '';
   const editor = editTask
     ? createPortal(
-        <Editor key={editTask.id} enter={enterId.current === editTask.id} task={editTask} model={model} sheet={compact} side={!compact} readOnly={readOnly} onClose={closeEditor} />,
+        <Editor
+          key={editTask.id}
+          enter={enterId.current === editTask.id}
+          task={editTask}
+          model={model}
+          sheet={compact}
+          side={!compact}
+          readOnly={readOnly}
+          onClose={closeEditor}
+          onRetarget={(id) => {
+            setSelected(id);
+            setEditing(id);
+          }}
+        />,
         document.body,
       )
     : null;

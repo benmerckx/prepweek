@@ -1,20 +1,19 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Attachments, attachFiles } from './Attachments.tsx';
-import { PALETTE, deleteTask, getTask, updateTask } from '../data/store.ts';
+import { deleteTask, getTask, updateTask } from '../data/store.ts';
 import { RULES, RULE_LABELS, type Rule } from '../lib/recur.ts';
-import { formatDay, formatRange, workdays } from '../lib/dates.ts';
+import { formatDay } from '../lib/dates.ts';
 import type { TaskView, TimelineModel } from './model.ts';
 import { ProjectField, TagField } from './Projects.tsx';
 import { Discussion } from './Discussion.tsx';
 
-// Lexical loads on first use, not on page load.
-import { PatternPicker } from './PatternPicker.tsx';
-
+import { DateField, LookField, TimeField } from './TaskFields.tsx';
 import { DatePicker, Select, isPopoverOpen, type Option } from '../ui/Select.tsx';
-
-const RichNotes = lazy(() => loadChunk(() => import('./RichNotes.tsx')));
-import { Calendar, Check, Close, Repeat, Trash } from '../ui/icons.tsx';
+import { Calendar, Check, Clock, Close, Folder, Repeat, Swatch, Tag, Trash } from '../ui/icons.tsx';
 import { loadChunk } from '../lib/chunks.ts';
+
+// Lexical loads on first use, not on page load.
+const RichNotes = lazy(() => loadChunk(() => import('./RichNotes.tsx')));
 
 interface Props {
   task: TaskView;
@@ -26,15 +25,15 @@ interface Props {
   /** View-only link: show, don't edit. */
   readOnly?: boolean;
   onClose(): void;
+  /** The task now has another id (a moved occurrence of a series). */
+  onRetarget(id: string): void;
   /** Play the open animation (not when switching between blocks). */
   enter?: boolean;
 }
 
-export function Editor({ task, model, sheet, side, readOnly, onClose, enter = true }: Props) {
+export function Editor({ task, model, sheet, side, readOnly, onClose, onRetarget, enter = true }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
-  /** The text field that last had focus, so picking a color can keep it. */
-  const lastField = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
   const [error, setError] = useState('');
   const [dropping, setDropping] = useState(false);
   const attach = async (files: File[]) => {
@@ -163,71 +162,63 @@ export function Editor({ task, model, sheet, side, readOnly, onClose, enter = tr
         <Close />
       </button>
       <fieldset className="editor-fieldset" disabled={readOnly}>
-        <input
-          ref={titleRef}
-          className="editor-title"
-          placeholder="What's the plan?"
-          defaultValue={task.title}
-          onFocus={(e) => (lastField.current = e.currentTarget)}
-          onBlur={saveTitle}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              saveTitle();
-              onClose();
-            }
-          }}
-        />
-        <div className="editor-meta">
-          <Calendar />
-          <span>{formatRange(task.start, task.end)}</span>
-          {task.time && <span className="editor-time">{task.time}</span>}
-          <span className="editor-days">
-            {workdays(task.start, task.end)} workday{workdays(task.start, task.end) === 1 ? '' : 's'}
-          </span>
-        </div>
-        <button
-          className={'done-toggle' + (task.done ? ' on' : '')}
-          aria-pressed={task.done}
-          onClick={() => updateTask(task.series, { done: !task.done }, task.done ? 'Reopen task' : 'Complete task')}
-        >
-          <span className="done-box">{task.done && <Check size={12} />}</span>
-          {task.done ? 'Done' : 'Mark as done'}
-        </button>
-        <div className="editor-fields">
-          <ProjectField task={task} model={model} />
-          <TagField task={task} model={model} />
-          <RepeatField task={task} />
-        </div>
-        <div className="swatches">
-          {PALETTE.map((c) => (
-            <button
-              key={c}
-              className={'swatch' + (c === task.color ? ' on' : '')}
-              style={{ background: c }}
-              aria-pressed={c === task.color}
-              aria-label={`Color ${c}`}
-              // Don't take focus: the text field keeps it, so on phones the
-              // keyboard stays up while you pick a color.
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => {
-                updateTask(task.id, { color: c }, 'Recolor task');
-                const f = lastField.current;
-                if (f && document.activeElement !== f) f.focus({ preventScroll: true });
-              }}
-            >
-              {c === task.color && <Check size={13} />}
-            </button>
-          ))}
-        </div>
-        <PatternPicker value={task.pattern} color={task.color} onPick={(p) => updateTask(task.id, { pattern: p }, p ? 'Set pattern' : 'Remove pattern')} />
-        <Suspense fallback={<div className="rich-notes loading">{task.notes || 'Notes'}</div>}>
-          <RichNotes
-            key={task.series}
-            value={task.notes}
-            readOnly={readOnly}
-            onSave={(md) => updateTask(task.series, { notes: md }, 'Edit notes')}
+        <div className="editor-head">
+          <button
+            type="button"
+            className={'done-check' + (task.done ? ' on' : '')}
+            aria-pressed={task.done}
+            aria-label={task.done ? 'Done; mark as not done' : 'Mark as done'}
+            title={task.done ? 'Done' : 'Mark as done'}
+            onClick={() => updateTask(task.series, { done: !task.done }, task.done ? 'Reopen task' : 'Complete task')}
+          >
+            <Check size={13} />
+          </button>
+          <input
+            ref={titleRef}
+            className="editor-title"
+            placeholder="What's the plan?"
+            defaultValue={task.title}
+            onBlur={saveTitle}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                saveTitle();
+                onClose();
+              }
+            }}
           />
-        </Suspense>
+        </div>
+        <div className="editor-props">
+          <Prop icon={<Calendar size={15} />} label="Dates">
+            <DateField task={task} onRetarget={onRetarget} />
+          </Prop>
+          <Prop icon={<Clock size={15} />} label="Time">
+            <TimeField task={task} />
+          </Prop>
+          <Prop icon={<Folder size={15} />} label="Project">
+            <ProjectField task={task} model={model} />
+          </Prop>
+          <Prop icon={<Tag size={15} />} label="Tags">
+            <TagField task={task} model={model} />
+          </Prop>
+          <Prop icon={<Repeat size={15} />} label="Repeat">
+            <RepeatField task={task} />
+          </Prop>
+          <Prop icon={<Swatch size={15} />} label="Color">
+            <LookField task={task} readOnly={readOnly} />
+          </Prop>
+        </div>
+        <section className="editor-notes-section">
+          <h3 className="editor-section-title">Description</h3>
+          <Suspense fallback={<div className="rich-notes loading">{task.notes || 'Add details…'}</div>}>
+            <RichNotes
+              key={task.series}
+              value={task.notes}
+              readOnly={readOnly}
+              placeholder="Add details  ·  type / for lists and headings"
+              onSave={(md) => updateTask(task.series, { notes: md }, 'Edit notes')}
+            />
+          </Suspense>
+        </section>
       </fieldset>
       <Attachments taskId={task.series} onError={setError} />
       {error && <p className="editor-error">{error}</p>}
@@ -268,6 +259,19 @@ export function Editor({ task, model, sheet, side, readOnly, onClose, enter = tr
           Done
         </button>
       </div>
+    </div>
+  );
+}
+
+/** One row of the details: a label and its field. */
+function Prop({ icon, label, children }: { icon: ReactNode; label: string; children: ReactNode }) {
+  return (
+    <div className="prop">
+      <span className="prop-label">
+        {icon}
+        {label}
+      </span>
+      <div className="prop-field">{children}</div>
     </div>
   );
 }

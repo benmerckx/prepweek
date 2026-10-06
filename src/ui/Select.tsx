@@ -13,6 +13,7 @@ import {
   DatePicker as RacDatePicker,
   DateSegment,
   Dialog,
+  DialogTrigger,
   Group,
   Heading,
   ListBox,
@@ -22,7 +23,7 @@ import {
   SelectValue,
 } from 'react-aria-components';
 import { CalendarDate } from '@internationalized/date';
-import { dayFromYMD, ymd, type Day } from '../lib/dates.ts';
+import { dayFromYMD, formatDay, isoWeekday, monthShort, today, ymd, type Day } from '../lib/dates.ts';
 import { Calendar as CalendarIcon, Check, ChevronDown, ChevronLeft, ChevronRight, Close } from './icons.tsx';
 
 /** A dropdown or date picker is open (its clicks aren't "outside" a panel). */
@@ -100,6 +101,7 @@ export function DatePicker({
   label,
   clearable,
   placeholder,
+  min,
   className = '',
 }: {
   value: Day | null;
@@ -108,6 +110,8 @@ export function DatePicker({
   clearable?: boolean;
   /** Shown instead of empty date segments. */
   placeholder?: string;
+  /** Earliest day that can be picked. */
+  min?: Day;
   className?: string;
 }) {
   return (
@@ -115,6 +119,7 @@ export function DatePicker({
       className={'ui-date ' + className + (value === null ? ' is-empty' : '')}
       aria-label={label}
       value={value === null ? null : toCal(value)}
+      minValue={min === undefined ? undefined : toCal(min)}
       onChange={(v) => {
         if (v) onChange(fromCal(v));
         else if (clearable) onChange(null);
@@ -139,19 +144,61 @@ export function DatePicker({
       <Popover className="ui-pop" offset={6} placement="bottom end">
         <Dialog className="ui-cal-dialog" aria-label={label}>
           <Calendar className="ui-cal">
-            <header className="ui-cal-head">
-              <Button slot="previous" className="ui-cal-nav">
-                <ChevronLeft />
-              </Button>
-              <Heading className="ui-cal-title" />
-              <Button slot="next" className="ui-cal-nav">
-                <ChevronRight />
-              </Button>
-            </header>
-            <CalendarGrid className="ui-cal-grid">{(date) => <CalendarCell date={date} className="ui-cal-cell" />}</CalendarGrid>
+            <CalendarBody />
           </Calendar>
         </Dialog>
       </Popover>
     </RacDatePicker>
+  );
+}
+
+const CalendarBody = () => (
+  <>
+    <header className="ui-cal-head">
+      <Button slot="previous" className="ui-cal-nav">
+        <ChevronLeft />
+      </Button>
+      <Heading className="ui-cal-title" />
+      <Button slot="next" className="ui-cal-nav">
+        <ChevronRight />
+      </Button>
+    </header>
+    <CalendarGrid className="ui-cal-grid">{(date) => <CalendarCell date={date} className="ui-cal-cell" />}</CalendarGrid>
+  </>
+);
+
+const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+/** "Mon 5 Oct", with the year when it isn't this year. */
+const dayLabel = (day: Day) => {
+  const { y, m, d } = ymd(day);
+  return `${WEEKDAYS[isoWeekday(day)]} ${d} ${monthShort(m)}${y === ymd(today()).y ? '' : ` ${y}`}`;
+};
+
+/** A day shown as text ("Mon 5 Oct") that opens a calendar to pick another. */
+export function DayButton({ value, onChange, label, min, className = '' }: { value: Day; onChange(day: Day): void; label: string; min?: Day; className?: string }) {
+  return (
+    <DialogTrigger>
+      <Button className={'ui-day ' + className} aria-label={`${label}: ${formatDay(value)}`}>
+        {dayLabel(value)}
+      </Button>
+      <Popover className="ui-pop" offset={6} placement="bottom start">
+        <Dialog className="ui-cal-dialog" aria-label={label}>
+          {({ close }) => (
+            <Calendar
+              className="ui-cal"
+              autoFocus
+              value={toCal(value)}
+              minValue={min === undefined ? undefined : toCal(min)}
+              onChange={(v) => {
+                onChange(fromCal(v));
+                close();
+              }}
+            >
+              <CalendarBody />
+            </Calendar>
+          )}
+        </Dialog>
+      </Popover>
+    </DialogTrigger>
   );
 }

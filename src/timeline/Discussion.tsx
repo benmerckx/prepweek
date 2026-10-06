@@ -297,7 +297,20 @@ export function Discussion({ taskId, collapsed: startCollapsed = false }: { task
     return out.sort((a, b) => a.at - b.at);
   }, [v, taskId, showHistory]); // eslint-disable-line react-hooks/exhaustive-deps
   const end = useRef<HTMLDivElement>(null);
-  useEffect(() => end.current?.scrollIntoView({ block: 'nearest' }), [items.length]);
+  // New comments scroll into view, with the box to write the next one; opening
+  // a task with comments doesn't scroll the panel away from its details.
+  const seen = useRef(-1);
+  useEffect(() => {
+    const first = seen.current < 0;
+    seen.current = items.length;
+    const list = end.current?.parentElement;
+    if (first) {
+      if (list) list.scrollTop = list.scrollHeight;
+      return;
+    }
+    end.current?.scrollIntoView({ block: 'nearest' });
+    end.current?.closest('.discussion')?.lastElementChild?.scrollIntoView({ block: 'nearest' });
+  }, [items.length]);
   const mode = identityMode();
   const signedIn = mode === 'account' || (mode === 'local' && !!displayName());
 
