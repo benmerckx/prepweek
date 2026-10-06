@@ -124,6 +124,7 @@ export async function handleAuth(req: Request, env: Env, url: URL): Promise<Resp
           email,
           'Your PrepWeek sign-in link',
           renderEmail({
+            origin: url.origin,
             preheader: 'Your link to sign in to PrepWeek. It works once, for 20 minutes.',
             heading: 'Sign in to PrepWeek',
             paragraphs: ['Click the button below to sign in. New here? The same link creates your account, no password needed.'],
@@ -260,6 +261,7 @@ export async function handleApi(req: Request, env: Env, url: URL): Promise<Respo
               email,
               `${user.name} invited you to ${info?.workspace ?? 'a workspace'} on PrepWeek`,
               renderEmail({
+                origin: url.origin,
                 preheader: `Join ${ws} on PrepWeek and plan together.`,
                 heading: `${escapeHtml(user.name)} invited you to ${escapeHtml(ws)}`,
                 paragraphs: [

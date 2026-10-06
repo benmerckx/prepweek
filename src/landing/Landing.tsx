@@ -6,7 +6,7 @@
 
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { getMe, lastSheet, mySheets, newSheetId, rememberMySheet } from '../data/account.ts';
-import { Logo } from '../ui/icons.tsx';
+import { Logo, Wordmark } from '../ui/brand.tsx';
 import { loadChunk } from '../lib/chunks.ts';
 
 // After a deploy the old chunk is gone: reload into a page that reopens sign-in.
@@ -989,7 +989,7 @@ export function Landing() {
         <div className="lp-wrap lp-nav-inner">
           <a className="lp-brand" href="/" aria-label="PrepWeek home">
             <Logo size={24} />
-            <span className="lp-brand-name">PrepWeek</span>
+            <Wordmark className="lp-brand-name" size={24} />
           </a>
           <span className="lp-nav-links">
             <a href="#features">Features</a>
@@ -1049,7 +1049,7 @@ export function Landing() {
         <div className="lp-wrap lp-foot-inner">
           <span className="lp-brand small">
             <Logo size={20} />
-            PrepWeek
+            <Wordmark size={20} title="PrepWeek" />
           </span>
           <span className="lp-dim">Made for teams who plan in weeks.</span>
           <span className="lp-foot-links">

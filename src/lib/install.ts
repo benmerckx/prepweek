@@ -25,7 +25,8 @@ export const setupInstall = () => {
   // resolve; they are plain files copied from public/.
   for (const [rel, href, type] of [
     ['manifest', '/manifest.webmanifest', ''],
-    ['icon', '/icons/icon.svg', 'image/svg+xml'],
+    // The tab icon leaves out the cursor, which is a speck at 16 px.
+    ['icon', '/icons/favicon.svg', 'image/svg+xml'],
     ['apple-touch-icon', '/icons/apple-touch-icon.png', ''],
   ]) {
     const link = document.createElement('link');

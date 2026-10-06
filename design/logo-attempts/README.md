@@ -22,7 +22,7 @@ Each concept comes as:
 | 07 | Happy week | A calendar page that's pleased with its week | Nunito Black |
 | 08 | Name blocks | The name itself as two blocks; one logo for both backgrounds | Outfit Bold |
 | 09 | Packed + drag | 04 and 06 together: a teammate's cursor drops the last block into its slot, bottom right. `-logo-duo` sets "Week" in indigo | Rubik ExtraBold |
-| 10 | Drop | Where 09 led: three blocks, the empty slot striped like the app's block pattern, and the block lifted clear of it by a teammate's cursor | Rubik ExtraBold |
+| 10 | Drop | Where 09 led: three blocks, the empty slot striped like the app's block pattern, and the block lifted clear of it by a teammate's cursor. **The logo in the app** (`src/ui/brand.tsx`, `public/icons`) | Nunito Black, lowercase |
 
 The wordmarks are outlined, so the files look the same without the fonts
 installed. All of these typefaces are free under the SIL Open Font License.
