@@ -1101,16 +1101,6 @@ svg {
     border-color 120ms,
     background 120ms;
 }
-.sidebar-empty {
-  position: absolute;
-  top: 58px;
-  left: 16px;
-  right: 16px;
-  margin: 0;
-  color: var(--text-dim);
-  font-size: 12.5px;
-  line-height: 1.5;
-}
 .add-person:hover {
   border-color: var(--accent);
   background: var(--accent-soft);
@@ -1143,15 +1133,92 @@ svg {
     transform 180ms cubic-bezier(0.2, 0.7, 0.3, 1),
     height 180ms cubic-bezier(0.2, 0.7, 0.3, 1);
 }
-.empty {
+/* A sheet without people: a card pointing at the add-person button. */
+.empty-card {
   position: absolute;
-  top: 36px;
+  top: 12px;
   left: 0;
-  max-width: 420px;
+  z-index: 3;
+  width: min(340px, calc(100vw - 120px));
+  padding: 16px 18px 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--raised);
+  box-shadow: var(--shadow);
+  cursor: default;
+  animation: empty-card-in 260ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+/* The pointer: a little arrow on the left edge, level with the button. */
+.empty-card::before {
+  content: '';
+  position: absolute;
+  top: 12px;
+  left: -7px;
+  width: 12px;
+  height: 12px;
+  border-bottom: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+  background: var(--raised);
+  transform: rotate(45deg);
+  animation: empty-card-nudge 1.6s ease-in-out 600ms infinite;
+}
+.empty-card h2 {
+  margin: 0 0 10px;
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+.empty-card ol {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+}
+.empty-card li {
+  position: relative;
+  padding-left: 30px;
   color: var(--text-dim);
-  font-size: 14px;
-  line-height: 1.5;
-  pointer-events: none;
+  font-size: 13px;
+  line-height: 1.45;
+  counter-increment: step;
+}
+.empty-card li b {
+  color: var(--text);
+  font-weight: 600;
+}
+.empty-card li::before {
+  content: counter(step);
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+}
+.empty-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+@keyframes empty-card-in {
+  from {
+    opacity: 0;
+    translate: 8px 0;
+  }
+}
+@keyframes empty-card-nudge {
+  50% {
+    translate: -3px 0;
+  }
 }
 
 /* =============================================================================
@@ -1930,10 +1997,6 @@ svg {
 .app.compact .bottombar {
   grid-template-columns: 1fr;
   height: calc(64px + env(safe-area-inset-bottom));
-}
-.app.compact .empty {
-  max-width: 240px;
-  font-size: 13px;
 }
 @media (pointer: coarse) {
   .btn {

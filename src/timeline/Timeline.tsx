@@ -961,11 +961,6 @@ export function Timeline({ model }: { model: TimelineModel }) {
               {compact ? '+' : '+ Add person'}
             </button>
             )}
-            {rows.length === 0 && !compact && (
-              <p className="sidebar-empty" style={{ transform: `translateY(${model.totalHeight}px)` }}>
-                No people yet. Add someone, then drag across their row to plan work.
-              </p>
-            )}
           </div>
           <div
             className="body"
@@ -977,10 +972,8 @@ export function Timeline({ model }: { model: TimelineModel }) {
             <GridBackground d0={win.d0} d1={win.d1} scale={scale} height={bodyH} today={todayDay} />
             <MilestoneLines milestones={model.milestones} d0={win.d0} d1={win.d1} scale={scale} height={bodyH} drag={msDrag} />
             {rendered}
-            {rows.length === 0 && compact && (
-              <div className="empty" style={{ transform: `translateX(${(vp.scroller?.scrollLeft ?? 0) + 32}px)` }}>
-                No people on this sheet yet. Add someone on the left, then drag across their row to plan work.
-              </div>
+            {rows.length === 0 && !focus && !readOnly && (
+              <EmptySheet left={(vp.scroller?.scrollLeft ?? 0) + (compact ? 14 : 20)} onAdd={() => createUser('New person')} onImport={openImport} />
             )}
             <PresenceLayer model={model} scale={scale} version={model.version} />
             {editor}
@@ -1083,4 +1076,35 @@ function VisibleRange({ vp }: { vp: Viewport }) {
     return vp.onChange(update);
   }, [vp]);
   return <span className="range-label" ref={ref} />;
+}
+
+/**
+ * A sheet without people: a card next to the add-person button that points
+ * at it, with the three steps to a first plan.
+ */
+function EmptySheet({ left, onAdd, onImport }: { left: number; onAdd(): void; onImport(): void }) {
+  return (
+    <div className="empty-card" style={{ transform: `translateX(${left}px)` }} data-no-drag onPointerDown={(e) => e.stopPropagation()}>
+      <h2>Plan your first week</h2>
+      <ol>
+        <li>
+          <b>Add the people</b> you plan for, with the button on the left.
+        </li>
+        <li>
+          <b>Drag across a row</b> to put work on someone’s days.
+        </li>
+        <li>
+          <b>Click a block</b> to name it, color it or add notes.
+        </li>
+      </ol>
+      <div className="empty-card-actions">
+        <button className="btn primary" onClick={onAdd}>
+          <Plus /> Add person
+        </button>
+        <button className="btn ghost" onClick={onImport}>
+          Import from Teamweek
+        </button>
+      </div>
+    </div>
+  );
 }
