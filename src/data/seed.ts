@@ -20,7 +20,7 @@ const NO_PROJECT = new Set(['Holiday', 'Conference']);
 const TAGS = ['billable', 'onsite', 'remote', 'urgent', 'review'];
 /** A few kinds of work get a fill pattern in the demo. */
 const PATTERN_OF: Record<string, string> = {
-  Holiday: 'stripes', Conference: 'dots', 'Support rotation': 'zigzag', 'Q-planning': 'grid', 'Customer interviews': 'waves',
+  Holiday: 'stripes', Conference: 'dots', 'Support rotation': 'zigzag', 'Q-planning': 'rings', 'Customer interviews': 'waves',
 };
 
 /** Small deterministic PRNG so the demo looks the same everywhere. */

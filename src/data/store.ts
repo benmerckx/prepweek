@@ -175,7 +175,7 @@ export type AttachmentRow = {
 };
 
 /** Optional fills for blocks, drawn in the block's own color. */
-export const PATTERNS = ['dots', 'stripes', 'zigzag', 'waves', 'grid', 'checks', 'hatch', 'bricks', 'triangles', 'rings'] as const;
+export const PATTERNS = ['dots', 'stripes', 'zigzag', 'waves', 'triangles', 'rings'] as const;
 
 /** First is the default; not red, so milestones don't read as "today". */
 export const MILESTONE_COLORS = ['#8b5cf6', '#4f5bd5', '#06b6d4', '#22a06b', '#f59e0b', '#ef4444', '#ec4899', '#64748b'] as const;

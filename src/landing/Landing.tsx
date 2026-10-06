@@ -146,7 +146,7 @@ const PEOPLE: { name: string; color: string; load: number; blocks: HeroBlock[] }
       { lane: 0, col: 0, span: 3, title: 'Brand refresh', meta: 'Globex · 3d', color: C.red },
       { lane: 0, col: 4, span: 5, title: 'Website relaunch', meta: 'Acme · 5d', color: C.blue },
       { lane: 1, col: 1, span: 1, title: 'Workshop', meta: '1d', color: C.slate, pattern: 'dots' },
-      { lane: 1, col: 6, span: 2, title: 'Q4 planning', meta: '2d', color: C.slate, pattern: 'grid' },
+      { lane: 1, col: 6, span: 2, title: 'Q4 planning', meta: '2d', color: C.slate, pattern: 'rings' },
     ],
   },
   {
@@ -186,7 +186,7 @@ const PEOPLE: { name: string; color: string; load: number; blocks: HeroBlock[] }
     blocks: [
       { lane: 0, col: 0, span: 2, title: 'Onboarding flow', meta: '2d', color: C.violet, pattern: 'dots' },
       { lane: 0, col: 3, span: 4, title: 'Analytics', meta: 'Acme · 4d', color: C.cyan },
-      { lane: 1, col: 8, span: 2, title: 'Security audit', meta: '2d', color: C.amber, pattern: 'checks' },
+      { lane: 1, col: 8, span: 2, title: 'Security audit', meta: '2d', color: C.amber, pattern: 'triangles' },
     ],
   },
 ];
@@ -518,7 +518,7 @@ function ScrubVisual() {
 const PROJECTS = [
   { name: 'Website relaunch', client: 'Acme', color: C.blue, pattern: 'dots', tasks: 42, days: '61d' },
   { name: 'Brand refresh', client: 'Globex', color: C.red, pattern: 'stripes', tasks: 18, days: '27d' },
-  { name: 'Billing revamp', client: 'Initech', color: C.orange, pattern: 'grid', tasks: 31, days: '48d' },
+  { name: 'Billing revamp', client: 'Initech', color: C.orange, pattern: 'zigzag', tasks: 31, days: '48d' },
   { name: 'Mobile app', client: 'Acme', color: C.green, pattern: 'waves', tasks: 26, days: '39d' },
 ];
 function ProjectsVisual() {
@@ -677,7 +677,7 @@ const PHONE_ROWS: { name: string; color: string; blocks: { col: number; span: nu
   { name: 'Noah Goossens', color: C.green, blocks: [{ col: 0, span: 3, title: 'API v3', meta: '3d', color: C.amber }] },
   { name: 'Mila Mertens', color: C.red, blocks: [{ col: 1, span: 1, title: 'Interviews', meta: '1d', color: C.violet, pattern: 'dots', role: 'drag' }, { col: 3, span: 2, title: 'Holiday', meta: '2d', color: C.pink, pattern: 'stripes' }] },
   { name: 'Lucas Janssens', color: C.amber, blocks: [{ col: 0, span: 1, title: 'Support', meta: '1d', color: C.lime, done: true }, { col: 2, span: 3, title: 'Data migration', meta: '3d', color: C.cyan }] },
-  { name: 'Emma Wouters', color: C.violet, blocks: [{ col: 1, span: 3, title: 'Analytics', meta: '3d', color: C.cyan, pattern: 'grid' }] },
+  { name: 'Emma Wouters', color: C.violet, blocks: [{ col: 1, span: 3, title: 'Analytics', meta: '3d', color: C.cyan, pattern: 'waves' }] },
   { name: 'Sem Goossens', color: C.cyan, blocks: [{ col: 0, span: 2, title: 'Onboarding', meta: '2d', color: C.violet }, { col: 3, span: 1, title: 'Review', meta: '1d', color: C.slate, pattern: 'dots' }] },
   { name: 'Lotte Peeters', color: C.pink, blocks: [{ col: 2, span: 3, title: 'Mobile app', meta: '3d', color: C.green }] },
 ];
@@ -886,7 +886,7 @@ function ImportCard() {
       </div>
       <div className="lp-import-blocks">
         <Block title="Status meeting" meta="10:30–11:00" color={C.cyan} />
-        <Block title="SLA renewal" meta="Imec · 1d" color={C.amber} pattern="checks" />
+        <Block title="SLA renewal" meta="Imec · 1d" color={C.amber} pattern="triangles" />
         <Block title="Launch" meta="2d" color={C.green} done />
       </div>
     </div>
