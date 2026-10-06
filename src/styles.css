@@ -194,6 +194,10 @@ body {
   -moz-osx-font-smoothing: grayscale;
   -webkit-tap-highlight-color: transparent;
 }
+b,
+strong {
+  font-weight: 600;
+}
 button,
 input,
 select,
@@ -4073,7 +4077,7 @@ button.tag-chip {
 .sheet-name {
   overflow: hidden;
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: -0.015em;
   line-height: 18px;
   text-overflow: ellipsis;
@@ -4098,6 +4102,10 @@ button.tag-chip {
 .tb-dd .sheet-menu {
   right: auto;
   left: 12px;
+  /* Don't inherit the brand's heavy type. */
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: normal;
   width: 300px;
   max-height: min(78vh, 620px);
   overflow-y: auto;
@@ -4118,7 +4126,7 @@ button.tag-chip {
   padding: 6px 10px 4px;
   color: var(--text-dim);
   font-size: 11px;
-  font-weight: 650;
+  font-weight: 550;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -4143,6 +4151,9 @@ button.tag-chip {
   border-radius: 10px;
   background: var(--accent-soft);
   white-space: normal;
+}
+.sheet-save b {
+  font-weight: 600;
 }
 .sheet-save span {
   color: var(--text-dim);
