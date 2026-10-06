@@ -8,6 +8,7 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState, type CSSPropertie
 import { getMe, lastSheet, mySheets, newSheetId, rememberMySheet } from '../data/account.ts';
 import { Logo, Wordmark } from '../ui/brand.tsx';
 import { loadChunk } from '../lib/chunks.ts';
+import { Playground } from './Playground.tsx';
 
 // After a deploy the old chunk is gone: reload into a page that reopens sign-in.
 const SignInDialog = lazy(() => loadChunk(() => import('../timeline/Account.tsx'), '/?signin').then((m) => ({ default: m.SignInDialog })));
@@ -1046,6 +1047,9 @@ export function Landing() {
       </section>
 
       <footer className="lp-foot">
+        <div className="lp-wrap">
+          <Playground />
+        </div>
         <div className="lp-wrap lp-foot-inner">
           <span className="lp-brand small">
             <Logo size={20} />
