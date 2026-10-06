@@ -3335,69 +3335,6 @@ button.tag-chip {
   box-shadow: var(--shadow);
 }
 
-.who {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 4px 4px 6px;
-}
-.who-title {
-  margin: 0;
-  font-weight: 650;
-}
-.who-sub {
-  margin: -4px 0 2px;
-  color: var(--text-dim);
-  font-size: 12px;
-  line-height: 1.4;
-  white-space: normal;
-}
-.who-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  max-height: 150px;
-  overflow-y: auto;
-}
-.who-person {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 30px;
-  padding: 0 10px 0 4px;
-  border: 1px solid var(--border);
-  border-radius: 15px;
-  background: var(--bg);
-  color: var(--text);
-  font: inherit;
-  font-size: 12.5px;
-  cursor: pointer;
-}
-.who-person:hover,
-.who-person.on {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-.who-other {
-  display: flex;
-  gap: 6px;
-}
-.who-other input {
-  flex: 1;
-  min-width: 0;
-  height: 28px;
-  padding: 0 9px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  outline: none;
-  background: var(--bg);
-  color: var(--text);
-  font: inherit;
-  font-size: 12.5px;
-}
-.who-other input:focus {
-  border-color: var(--accent);
-}
 
 /* Notifications */
 .tb-bell summary {
@@ -3484,11 +3421,34 @@ button.tag-chip {
 .notes-enable {
   margin: 4px 6px;
 }
-.notes-foot {
-  padding: 8px 14px;
-  border-top: 1px solid var(--border);
+/* Not signed in: what an account brings, instead of a warning. */
+.notes-signup {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 16px 16px 18px;
+}
+.notes-signup-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  margin-bottom: 4px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.notes-signup-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 650;
+}
+.notes-signup-text {
+  margin: 0 0 8px;
   color: var(--text-dim);
-  font-size: 12px;
+  font-size: 12.5px;
+  line-height: 1.5;
 }
 
 /* Activity drawer */
@@ -3595,14 +3555,6 @@ button.tag-chip {
   color: var(--accent);
   font-size: 12.5px;
   font-weight: 550;
-}
-.composer-ghost {
-  min-height: 38px;
-  color: var(--text-dim);
-  font: inherit;
-  font-size: 13px;
-  text-align: left;
-  cursor: text;
 }
 
 /* =============================================================================

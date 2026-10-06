@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { addComment, deleteComment, isReadOnly, store, type CommentRow } from '../data/store.ts';
-import { displayName, getMe, identityMode, isMe, onMeChange, setMe } from '../data/identity.ts';
+import { getMe, identityMode, isMe, onMeChange } from '../data/identity.ts';
 import { getMe as getAccount, requestSignIn } from '../data/account.ts';
 import { getSeen, markSeen, notifications, type Note } from '../data/notify.ts';
 import { ago, useTables } from '../lib/useTable.ts';
@@ -111,68 +111,37 @@ function RichText({ text }: { text: string }) {
   return <>{blocks}</>;
 }
 
-// --- Who are you? ----------------------------------------------------------------
+// --- Not tied to a row ------------------------------------------------------------
 
-/** Pick (or name) yourself; needed to sign comments and get notifications. */
-export function WhoAreYou({ compact, onDone }: { compact?: boolean; onDone?(): void }) {
-  const me = useMe();
-  const [name, setName] = useState(me.name);
-  const list = people();
-  return (
-    <div className={'who' + (compact ? ' compact' : '')}>
-      <p className="who-title">Who are you on this sheet?</p>
-      <p className="who-sub">Pick your row so @mentions and changes to your work reach you.</p>
-      <div className="who-list">
-        {list.map((p) => (
-          <button
-            key={p.id}
-            className={'who-person' + (me.personId === p.id ? ' on' : '')}
-            onClick={() => {
-              setMe({ personId: p.id, name: p.name });
-              onDone?.();
-            }}
-          >
-            <Face name={p.name} byId={p.id} size={22} />
-            {p.name}
-          </button>
-        ))}
-      </div>
-      <form
-        className="who-other"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (!name.trim()) return;
-          setMe({ personId: '', name: name.trim() });
-          onDone?.();
-        }}
-      >
-        <input placeholder="Not listed? Your name" value={name} onChange={(e) => setName(e.currentTarget.value)} />
-        <button className="btn small" disabled={!name.trim()}>
-          Save
-        </button>
-      </form>
-    </div>
-  );
-}
-
-/** Notifications need a row of your own: say how you get one. */
+/**
+ * Notifications are for someone's own row. A guest is urged to sign up; signed
+ * in without a row, they're told how to claim one.
+ */
 function NotLinked() {
   const mode = identityMode();
-  if (mode === 'local') return <WhoAreYou compact />;
-  if (mode === 'signedOut')
+  if (mode === 'account')
     return (
-      <div className="who compact">
-        <p className="who-sub">Log in to get mentions and changes to your work here.</p>
-        <button className="btn primary small" onClick={requestSignIn}>
-          Log in
-        </button>
-      </div>
+      <p className="fl-empty notes-empty">
+        None of the rows on this sheet is yours yet. Give your row your login email ({getAccount()?.user?.email}), or open it from the
+        sidebar and choose “This is me”.
+      </p>
     );
   return (
-    <p className="fl-empty notes-empty">
-      None of the rows on this sheet is yours yet. Give your row your login email ({getAccount()?.user?.email}), or open it from the
-      sidebar and choose “This is me”.
-    </p>
+    <div className="notes-signup">
+      <span className="notes-signup-icon">
+        <Bell size={18} />
+      </span>
+      <p className="notes-signup-title">Know when it’s about you</p>
+      <p className="notes-signup-text">
+        Create a free account to get @mentions, comments on your work and changes others make to it, here and by email. It also keeps this
+        sheet safe in your workspace.
+      </p>
+      {mode === 'signedOut' && (
+        <button className="btn primary" onClick={requestSignIn}>
+          Sign up or log in
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -274,11 +243,8 @@ type Item =
 
 export function Discussion({ taskId, collapsed: startCollapsed = false }: { taskId: string; collapsed?: boolean }) {
   const v = useTables('comments', 'activity');
-  const me = useMe();
   const [showHistory, setShowHistory] = useState(false);
   const [collapsed, setCollapsed] = useState(startCollapsed);
-  /** Asked who you are (only once you go to write something). */
-  const [asking, setAsking] = useState(false);
   const count = useMemo(
     () => store.getRowIds('comments').filter((id) => store.getCell('comments', id, 'taskId') === taskId).length,
     [v, taskId], // eslint-disable-line react-hooks/exhaustive-deps
@@ -311,8 +277,6 @@ export function Discussion({ taskId, collapsed: startCollapsed = false }: { task
     end.current?.scrollIntoView({ block: 'nearest' });
     end.current?.closest('.discussion')?.lastElementChild?.scrollIntoView({ block: 'nearest' });
   }, [items.length]);
-  const mode = identityMode();
-  const signedIn = mode === 'account' || (mode === 'local' && !!displayName());
 
   if (collapsed)
     return (
@@ -347,7 +311,7 @@ export function Discussion({ taskId, collapsed: startCollapsed = false }: { task
                 <Face name={it.by || '?'} byId={it.byId} />
                 <div className="disc-body">
                   <div className="disc-meta">
-                    <b>{it.by || 'Someone'}</b>
+                    <b>{it.by || 'Guest'}</b>
                     <span>{ago(it.at)}</span>
                     {isMe(it.byId, it.by) && !isReadOnly() && (
                       <button className="disc-del" aria-label="Delete comment" onClick={() => deleteComment(it.id)}>
@@ -373,19 +337,7 @@ export function Discussion({ taskId, collapsed: startCollapsed = false }: { task
           <div ref={end} />
         </div>
       )}
-      {isReadOnly() ? null : signedIn ? (
-        <Composer taskId={taskId} />
-      ) : mode === 'signedOut' ? (
-        <button className="composer composer-ghost" onClick={requestSignIn}>
-          Log in to comment
-        </button>
-      ) : asking ? (
-        <WhoAreYou compact key={me.name} />
-      ) : (
-        <button className="composer composer-ghost" onClick={() => setAsking(true)}>
-          Comment… use @ to mention
-        </button>
-      )}
+      {!isReadOnly() && <Composer taskId={taskId} />}
     </div>
   );
 }
@@ -539,14 +491,6 @@ export function NotificationsMenu({ onOpenTask }: { onOpenTask(id: string): void
             <Bell />
             Enable desktop notifications
           </button>
-        )}
-        {me.personId && identityMode() === 'local' && (
-          <div className="notes-foot">
-            Signed as <b>{displayName()}</b> ·{' '}
-            <button className="link-btn" onClick={() => setMe({ personId: '', name: '' })}>
-              change
-            </button>
-          </div>
         )}
       </div>
     </details>
