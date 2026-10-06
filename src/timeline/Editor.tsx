@@ -13,7 +13,7 @@ import { PatternPicker } from './PatternPicker.tsx';
 import { DatePicker, Select, isPopoverOpen, type Option } from '../ui/Select.tsx';
 
 const RichNotes = lazy(() => import('./RichNotes.tsx'));
-import { Calendar, Check, Repeat, Trash } from '../ui/icons.tsx';
+import { Calendar, Check, Close, Repeat, Trash } from '../ui/icons.tsx';
 
 interface Props {
   task: TaskView;
@@ -156,6 +156,9 @@ export function Editor({ task, model, sheet, side, readOnly, onClose }: Props) {
         if (e.key === 'Escape') onClose();
       }}
     >
+      <button type="button" className="editor-close" aria-label="Close" title="Close (Esc)" onClick={onClose}>
+        <Close />
+      </button>
       <fieldset className="editor-fieldset" disabled={readOnly}>
         <input
           ref={titleRef}

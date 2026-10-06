@@ -453,6 +453,9 @@ export function Minimap({ model, vp, today, filter = null }: Props) {
       st.lock = g.mmStart;
       st.over = 0;
       wrap.classList.add('scrubbing');
+      // Dragging jumps straight to each position: no block/row transitions
+      // (a click outside the handle still glides).
+      document.documentElement.dataset.scrubbing = '';
       st.grabDx = x - g.sliderX;
       schedule();
     };
@@ -468,6 +471,7 @@ export function Minimap({ model, vp, today, filter = null }: Props) {
       st.dragging = false;
       st.lock = null;
       wrap.classList.remove('scrubbing');
+      delete document.documentElement.dataset.scrubbing;
       if (e.pointerType === 'touch') st.hoverX = -1;
       if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
       schedule();

@@ -27,6 +27,7 @@
 
 import type { Env } from './env.ts';
 import type { User, WorkspaceRole } from './directory.ts';
+import { escapeHtml, renderEmail } from './email.ts';
 
 const COOKIE = 'pw_session';
 const OAUTH_COOKIE = 'pw_oauth';
@@ -63,7 +64,6 @@ const isLocal = (url: URL) => ['localhost', '127.0.0.1', '[::1]'].includes(url.h
 /** Email is on when Mandrill has a key and a sender (a verified domain). */
 const canEmail = (env: Env) => !!(env.MANDRILL_API_KEY && env.EMAIL_FROM);
 
-const escapeHtml = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
 /** Send through Mandrill (Mailchimp Transactional). */
 const sendEmail = async (env: Env, to: string, subject: string, html: string) => {
@@ -76,7 +76,7 @@ const sendEmail = async (env: Env, to: string, subject: string, html: string) =>
       key: env.MANDRILL_API_KEY,
       message: {
         from_email: from ? from[2] : env.EMAIL_FROM?.trim(),
-        from_name: from?.[1] || 'prepweek',
+        from_name: from?.[1] || 'PrepWeek',
         to: [{ email: to, type: 'to' }],
         subject,
         html,
@@ -93,8 +93,6 @@ const sendEmail = async (env: Env, to: string, subject: string, html: string) =>
   if (r && (r.status === 'rejected' || r.status === 'invalid')) throw new Error(`Email not sent (${r.reject_reason ?? r.status})`);
 };
 
-const button = (href: string, label: string) =>
-  `<p><a href="${href}" style="display:inline-block;padding:10px 18px;border-radius:8px;background:#4f5bd5;color:#fff;text-decoration:none;font-weight:600">${label}</a></p>`;
 
 const signedIn = async (env: Env, url: URL, email: string, next: string, profile?: { name?: string; avatar?: string }) => {
   const { token } = await directory(env).signIn(email, profile);
@@ -120,7 +118,18 @@ export async function handleAuth(req: Request, env: Env, url: URL): Promise<Resp
     const link = `${url.origin}/auth/verify?token=${encodeURIComponent(token)}`;
     if (canEmail(env)) {
       try {
-        await sendEmail(env, email, 'Your prepweek sign-in link', `<p>Click to sign in to prepweek:</p>${button(link, 'Sign in')}<p style="color:#888">The link works once, for 20 minutes. If you didn’t ask for it, ignore this email.</p>`);
+        await sendEmail(
+          env,
+          email,
+          'Your PrepWeek sign-in link',
+          renderEmail({
+            preheader: 'Your link to sign in to PrepWeek. It works once, for 20 minutes.',
+            heading: 'Sign in to PrepWeek',
+            paragraphs: ['Click the button below to sign in. New here? The same link creates your account, no password needed.'],
+            button: { href: link, label: 'Sign in to PrepWeek' },
+            footer: `This link works once, for 20 minutes, and was requested for ${escapeHtml(email)}.<br>If that wasn’t you, you can safely ignore this email.`,
+          }),
+        );
       } catch (e) {
         console.error('sign-in email', e);
         return fail(`Couldn’t send the email: ${e instanceof Error ? e.message : e}`, 502);
@@ -241,7 +250,21 @@ export async function handleApi(req: Request, env: Env, url: URL): Promise<Respo
           const info = await dir.inviteInfo(token);
           const ws = info?.workspace ?? 'their workspace';
           try {
-            await sendEmail(env, email, `${user.name} invited you to ${info?.workspace ?? 'a workspace'} on prepweek`, `<p>${escapeHtml(user.name)} invited you to plan together in <b>${escapeHtml(ws)}</b>.</p>${button(link, 'Join')}`);
+            await sendEmail(
+              env,
+              email,
+              `${user.name} invited you to ${info?.workspace ?? 'a workspace'} on PrepWeek`,
+              renderEmail({
+                preheader: `Join ${ws} on PrepWeek and plan together.`,
+                heading: `${escapeHtml(user.name)} invited you to ${escapeHtml(ws)}`,
+                paragraphs: [
+                  `${escapeHtml(user.name)} uses PrepWeek to plan who works on what, week by week, and would like you to join <b>${escapeHtml(ws)}</b>.`,
+                  `You’ll join as ${role === 'admin' ? 'an admin' : 'a member'}. Sign in with this email address (${escapeHtml(email)}) to accept.`,
+                ],
+                button: { href: link, label: `Join ${escapeHtml(ws)}` },
+                footer: 'Not expecting this? You can ignore this email; nothing happens until you accept.',
+              }),
+            );
             sent = true;
           } catch (e) {
             // The invite exists either way; the dialog shows its link to copy.
