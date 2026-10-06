@@ -25,10 +25,12 @@ name = "PRESENCE"
 class_name = "PresenceDurableObject"
 
 # Attachment storage (served by the worker at /files/<sheet>/<id>).
-# Create the bucket once: `wrangler r2 bucket create prepweek-files`.
-[[r2_buckets]]
-binding = "FILES"
-bucket_name = "prepweek-files"
+# Disabled until the bucket exists. To enable: run
+# `wrangler r2 bucket create prepweek-files` and uncomment these lines.
+# Without it, attachments stay in each browser (the worker answers 501).
+# [[r2_buckets]]
+# binding = "FILES"
+# bucket_name = "prepweek-files"
 
 [[migrations]]
 tag = "v1"

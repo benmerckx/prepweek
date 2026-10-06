@@ -169,9 +169,9 @@ of the CRDT:
 - if the sheet syncs to the worker and an R2 bucket is bound as `FILES`, they
   are also uploaded to `/files/<sheet>/<id>`, so collaborators can open them.
 
-`wrangler.toml` binds the bucket `prepweek-files`. Create it once with
-`wrangler r2 bucket create prepweek-files` before the first deploy. Files are
-limited to 25 MB.
+The R2 binding is commented out in `wrangler.toml` for now. To turn it on,
+create the bucket with `wrangler r2 bucket create prepweek-files` and
+uncomment the `[[r2_buckets]]` lines. Files are limited to 25 MB.
 
 ## Storage, sync, realtime
 
