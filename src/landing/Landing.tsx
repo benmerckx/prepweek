@@ -1114,7 +1114,8 @@ export function Landing() {
           <span className="lp-dim">Made for teams who plan in weeks.</span>
           <span className="lp-foot-links">
             <a href="/s/demo">Demo</a>
-            <a href="/app">Open the app</a>
+            <a href="/help">Help</a>
+            <a href="/roadmap">Roadmap</a>
             {v.accounts && v.kind !== 'signedIn' && (
               <button className="lp-link" onClick={signIn}>
                 Log in

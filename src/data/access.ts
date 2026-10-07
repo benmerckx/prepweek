@@ -6,6 +6,7 @@
 // fresh links.
 
 import { setReadOnly } from './store.ts';
+import type { PlanInfo } from '../lib/plans.ts';
 
 export type Role = 'edit' | 'view' | 'none';
 export interface ShareInfo {
@@ -20,6 +21,10 @@ export interface ShareInfo {
   signedIn?: boolean;
   /** The sheet was deleted from its workspace. */
   deleted?: boolean;
+  /** The workspace's plan (none for a sheet outside a workspace). */
+  plan?: PlanInfo | null;
+  /** Plans limit people on this server (PLAN_LIMITS="on"). */
+  limitsOn?: boolean;
 }
 
 let sheet = 'demo';

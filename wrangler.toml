@@ -32,7 +32,15 @@ class_name = "DirectoryDurableObject"
 # Public settings. The matching secrets (wrangler secret put …):
 #   MANDRILL_API_KEY        magic-link and invite emails (Mandrill)
 #   GOOGLE_CLIENT_SECRET    "Continue with Google"
+#   APPSUMO_CLIENT_SECRET, APPSUMO_API_KEY   AppSumo licences (see worker/appsumo.ts)
 [vars]
+# Plans: "on" limits how many people a workspace plans for (Free 5, AppSumo
+# tiers 15/40/100). Off, plans show but nothing is blocked. Turn on at launch.
+PLAN_LIMITS = "off"
+# AppSumo licensing (Partner Portal): the OAuth client id. Secrets:
+#   wrangler secret put APPSUMO_CLIENT_SECRET
+#   wrangler secret put APPSUMO_API_KEY
+APPSUMO_CLIENT_ID = ""
 # Links in the daily digest use the address people use the app at; set this
 # to pin one, e.g. APP_URL = "https://plan.example.com".
 EMAIL_FROM = "no-reply@prepweek.com"

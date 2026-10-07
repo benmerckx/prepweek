@@ -4,6 +4,7 @@
 // app works as a local, account-less planner.
 
 import { getKey } from './access.ts';
+import type { PlanInfo } from '../lib/plans.ts';
 
 export interface Account {
   id: string;
@@ -20,6 +21,7 @@ export interface Workspace {
   name: string;
   role: 'admin' | 'member';
   sheets: SheetRef[];
+  plan?: PlanInfo;
 }
 export interface Me {
   user: Account | null;

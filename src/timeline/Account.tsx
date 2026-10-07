@@ -620,6 +620,24 @@ export function WorkspaceDialog({ workspaceId, onClose }: { workspaceId: string;
           </button>
         </header>
         <div className="share-body">
+          {ws?.plan && (
+            <div className="ws-plan">
+              <div>
+                <b>{ws.plan.name}</b>
+                <span>
+                  {ws.plan.used} of {ws.plan.limit} people planned · everyone can sign in
+                </span>
+              </div>
+              <span className="load" aria-hidden>
+                <span className="load-fill" style={{ width: `${Math.min(100, (ws.plan.used / ws.plan.limit) * 100)}%` }} />
+              </span>
+              {admin && (
+                <a className="btn" href="/appsumo">
+                  Redeem AppSumo licence
+                </a>
+              )}
+            </div>
+          )}
           {admin && (
             <form
               className="ws-invite"

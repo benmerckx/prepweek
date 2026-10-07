@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import { CHUNK, COMFORTABLE, COMPACT, type TimelineModel } from './model.ts';
 import { Scale } from './scale.ts';
 import { LinkLayer } from './Links.tsx';
+import { addPerson } from '../data/plan.ts';
+import { PlanDialog } from './PlanDialog.tsx';
 import { COMPACT_QUERY, HEADER_H, SIDEBAR_W, SIDEBAR_W_COMPACT, Viewport, ZOOM_MAX, ZOOM_MIN } from './viewport.ts';
 import { DragController, type DragKind } from './drag.ts';
 import { Header } from './Header.tsx';
@@ -91,6 +93,13 @@ export function Timeline({ model }: { model: TimelineModel }) {
   const readOnly = access?.role === 'view';
   const [sharing, setSharing] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
+  // The plan has no room for another person.
+  const [planFull, setPlanFull] = useState(false);
+  useEffect(() => {
+    const on = () => setPlanFull(true);
+    window.addEventListener('prepweek:limit', on);
+    return () => window.removeEventListener('prepweek:limit', on);
+  }, []);
   const openCalendar = useCallback(() => setCalendarOpen(true), []);
   const openShare = useCallback(() => setSharing(true), []);
   // Accounts: sign in, workspace people, and saving a plan started here.
@@ -702,7 +711,7 @@ export function Timeline({ model }: { model: TimelineModel }) {
     ];
     if (!readOnly)
       c.push(
-        { label: 'Add person', keywords: 'new member user', run: () => createUser('New person') },
+        { label: 'Add person', keywords: 'new member user', run: () => addPerson() },
         { label: 'Add milestone', keywords: 'deadline flag launch', run: addMilestoneHere },
         { label: 'Projects', keywords: 'manage list page', run: manageProjects },
         { label: 'Clients', keywords: 'customers manage list page', run: () => navigate({ section: 'clients' }) },
@@ -989,7 +998,7 @@ export function Timeline({ model }: { model: TimelineModel }) {
             <button
               className="add-person"
               style={{ transform: `translateY(${model.totalHeight}px)` }}
-              onClick={() => createUser('New person')}
+              onClick={() => addPerson()}
             >
               {compact ? '+' : '+ Add person'}
             </button>
@@ -1009,7 +1018,7 @@ export function Timeline({ model }: { model: TimelineModel }) {
             {rows.length === 0 && !focus && !readOnly && synced && (
               <EmptySheet
                 left={(vp.scroller?.scrollLeft ?? 0) + (compact ? 14 : 20)}
-                onAdd={() => createUser('New person')}
+                onAdd={() => addPerson()}
                 onImport={openImport}
                 onSignIn={account && !account.user ? openSignIn : undefined}
               />
@@ -1050,6 +1059,7 @@ export function Timeline({ model }: { model: TimelineModel }) {
       {msEdit && <MilestoneEditor key={msEdit.id} id={msEdit.id} anchor={msEdit.anchor} fresh={msEdit.fresh} sheet={compact} onClose={() => setMsEdit(null)} />}
       {sharing && <ShareDialog onClose={() => setSharing(false)} />}
       {calendarOpen && <CalendarDialog onClose={() => setCalendarOpen(false)} />}
+      {planFull && <PlanDialog onClose={() => setPlanFull(false)} />}
       {palette && (
         <CommandPalette
           model={model}

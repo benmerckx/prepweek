@@ -11,6 +11,7 @@
 
 import { DurableObject } from 'cloudflare:workers';
 import { DIGEST_HOUR, localTime, type DigestRecipient } from './digest.ts';
+import { FREE_PEOPLE, appsumoPeople, type PlanInfo } from '../src/lib/plans.ts';
 import type { Env } from './env.ts';
 
 export type WorkspaceRole = 'admin' | 'member';
@@ -32,6 +33,16 @@ export interface WorkspaceSummary {
   name: string;
   role: WorkspaceRole;
   sheets: SheetSummary[];
+  plan: PlanInfo;
+}
+
+/** An AppSumo licence as a webhook or the licensing API reports it. */
+export interface LicenseEvent {
+  event: string;
+  license_key: string;
+  prev_license_key?: string;
+  tier?: number;
+  license_status?: string;
 }
 
 const DAY = 86_400_000;
@@ -79,6 +90,20 @@ const TABLES: Record<string, string[]> = {
     'last_at INTEGER NOT NULL DEFAULT 0',
     "origin TEXT NOT NULL DEFAULT ''",
   ],
+  // Licences (AppSumo): which workspace each one upgrades, once redeemed.
+  licenses: [
+    'key TEXT PRIMARY KEY',
+    "source TEXT NOT NULL DEFAULT 'appsumo'",
+    'tier INTEGER NOT NULL DEFAULT 1',
+    "status TEXT NOT NULL DEFAULT 'inactive'",
+    "workspace_id TEXT NOT NULL DEFAULT ''",
+    "user_id TEXT NOT NULL DEFAULT ''",
+    'created INTEGER NOT NULL DEFAULT 0',
+    'updated INTEGER NOT NULL DEFAULT 0',
+  ],
+  // Who is planned on each sheet (person keys, see lib/plans.ts), as each
+  // sheet's object reports it: counted per workspace for its plan.
+  sheet_people: ['sheet_id TEXT PRIMARY KEY', "people TEXT NOT NULL DEFAULT '[]'", 'updated INTEGER NOT NULL DEFAULT 0'],
 };
 
 export class DirectoryDurableObject extends DurableObject<Env> {
@@ -187,7 +212,7 @@ export class DirectoryDurableObject extends DurableObject<Env> {
 
   // --- Workspaces --------------------------------------------------------------
 
-  async workspaces(userId: string): Promise<WorkspaceSummary[]> {
+  async workspaces(userId: string, enforced = false): Promise<WorkspaceSummary[]> {
     const ws = this.all<{ id: string; name: string; role: WorkspaceRole }>(
       'SELECT w.id, w.name, m.role FROM members m JOIN workspaces w ON w.id = m.workspace_id WHERE m.user_id = ? ORDER BY m.joined',
       userId,
@@ -195,6 +220,7 @@ export class DirectoryDurableObject extends DurableObject<Env> {
     return ws.map((w) => ({
       ...w,
       sheets: this.all<SheetSummary>('SELECT id, name FROM sheets WHERE workspace_id = ? AND deleted = 0 ORDER BY created', w.id),
+      plan: this.plan(w.id, '', enforced),
     }));
   }
 
@@ -301,7 +327,7 @@ export class DirectoryDurableObject extends DurableObject<Env> {
   // --- Sheets ------------------------------------------------------------------
 
   /** Who may do what on a sheet. `workspace: null` = not in any workspace. */
-  async sheet(sheetId: string, userId: string | null) {
+  async sheet(sheetId: string, userId: string | null, enforced = false) {
     const s = this.one<{ name: string; workspace_id: string; workspace: string | null; deleted: number }>(
       // LEFT JOIN: a deleted workspace's sheets must still read as claimed.
       'SELECT s.name, s.workspace_id, s.deleted, w.name AS workspace FROM sheets s LEFT JOIN workspaces w ON w.id = s.workspace_id WHERE s.id = ?',
@@ -315,6 +341,7 @@ export class DirectoryDurableObject extends DurableObject<Env> {
       workspace: { id: s.workspace_id, name: s.workspace ?? '' },
       role: userId ? this.role(userId, s.workspace_id) : null,
       deleted: false,
+      plan: this.plan(s.workspace_id, sheetId, enforced),
     };
   }
 
@@ -412,5 +439,99 @@ export class DirectoryDurableObject extends DurableObject<Env> {
   async markDigestSent(userId: string, date: string, at: number) {
     this.digestRow(userId);
     this.sql.exec('UPDATE digests SET last_day = ?, last_at = ? WHERE user_id = ?', date, at, userId);
+  }
+
+  // --- Plans and licences -------------------------------------------------------
+
+  /** A sheet's object reports who is planned on it. */
+  async setSheetPeople(sheetId: string, people: string[]) {
+    const json = JSON.stringify([...new Set(people)].sort());
+    const cur = this.one<{ people: string }>('SELECT people FROM sheet_people WHERE sheet_id = ?', sheetId);
+    if (cur?.people === json) return;
+    this.sql.exec('INSERT OR REPLACE INTO sheet_people VALUES (?, ?, ?)', sheetId, json, Date.now());
+  }
+
+  /**
+   * A workspace's plan: the people its licences cover (a free allowance
+   * without any), and the people on its sheets. `sheetId` asks how many of
+   * them are on other sheets than that one.
+   */
+  private plan(workspaceId: string, sheetId: string, enforced: boolean): PlanInfo {
+    const licenses = this.all<{ tier: number }>("SELECT tier FROM licenses WHERE workspace_id = ? AND status != 'deactivated'", workspaceId);
+    const rows = this.all<{ sheet_id: string; people: string }>(
+      'SELECT p.sheet_id, p.people FROM sheet_people p JOIN sheets s ON s.id = p.sheet_id WHERE s.workspace_id = ? AND s.deleted = 0',
+      workspaceId,
+    );
+    const all = new Set<string>();
+    const here = new Set<string>();
+    for (const r of rows) for (const k of JSON.parse(r.people) as string[]) (r.sheet_id === sheetId ? here : all).add(k);
+    const elsewhere = [...all].filter((k) => !here.has(k)).length;
+    for (const k of here) all.add(k);
+    const limit = licenses.length ? licenses.reduce((n, l) => n + appsumoPeople(l.tier), 0) : FREE_PEOPLE;
+    const top = Math.max(0, ...licenses.map((l) => l.tier));
+    const name = !licenses.length ? 'Free' : licenses.length === 1 ? `AppSumo Tier ${top}` : `AppSumo (${licenses.length} licences)`;
+    return { name, limit, used: all.size, elsewhere, enforced };
+  }
+
+  async workspacePlan(userId: string, workspaceId: string, enforced: boolean) {
+    this.requireRole(userId, workspaceId, 'member');
+    return this.plan(workspaceId, '', enforced);
+  }
+
+  /**
+   * An AppSumo webhook (or what the licensing API said). Purchases and
+   * activations add the licence; an upgrade or downgrade replaces the old
+   * key with a new one, keeping its workspace; a deactivation (a refund)
+   * stops it counting.
+   */
+  async licenseEvent(e: LicenseEvent) {
+    const now = Date.now();
+    const key = e.license_key;
+    if (!key) return;
+    const tier = Number(e.tier) || undefined;
+    const status = e.event === 'deactivate' ? 'deactivated' : e.license_status || (e.event === 'purchase' ? 'inactive' : 'active');
+    const prev = e.prev_license_key ? this.one<{ workspace_id: string; user_id: string; tier: number }>('SELECT workspace_id, user_id, tier FROM licenses WHERE key = ?', e.prev_license_key) : undefined;
+    const cur = this.one<{ tier: number }>('SELECT tier FROM licenses WHERE key = ?', key);
+    if (!cur)
+      this.sql.exec(
+        'INSERT INTO licenses (key, source, tier, status, workspace_id, user_id, created, updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        key,
+        'appsumo',
+        tier ?? prev?.tier ?? 1,
+        status,
+        prev?.workspace_id ?? '',
+        prev?.user_id ?? '',
+        now,
+        now,
+      );
+    else this.sql.exec('UPDATE licenses SET tier = ?, status = ?, updated = ? WHERE key = ?', tier ?? cur.tier, status, now, key);
+    if (prev && e.prev_license_key !== key) {
+      // The new key takes over the old one's workspace.
+      if (prev.workspace_id) this.sql.exec("UPDATE licenses SET workspace_id = ?, user_id = ? WHERE key = ? AND workspace_id = ''", prev.workspace_id, prev.user_id, key);
+      this.sql.exec("UPDATE licenses SET status = 'deactivated', updated = ? WHERE key = ?", now, e.prev_license_key);
+    }
+  }
+
+  /** Apply a licence to a workspace (its admins). Moving it is allowed for whoever redeemed it. */
+  async redeemLicense(userId: string, key: string, workspaceId: string, tier?: number) {
+    this.requireRole(userId, workspaceId, 'admin');
+    let l = this.one<{ workspace_id: string; user_id: string; status: string }>('SELECT workspace_id, user_id, status FROM licenses WHERE key = ?', key);
+    if (!l) {
+      // Redeemed before its webhook arrived: the licensing API vouched for it.
+      await this.licenseEvent({ event: 'activate', license_key: key, tier, license_status: 'active' });
+      l = { workspace_id: '', user_id: '', status: 'active' };
+    }
+    if (l.status === 'deactivated') throw new Error('This licence was refunded or replaced');
+    if (l.workspace_id && l.workspace_id !== workspaceId && l.user_id !== userId) throw new Error('This licence is already used by another workspace');
+    this.sql.exec("UPDATE licenses SET workspace_id = ?, user_id = ?, status = 'active', updated = ? WHERE key = ?", workspaceId, userId, Date.now(), key);
+    if (tier) this.sql.exec('UPDATE licenses SET tier = ? WHERE key = ?', tier, key);
+  }
+
+  /** A licence's state, for the redeem page. */
+  async license(key: string) {
+    return this.one<{ key: string; tier: number; status: string; workspace_id: string; workspace: string | null }>(
+      'SELECT l.key, l.tier, l.status, l.workspace_id, w.name AS workspace FROM licenses l LEFT JOIN workspaces w ON w.id = l.workspace_id WHERE l.key = ?',
+      key,
+    ) ?? null;
   }
 }

@@ -61,7 +61,7 @@ const dropConnections = async (env: Env, sheets: string[], wipe = false) => {
   );
 };
 
-const cookies = (req: Request) =>
+export const cookies = (req: Request) =>
   Object.fromEntries(
     (req.headers.get('cookie') ?? '')
       .split(';')
@@ -77,7 +77,7 @@ const cookies = (req: Request) =>
       }),
   );
 
-const cookie = (url: URL, name: string, value: string, maxAge: number) =>
+export const cookie = (url: URL, name: string, value: string, maxAge: number) =>
   `${name}=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${url.protocol === 'https:' ? '; Secure' : ''}`;
 
 export const sessionUser = async (req: Request, env: Env): Promise<User | null> => {
@@ -85,9 +85,9 @@ export const sessionUser = async (req: Request, env: Env): Promise<User | null> 
   return token ? directory(env).session(token) : null;
 };
 
-const json = (data: unknown, status = 200, headers: HeadersInit = {}) =>
+export const json = (data: unknown, status = 200, headers: HeadersInit = {}) =>
   new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store', ...headers } });
-const fail = (message: string, status = 400) => json({ error: message }, status);
+export const fail = (message: string, status = 400) => json({ error: message }, status);
 
 /** Only same-site paths after sign-in (no open redirects). */
 const safeNext = (next: unknown) => (typeof next === 'string' && next.startsWith('/') && !next.startsWith('//') ? next : '/app');
@@ -261,7 +261,7 @@ button{font:inherit;font-weight:600;color:#fff;background:#3e63dd;border:0;borde
 }
 
 /** A small page for links opened from an email. */
-const page = (heading: string, text: string, origin: string, action = `<a href="${origin}/app">Open PrepWeek</a>`) =>
+export const page = (heading: string, text: string, origin: string, action = `<a href="${origin}/app">Open PrepWeek</a>`) =>
   new Response(
     `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${heading}</title>
 <style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f0f0f3;color:#1c2024;font:15px/1.55 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif}
@@ -309,7 +309,7 @@ export async function handleApi(req: Request, env: Env, url: URL): Promise<Respo
   }
 
   if (seg[0] === 'me' && seg.length === 1 && req.method === 'GET') {
-    return json(user ? { user, workspaces: await dir.workspaces(user.id), digest: await dir.digestSettings(user.id) } : { user: null, workspaces: [] });
+    return json(user ? { user, workspaces: await dir.workspaces(user.id, env.PLAN_LIMITS === 'on'), digest: await dir.digestSettings(user.id) } : { user: null, workspaces: [] });
   }
   if (!user) return fail('Sign in first', 401);
 

@@ -15,6 +15,14 @@ export interface Env {
   /** Optional: "Continue with Google". */
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
+  /** "on": plans limit how many people a workspace plans for. Anything else: shown, not enforced. */
+  PLAN_LIMITS?: string;
+  /** AppSumo licensing (Partner Portal → Licensing): OAuth client and the API key that signs webhooks. */
+  APPSUMO_CLIENT_ID?: string;
+  APPSUMO_CLIENT_SECRET?: string;
+  APPSUMO_API_KEY?: string;
+  /** Tests only: where AppSumo's OAuth and API are (default https://appsumo.com). */
+  APPSUMO_BASE?: string;
   /** The public address, for links in emails sent without a request (the digest cron). */
   APP_URL?: string;
 }

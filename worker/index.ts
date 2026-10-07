@@ -13,6 +13,7 @@
 //   /share/<sheetId>                 → GET sharing state, POST enable/rotate/disable/feed
 //   /ical/<sheetId>/<person|all>.ics?f=<feed key> → calendar feed (no cookie: calendar apps)
 //   /auth/*, /api/*                  → accounts, workspaces, sheets (auth.ts)
+//   /auth/appsumo/*, /api/appsumo/*  → AppSumo licences (appsumo.ts)
 // Everything else is served from ../dist (the Bun-built app).
 import { DurableObject } from 'cloudflare:workers';
 import { createMergeableStore } from 'tinybase';
@@ -21,6 +22,8 @@ import { WsServerDurableObject } from 'tinybase/synchronizers/synchronizer-ws-se
 import { directory, handleApi, handleAuth, sessionUser } from './auth.ts';
 import { sendDigests, sheetDigest } from './digest.ts';
 import { buildCalendar } from './ical.ts';
+import { appsumoApi, appsumoCallback, appsumoWebhook } from './appsumo.ts';
+import { personKey } from '../src/lib/plans.ts';
 import type { Env } from './env.ts';
 
 export { DirectoryDurableObject } from './directory.ts';
@@ -222,9 +225,32 @@ export class SheetDurableObject extends WsServerDurableObject {
     }
   }
 
+  /**
+   * Tell the directory who is planned on this sheet (it counts people per
+   * workspace for plans): once someone connects, then on every change to
+   * the people, a few seconds later.
+   */
+  #reporting = false;
+  #watchPeople(sheet: string) {
+    const store = this.sheetStore;
+    if (this.#reporting || !store) return;
+    this.#reporting = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const report = () => {
+      const keys = store.getRowIds('users').map((id) => personKey(sheet, id, store.getRow('users', id)));
+      this.ctx.waitUntil(directory(this.env as Env).setSheetPeople(sheet, keys).catch((e) => console.error('report people', e)));
+    };
+    store.addTableListener('users', () => {
+      if (timer !== undefined) clearTimeout(timer);
+      timer = setTimeout(report, 3000);
+    });
+    report();
+  }
+
   override async fetch(request: Request) {
     const sheet = /^\/sync\/([^/]+)/.exec(new URL(request.url).pathname)?.[1];
     if (sheet) this.ctx.waitUntil(this.#collectFiles(decodeURIComponent(sheet)).catch((e) => console.error('collect files', e)));
+    if (sheet) this.#watchPeople(decodeURIComponent(sheet));
     const role = request.headers.get('x-prepweek-role');
     const response = await super.fetch!(request);
     // Mark view-only sockets; the mark lives on the socket (survives hibernation).
@@ -314,7 +340,7 @@ const json = (data: unknown, status = 200) =>
  */
 const sheetAccess = async (request: Request, env: Env, sheet: string, key: string, needKeys: boolean) => {
   const user = await sessionUser(request, env);
-  const info = await directory(env).sheet(sheet, user?.id ?? null);
+  const info = await directory(env).sheet(sheet, user?.id ?? null, env.PLAN_LIMITS === 'on');
   // Asking the sheet's object wakes it, and starting loads every row of the
   // sheet (billed as rows read). A member's access doesn't depend on links.
   const member = !info.deleted && !!info.workspace && !!info.role;
@@ -349,6 +375,9 @@ async function handle(request: Request, env: Env): Promise<Response> {
     if (!/^\/(sync|files|presence|share|auth|api)\//.test(url.pathname)) return env.ASSETS.fetch(request);
     return new Response('Server misconfigured: the Durable Object bindings (SHEETS, PRESENCE, DIRECTORY) are missing. Deploy with wrangler.toml.', { status: 500 });
   }
+  if (url.pathname === '/auth/appsumo/callback') return appsumoCallback(request, env, url);
+  if (url.pathname === '/api/appsumo/webhook') return appsumoWebhook(request, env);
+  if (url.pathname.startsWith('/api/appsumo/')) return appsumoApi(request, env, url, url.pathname.split('/').slice(2));
   if (url.pathname.startsWith('/auth/')) return handleAuth(request, env, url);
   if (url.pathname.startsWith('/api/')) return handleApi(request, env, url);
   const ical = /^\/ical\/([^/]+)\/([^/]+)\.ics$/.exec(url.pathname);
@@ -371,7 +400,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
   if (kind === 'share') {
     if (request.method === 'GET') {
       const keys = role === 'edit' && isPrivate ? await stub.shareKeys() : null;
-      return json({ role, private: isPrivate, ...keys, name: info.name, workspace: info.workspace, signedIn: !!user, deleted: info.deleted });
+      return json({ role, private: isPrivate, ...keys, name: info.name, workspace: info.workspace, signedIn: !!user, deleted: info.deleted, plan: 'plan' in info ? info.plan : null, limitsOn: env.PLAN_LIMITS === 'on' });
     }
     if (request.method === 'POST') {
       if (role === 'none') return forbidden();

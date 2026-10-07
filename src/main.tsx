@@ -17,7 +17,12 @@ const me = loadMe();
 // so the home page doesn't load the planner.
 const path = location.pathname;
 const landing = path === '/' || path === '/welcome';
-if (landing) {
+const page = ({ '/appsumo': 'AppSumoPage', '/help': 'HelpPage', '/roadmap': 'RoadmapPage' } as const)[path.replace(/\/$/, '') as '/help'];
+if (page) {
+  const [pages] = await Promise.all([loadChunk(() => import('./landing/Pages.tsx')), me]);
+  const Page = pages[page];
+  root.render(<Page />);
+} else if (landing) {
   const [{ Landing }] = await Promise.all([loadChunk(() => import('./landing/Landing.tsx')), me]);
   root.render(<Landing />);
 } else {

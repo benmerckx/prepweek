@@ -2581,3 +2581,224 @@ html:has(.lp) {
     padding: 16px 18px;
   }
 }
+
+/* --- Pages: AppSumo, help, roadmap (Pages.tsx) --- */
+.lp-page-main {
+  min-height: calc(100vh - 160px);
+  padding-top: 56px;
+  padding-bottom: 96px;
+}
+.lp-page .lp-foot a {
+  color: var(--text-dim);
+}
+.lp-page .lp-foot a:hover {
+  color: var(--text);
+}
+.lp-redeem {
+  display: grid;
+  justify-items: center;
+  gap: 20px;
+  max-width: 640px;
+  margin: 0 auto;
+  text-align: center;
+}
+.lp-redeem-card {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 36px 32px;
+  border: 1px solid var(--lp-line);
+  border-radius: 22px;
+  background: var(--lp-card);
+}
+.lp-redeem-card h2 {
+  font-size: clamp(26px, 3.6vw, 34px);
+}
+.lp-redeem-card p {
+  max-width: 480px;
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 16px;
+  line-height: 1.55;
+}
+.lp-redeem-steps {
+  display: grid;
+  gap: 10px;
+  margin: 6px 0 0;
+  padding-left: 22px;
+  color: var(--text-dim);
+  font-size: 16px;
+  line-height: 1.5;
+  text-align: left;
+}
+.lp-redeem-steps b {
+  color: var(--text);
+}
+.lp-redeem-pick {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  max-width: 420px;
+  text-align: left;
+}
+.lp-redeem-pick label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--lp-line);
+  border-radius: 12px;
+  cursor: pointer;
+}
+.lp-redeem-pick label.on {
+  border-color: var(--accent-solid);
+  background: color-mix(in oklab, var(--accent-solid) 7%, transparent);
+}
+.lp-redeem-pick label > span {
+  display: grid;
+  gap: 2px;
+}
+.lp-redeem-pick .lp-dim {
+  font-size: 13px;
+}
+.lp-redeem-error {
+  color: var(--danger) !important;
+}
+.lp-tiers {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  width: 100%;
+}
+.lp-tiers > div {
+  display: grid;
+  gap: 2px;
+  padding: 12px 8px;
+  border: 1px solid var(--lp-line);
+  border-radius: 12px;
+}
+.lp-tiers > div.on {
+  border-color: var(--accent-solid);
+  background: color-mix(in oklab, var(--accent-solid) 8%, transparent);
+}
+.lp-tiers span {
+  color: var(--text-dim);
+  font-size: 13px;
+}
+.lp-redeem-note {
+  max-width: 520px;
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.lp-doc {
+  max-width: 760px;
+  margin: 0 auto;
+}
+.lp-doc h1 {
+  margin: 0;
+  font-family: var(--font-title);
+  font-size: clamp(34px, 5vw, 52px);
+  font-weight: 850;
+  letter-spacing: -0.02em;
+}
+.lp-doc-lede {
+  margin: 14px 0 40px;
+  color: var(--text-dim);
+  font-size: 17px;
+  line-height: 1.55;
+}
+.lp-doc a,
+.lp-page .lp-foot-inner > .lp-dim a {
+  color: var(--accent);
+}
+.lp-faq {
+  margin-top: 36px;
+}
+.lp-faq h2 {
+  margin-bottom: 10px;
+  font-size: 22px;
+}
+.lp-faq details {
+  border-top: 1px solid var(--lp-line);
+}
+.lp-faq details:last-child {
+  border-bottom: 1px solid var(--lp-line);
+}
+.lp-faq summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 2px;
+  font-size: 16px;
+  font-weight: 600;
+  list-style: none;
+  cursor: pointer;
+}
+.lp-faq summary::-webkit-details-marker {
+  display: none;
+}
+.lp-faq summary::after {
+  content: '+';
+  color: var(--text-faint);
+  font-size: 20px;
+  font-weight: 400;
+  transition: transform 160ms;
+}
+.lp-faq details[open] summary::after {
+  transform: rotate(45deg);
+}
+.lp-faq details p {
+  margin: 0 0 18px;
+  color: var(--text-dim);
+  font-size: 15.5px;
+  line-height: 1.6;
+}
+.lp-road {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+.lp-road-col {
+  padding: 22px 20px;
+  border: 1px solid var(--lp-line);
+  border-radius: 18px;
+  background: var(--lp-card);
+}
+.lp-road-col h2 {
+  font-size: 20px;
+}
+.lp-road-col > .lp-dim {
+  font-size: 13px;
+}
+.lp-road-col ul {
+  display: grid;
+  gap: 14px;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.lp-road-col li {
+  display: grid;
+  gap: 3px;
+}
+.lp-road-col li span {
+  color: var(--text-dim);
+  font-size: 14px;
+  line-height: 1.5;
+}
+@media (max-width: 860px) {
+  .lp-road {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 560px) {
+  .lp-tiers {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .lp-redeem-card {
+    padding: 28px 18px;
+  }
+}
