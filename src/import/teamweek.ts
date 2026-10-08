@@ -9,6 +9,7 @@
 
 import { dayFromYMD, today, type Day } from '../lib/dates.ts';
 import { occurrenceStart, type Rule } from '../lib/recur.ts';
+import { parseEstimate } from '../lib/times.ts';
 import { PALETTE } from '../data/store.ts';
 
 export const FIELDS = [
@@ -160,6 +161,8 @@ export interface ImportOptions {
   today?: Day;
   /** What to do with tasks that have no assignee. */
   unassigned: 'skip' | 'row';
+  /** Plain numbers in the estimate column are minutes (Teamweek) or hours. */
+  estimateUnit?: 'min' | 'h';
 }
 
 export interface PlannedPerson {
@@ -196,6 +199,8 @@ export interface PlannedTask {
   group?: string;
   /** 'off' for time off (from PrepWeek's own export). */
   kind?: string;
+  /** Estimated minutes (0 = none). */
+  estimate?: number;
 }
 
 export interface ImportPlan {
@@ -331,13 +336,9 @@ export const buildPlan = (rows: string[][], opts: ImportOptions, existing: Exist
       .filter(Boolean)
       .join(',');
     const est = cell(row, 'estimate');
-    let notes = [
-      // Exports escape line breaks as a literal "\n".
-      cell(row, 'notes').replace(/(?:\\r)?\\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim(),
-      est && Number(est) > 0 ? `Estimate: ${est} min` : '',
-    ]
-      .filter(Boolean)
-      .join('\n\n');
+    const estimate = /^\d+(?:[.,]\d+)?$/.test(est) ? Math.round(Number(est.replace(',', '.')) * (opts.estimateUnit === 'h' ? 60 : 1)) : (parseEstimate(est) ?? 0);
+    // Exports escape line breaks as a literal "\n".
+    let notes = cell(row, 'notes').replace(/(?:\\r)?\\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
     const t0 = cell(row, 'startTime').slice(0, 5);
     const t1 = cell(row, 'endTime').slice(0, 5);
     const time = t0 ? (t1 && t1 !== t0 ? `${t0}–${t1}` : t0) : '';
@@ -369,7 +370,7 @@ export const buildPlan = (rows: string[][], opts: ImportOptions, existing: Exist
     for (const [i, p] of assignees.entries()) {
       const id = ids[i]!;
       if (!tasks.has(id)) p.tasks++;
-      tasks.set(id, { id, personKey: p.key, start, end, title, color, notes, project, client, tags, done, time, links: i ? [] : links, repeat, repeatUntil: 0, ...(group ? { group } : {}), ...(kind ? { kind } : {}) });
+      tasks.set(id, { id, personKey: p.key, start, end, title, color, notes, project, client, tags, done, time, links: i ? [] : links, repeat, repeatUntil: 0, ...(group ? { group } : {}), ...(kind ? { kind } : {}), ...(estimate > 0 ? { estimate } : {}) });
       if (start < min) min = start;
       if (end > max) max = end;
     }

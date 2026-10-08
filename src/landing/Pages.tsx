@@ -1,20 +1,16 @@
 // Small public pages around the home page: redeeming an AppSumo licence,
 // help, and the roadmap. Same look as the home page (landing.css).
 
-import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
-import { getMe } from "../data/account.ts";
-import { APPSUMO_TIERS, FREE_PEOPLE, type PlanInfo } from "../lib/plans.ts";
-import { loadChunk } from "../lib/chunks.ts";
-import { Logo, Wordmark } from "../ui/brand.tsx";
+import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
+import { getMe } from '../data/account.ts';
+import { APPSUMO_TIERS, FREE_PEOPLE, type PlanInfo } from '../lib/plans.ts';
+import { loadChunk } from '../lib/chunks.ts';
+import { Logo, Wordmark } from '../ui/brand.tsx';
 
-const SignInDialog = lazy(() =>
-  loadChunk(() => import("../timeline/Account.tsx")).then((m) => ({
-    default: m.SignInDialog,
-  })),
-);
+const SignInDialog = lazy(() => loadChunk(() => import('../timeline/Account.tsx')).then((m) => ({ default: m.SignInDialog })));
 
 /** Where questions go. */
-export const SUPPORT_EMAIL = "support@prepweek.com";
+export const SUPPORT_EMAIL = 'support@prepweek.com';
 
 function Shell({ title, children }: { title: string; children: ReactNode }) {
   useEffect(() => {
@@ -36,7 +32,7 @@ function Shell({ title, children }: { title: string; children: ReactNode }) {
           </span>
           <span className="lp-nav-actions">
             <a className="lp-btn primary" href="/app">
-              {signedIn ? "Open PrepWeek" : "Start planning"}
+              {signedIn ? 'Open PrepWeek' : 'Start planning'}
             </a>
           </span>
         </div>
@@ -44,9 +40,7 @@ function Shell({ title, children }: { title: string; children: ReactNode }) {
       <main className="lp-wrap lp-page-main">{children}</main>
       <footer className="lp-foot">
         <div className="lp-wrap lp-foot-inner">
-          <span className="lp-dim">
-            Questions? {<a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>}
-          </span>
+          <span className="lp-dim">Questions? {<a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>}</span>
           <span className="lp-foot-links">
             <a href="/help">Help</a>
             <a href="/roadmap">Roadmap</a>
@@ -62,71 +56,43 @@ function Shell({ title, children }: { title: string; children: ReactNode }) {
 // --- AppSumo ------------------------------------------------------------------------------
 
 interface Pending {
-  license: {
-    key: string;
-    tier: number;
-    status: string;
-    workspace: { id: string; name: string } | null;
-  } | null;
+  license: { key: string; tier: number; status: string; workspace: { id: string; name: string } | null } | null;
   signedIn: boolean;
   workspaces: { id: string; name: string; plan: PlanInfo }[];
 }
 
-const TIERS = Object.entries(APPSUMO_TIERS).map(([tier, people]) => ({
-  tier: Number(tier),
-  people,
-}));
+const TIERS = Object.entries(APPSUMO_TIERS).map(([tier, people]) => ({ tier: Number(tier), people }));
 
 export function AppSumoPage() {
-  const [state, setState] = useState<Pending | null | "error">(null);
-  const [pick, setPick] = useState("");
+  const [state, setState] = useState<Pending | null | 'error'>(null);
+  const [pick, setPick] = useState('');
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [done, setDone] = useState<{ name: string; plan: PlanInfo } | null>(
-    null,
-  );
+  const [error, setError] = useState('');
+  const [done, setDone] = useState<{ name: string; plan: PlanInfo } | null>(null);
   const [signingIn, setSigningIn] = useState(false);
   const load = () =>
-    fetch("/api/appsumo/pending", {
-      cache: "no-store",
-      credentials: "same-origin",
-    })
-      .then((r) =>
-        r.ok
-          ? (r.json() as Promise<Pending>)
-          : Promise.reject(new Error(String(r.status))),
-      )
+    fetch('/api/appsumo/pending', { cache: 'no-store', credentials: 'same-origin' })
+      .then((r) => (r.ok ? (r.json() as Promise<Pending>) : Promise.reject(new Error(String(r.status)))))
       .then((p) => {
         setState(p);
-        setPick(
-          (cur) => cur || p.license?.workspace?.id || p.workspaces[0]?.id || "",
-        );
+        setPick((cur) => cur || p.license?.workspace?.id || p.workspaces[0]?.id || '');
       })
-      .catch(() => setState("error"));
+      .catch(() => setState('error'));
   useEffect(() => void load(), []);
 
   const redeem = async () => {
     setBusy(true);
-    setError("");
+    setError('');
     try {
-      const res = await fetch("/api/appsumo/redeem", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
+      const res = await fetch('/api/appsumo/redeem', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ workspaceId: pick }),
-        credentials: "same-origin",
+        credentials: 'same-origin',
       });
-      const data = (await res.json().catch(() => ({}))) as {
-        plan?: PlanInfo;
-        error?: string;
-      };
-      if (!res.ok || !data.plan)
-        throw new Error(data.error ?? `Something went wrong (${res.status})`);
-      setDone({
-        name:
-          (state as Pending).workspaces.find((w) => w.id === pick)?.name ??
-          "Your workspace",
-        plan: data.plan,
-      });
+      const data = (await res.json().catch(() => ({}))) as { plan?: PlanInfo; error?: string };
+      if (!res.ok || !data.plan) throw new Error(data.error ?? `Something went wrong (${res.status})`);
+      setDone({ name: (state as Pending).workspaces.find((w) => w.id === pick)?.name ?? 'Your workspace', plan: data.plan });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -134,23 +100,17 @@ export function AppSumoPage() {
     }
   };
 
-  const p = state && state !== "error" ? state : null;
+  const p = state && state !== 'error' ? state : null;
   const lic = p?.license;
   let body: ReactNode;
   if (state === null) body = <p className="lp-dim">One moment…</p>;
-  else if (state === "error")
-    body = (
-      <p>
-        We couldn’t load your licence. Please reload the page, or write to us.
-      </p>
-    );
+  else if (state === 'error') body = <p>We couldn’t load your licence. Please reload the page, or write to us.</p>;
   else if (done)
     body = (
       <>
         <h2>You’re all set 🎉</h2>
         <p>
-          <b>{done.name}</b> is on {done.plan.name} now: plan for up to{" "}
-          {done.plan.limit} people, with as many logins as you like.
+          <b>{done.name}</b> is on {done.plan.name} now: plan for up to {done.plan.limit} people, with as many logins as you like.
         </p>
         <a className="lp-btn primary big" href="/app">
           Open PrepWeek
@@ -166,38 +126,25 @@ export function AppSumoPage() {
             Open <b>My products</b> on AppSumo and find PrepWeek.
           </li>
           <li>
-            Press <b>Activate</b>. AppSumo sends you back here with your
-            licence.
+            Press <b>Activate</b>. AppSumo sends you back here with your licence.
           </li>
-          <li>
-            Sign in (or make an account with any email) and pick the workspace
-            it’s for.
-          </li>
+          <li>Sign in (or make an account with any email) and pick the workspace it’s for.</li>
         </ol>
       </>
     );
-  else if (lic.status === "deactivated")
+  else if (lic.status === 'deactivated')
     body = (
       <>
         <h2>This licence isn’t active</h2>
-        <p>
-          It was refunded or replaced by an upgrade. If you upgraded, press
-          Activate on AppSumo again for the new one.
-        </p>
+        <p>It was refunded or replaced by an upgrade. If you upgraded, press Activate on AppSumo again for the new one.</p>
       </>
     );
   else if (!p!.signedIn)
     body = (
       <>
         <h2>Your Tier {lic.tier} licence is ready</h2>
-        <p>
-          Sign in or create your account to apply it. Any email works; you’ll
-          get a sign-in link.
-        </p>
-        <button
-          className="lp-btn primary big"
-          onClick={() => setSigningIn(true)}
-        >
+        <p>Sign in or create your account to apply it. Any email works; you’ll get a sign-in link.</p>
+        <button className="lp-btn primary big" onClick={() => setSigningIn(true)}>
           Sign in to apply it
         </button>
       </>
@@ -207,29 +154,19 @@ export function AppSumoPage() {
       <>
         <h2>Apply your Tier {lic.tier} licence</h2>
         <p>
-          It covers {APPSUMO_TIERS[lic.tier] ?? APPSUMO_TIERS[1]} planned people
-          in one workspace, with unlimited logins and sheets.
+          It covers {APPSUMO_TIERS[lic.tier] ?? APPSUMO_TIERS[1]} planned people in one workspace, with unlimited logins and sheets.
           {lic.workspace && (
             <>
-              {" "}
+              {' '}
               It’s applied to <b>{lic.workspace.name}</b> now; you can move it.
             </>
           )}
         </p>
         {p!.workspaces.length ? (
-          <div
-            className="lp-redeem-pick"
-            role="radiogroup"
-            aria-label="Workspace"
-          >
+          <div className="lp-redeem-pick" role="radiogroup" aria-label="Workspace">
             {p!.workspaces.map((w) => (
-              <label key={w.id} className={pick === w.id ? "on" : ""}>
-                <input
-                  type="radio"
-                  name="ws"
-                  checked={pick === w.id}
-                  onChange={() => setPick(w.id)}
-                />
+              <label key={w.id} className={pick === w.id ? 'on' : ''}>
+                <input type="radio" name="ws" checked={pick === w.id} onChange={() => setPick(w.id)} />
                 <span>
                   <b>{w.name}</b>
                   <span className="lp-dim">
@@ -240,18 +177,11 @@ export function AppSumoPage() {
             ))}
           </div>
         ) : (
-          <p>
-            You aren’t an admin of a workspace yet. Open PrepWeek once to get
-            yours, then come back here.
-          </p>
+          <p>You aren’t an admin of a workspace yet. Open PrepWeek once to get yours, then come back here.</p>
         )}
         {error && <p className="lp-redeem-error">{error}</p>}
-        <button
-          className="lp-btn primary big"
-          disabled={busy || !pick}
-          onClick={() => void redeem()}
-        >
-          {busy ? "Applying…" : "Apply licence"}
+        <button className="lp-btn primary big" disabled={busy || !pick} onClick={() => void redeem()}>
+          {busy ? 'Applying…' : 'Apply licence'}
         </button>
       </>
     );
@@ -267,15 +197,14 @@ export function AppSumoPage() {
             <span>{FREE_PEOPLE} people</span>
           </div>
           {TIERS.map((t) => (
-            <div key={t.tier} className={lic?.tier === t.tier ? "on" : ""}>
+            <div key={t.tier} className={lic?.tier === t.tier ? 'on' : ''}>
               <b>Tier {t.tier}</b>
               <span>{t.people} people</span>
             </div>
           ))}
         </div>
         <p className="lp-dim lp-redeem-note">
-          Every tier: unlimited logins and sheets, all features, and every
-          update to them. Counts people you plan for, not people who sign in.
+          Every tier: unlimited logins and sheets, all features, and every update to them. Counts people you plan for, not people who sign in.
         </p>
       </section>
       {signingIn && (
@@ -291,99 +220,49 @@ export function AppSumoPage() {
 
 const HELP: { title: string; items: [string, ReactNode][] }[] = [
   {
-    title: "Getting started",
+    title: 'Getting started',
     items: [
-      [
-        "How do I plan something?",
-        "Add people with “+ Add person”, then drag across someone’s row to make a block over those days. Click a block to name it and set a project, color, time or notes.",
-      ],
-      [
-        "Do I need an account?",
-        "No. Start planning right away; the plan is saved in your browser and has its own address. Sign up to keep it in a workspace, invite your team and use it on all your devices.",
-      ],
-      [
-        "How do I move from Teamweek or Toggl Plan?",
-        "Export your tasks as CSV from Teamweek / Toggl Plan (⋯ menu, Export tasks), then in PrepWeek open ⋯ → Import from Teamweek and drop the file. People are matched by email; importing again updates instead of duplicating.",
-      ],
+      ['How do I plan something?', 'Add people with “+ Add person”, then drag across someone’s row to make a block over those days. Click a block to name it and set a project, color, time or notes.'],
+      ['Do I need an account?', 'No. Start planning right away; the plan is saved in your browser and has its own address. Sign up to keep it in a workspace, invite your team and use it on all your devices.'],
+      ['How do I move from Teamweek or Toggl Plan?', 'Export your tasks as CSV from Teamweek / Toggl Plan (⋯ menu, Export tasks), then in PrepWeek open ⋯ → Import from Teamweek and drop the file. People are matched by email; importing again updates instead of duplicating.'],
     ],
   },
   {
-    title: "Planning",
+    title: 'Planning',
     items: [
+      ['Can a task be for several people?', 'Yes: add people in the task’s People field. Everyone gets a block in their row; edits, comments and files are shared.'],
+      ['How do I plan time off and holidays?', 'Make a block and set its Type to Time off. For a day off for everyone, add a milestone and switch on “Day off for everyone”. Neither counts as booked.'],
       [
-        "Can a task be for several people?",
-        "Yes: add people in the task’s People field. Everyone gets a block in their row; edits, comments and files are shared.",
+        'What does “% booked” mean?',
+        'How much of someone’s working time in the next four weeks is planned. A task with an estimate counts those hours, spread over its workdays; a task with a time counts that time; a task without either fills the day. Set someone’s hours by clicking their name (8 a day unless you change it). Over 100% shows in red.',
       ],
-      [
-        "How do I plan time off and holidays?",
-        "Make a block and set its Type to Time off. For a day off for everyone, add a milestone and switch on “Day off for everyone”. Neither counts as booked.",
-      ],
-      [
-        "How do dependencies work?",
-        "In a task, “Waits for” picks the task it comes after. An arrow links them, and when the first one moves later, everything waiting for it moves along.",
-      ],
-      [
-        "Repeating tasks, checklists, times?",
-        "All in a task’s details: Repeat (every workday, week, 2 weeks, month or year), a checklist, and a start and end time.",
-      ],
+      ['How do dependencies work?', 'In a task, “Waits for” picks the task it comes after. An arrow links them, and when the first one moves later, everything waiting for it moves along.'],
+      ['Repeating tasks, checklists, times?', 'All in a task’s details: Repeat (every workday, week, 2 weeks, month or year), a checklist, and a start and end time.'],
     ],
   },
   {
-    title: "Teams and sharing",
+    title: 'Teams and sharing',
     items: [
-      [
-        "How do I invite my team?",
-        "Open your avatar menu → People in your workspace, and invite by email. Members see and edit the workspace’s sheets.",
-      ],
-      [
-        "Can I share a view-only link?",
-        "Yes: ⋯ → Share… → turn on private links, then copy the view link. Reset links any time to cut off old ones.",
-      ],
-      [
-        "What’s the daily digest?",
-        "An email on workday mornings with what’s on your plate and what others changed on your work. Switch it off in your avatar menu, or with the link in any digest.",
-      ],
+      ['How do I invite my team?', 'Open your avatar menu → People in your workspace, and invite by email. Members see and edit the workspace’s sheets.'],
+      ['Can I share a view-only link?', 'Yes: ⋯ → Share… → turn on private links, then copy the view link. Reset links any time to cut off old ones.'],
+      ['What’s the daily digest?', 'An email on workday mornings with what’s on your plate and what others changed on your work. Switch it off in your avatar menu, or with the link in any digest.'],
     ],
   },
   {
-    title: "Your data",
+    title: 'Your data',
     items: [
-      [
-        "Does it work offline?",
-        "Yes. Your plan lives on your device and syncs when you’re back online; changes from others merge in.",
-      ],
-      [
-        "Can I get my data out?",
-        "⋯ → Export as CSV, any time, in the same columns as the import. ⋯ → Add to your calendar gives a live link for Google, Apple or Outlook.",
-      ],
-      [
-        "Can I undo a mistake?",
-        "Yes: ⌘Z / Ctrl+Z undoes your own changes, and the Activity panel shows who changed what.",
-      ],
+      ['Does it work offline?', 'Yes. Your plan lives on your device and syncs when you’re back online; changes from others merge in.'],
+      ['Can I get my data out?', '⋯ → Export as CSV, any time, in the same columns as the import. ⋯ → Add to your calendar gives a live link for Google, Apple or Outlook.'],
+      ['Can I undo a mistake?', 'Yes: ⌘Z / Ctrl+Z undoes your own changes, and the Activity panel shows who changed what.'],
     ],
   },
   {
-    title: "Plans and AppSumo",
+    title: 'Plans and AppSumo',
     items: [
-      [
-        "What counts as a person?",
-        `A row you plan for. Logins are unlimited: anyone can sign in, comment and plan. The free plan covers ${FREE_PEOPLE} people per workspace.`,
-      ],
-      [
-        "How do I redeem my AppSumo code?",
-        <>
-          Press Activate on AppSumo, sign in, and pick your workspace. Step by
-          step on the <a href="/appsumo">AppSumo page</a>.
-        </>,
-      ],
-      [
-        "Can I upgrade my AppSumo tier?",
-        "Yes, on AppSumo. Press Activate again afterwards if asked; your workspace keeps its data and moves up to the new tier.",
-      ],
-      [
-        "Refunds?",
-        "AppSumo purchases are refundable through AppSumo for 60 days. After a refund the workspace returns to the free plan; nothing is deleted.",
-      ],
+      ['What counts as a person?', `A row you plan for. Logins are unlimited: anyone can sign in, comment and plan. The free plan covers ${FREE_PEOPLE} people per workspace.`],
+      ['How do I redeem my AppSumo code?', <>Press Activate on AppSumo, sign in, and pick your workspace. Step by step on the <a href="/appsumo">AppSumo page</a>.</>],
+      ['Can I upgrade my AppSumo tier?', 'Yes, on AppSumo. Press Activate again afterwards if asked; your workspace keeps its data and moves up to the new tier.'],
+      ['Refunds?', 'AppSumo purchases are refundable through AppSumo for 60 days. After a refund the workspace returns to the free plan; nothing is deleted.'],
     ],
   },
 ];
@@ -395,9 +274,7 @@ export function HelpPage() {
         <span className="lp-eyebrow">Help</span>
         <h1>Questions, answered</h1>
         <p className="lp-doc-lede">
-          Can’t find it here? Write to{" "}
-          <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>; a person who
-          builds PrepWeek answers.
+          Can’t find it here? Write to <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>; a person who builds PrepWeek answers.
         </p>
         {HELP.map((g) => (
           <div key={g.title} className="lp-faq">
@@ -419,52 +296,34 @@ export function HelpPage() {
 
 const ROADMAP: { title: string; note: string; items: [string, string][] }[] = [
   {
-    title: "Recently shipped",
-    note: "Live now",
+    title: 'Recently shipped',
+    note: 'Live now',
     items: [
-      [
-        "Time off and holidays",
-        "Hatched in the timeline, not counted as booked.",
-      ],
-      [
-        "Dependencies",
-        "Arrows between tasks; moving one moves what waits for it.",
-      ],
-      ["Checklists", "On every task, with progress on the block."],
-      [
-        "Calendar feeds and CSV export",
-        "Google, Apple and Outlook; export any time.",
-      ],
-      ["Several people per task", "A block in each row, one conversation."],
-      ["Daily digest", "Your day by email on workday mornings."],
+      ['Hours and capacity', 'Estimates on tasks and working hours per person, so “booked” means hours, not just days.'],
+      ['Time off and holidays', 'Hatched in the timeline, not counted as booked.'],
+      ['Dependencies', 'Arrows between tasks; moving one moves what waits for it.'],
+      ['Checklists', 'On every task, with progress on the block.'],
+      ['Calendar feeds and CSV export', 'Google, Apple and Outlook; export any time.'],
+      ['Several people per task', 'A block in each row, one conversation.'],
+      ['Daily digest', 'Your day by email on workday mornings.'],
     ],
   },
   {
-    title: "Next",
-    note: "What we’re working on",
+    title: 'Next',
+    note: 'What we’re working on',
     items: [
-      [
-        "Hours and capacity",
-        "Estimates in hours and each person’s working hours, so “booked” means hours, not just days.",
-      ],
-      [
-        "Public holiday calendars",
-        "Pick a country and its holidays fill in by themselves.",
-      ],
-      ["Templates", "Save a project’s blocks and drop them in again."],
+      ['Public holiday calendars', 'Pick a country and its holidays fill in by themselves.'],
+      ['Templates', 'Save a project’s blocks and drop them in again.'],
     ],
   },
   {
-    title: "Exploring",
-    note: "Ideas we’re weighing, not promises",
+    title: 'Exploring',
+    note: 'Ideas we’re weighing, not promises',
     items: [
-      ["Slack notifications", "Mentions and changes to your work in Slack."],
-      ["Reports", "Planned days and hours per person, project and client."],
-      [
-        "Two-way calendar sync",
-        "Meetings from your calendar show up as busy time.",
-      ],
-      ["API and webhooks", "Connect PrepWeek to your own tools."],
+      ['Slack notifications', 'Mentions and changes to your work in Slack.'],
+      ['Reports', 'Planned days and hours per person, project and client.'],
+      ['Two-way calendar sync', 'Meetings from your calendar show up as busy time.'],
+      ['API and webhooks', 'Connect PrepWeek to your own tools.'],
     ],
   },
 ];
@@ -476,8 +335,7 @@ export function RoadmapPage() {
         <span className="lp-eyebrow">Roadmap</span>
         <h1>What’s next for PrepWeek</h1>
         <p className="lp-doc-lede">
-          Built in the open, in the order people ask for things. Want something?
-          Tell us at <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.
+          Built in the open, in the order people ask for things. Want something? Tell us at <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.
         </p>
         <div className="lp-road">
           {ROADMAP.map((col) => (
@@ -502,17 +360,9 @@ export function RoadmapPage() {
 
 // --- Privacy and terms --------------------------------------------------------------------
 
-const UPDATED = "8 October 2026";
+const UPDATED = '8 October 2026';
 
-function Doc({
-  title,
-  lede,
-  sections,
-}: {
-  title: string;
-  lede: ReactNode;
-  sections: [string, ReactNode][];
-}) {
+function Doc({ title, lede, sections }: { title: string; lede: ReactNode; sections: [string, ReactNode][] }) {
   return (
     <Shell title={title}>
       <section className="lp-doc lp-legal">
@@ -537,76 +387,62 @@ export function PrivacyPage() {
       lede="PrepWeek stores what it needs to run your plan, nothing more. No ads, no trackers, no selling data. Here is exactly what we keep, where, and how to take it out."
       sections={[
         [
-          "What we store",
+          'What we store',
           <ul>
             <li>
-              <b>Your account:</b> email address, name and, if you sign in with
-              Google, your profile picture.
+              <b>Your account:</b> email address, name and, if you sign in with Google, your profile picture.
             </li>
             <li>
-              <b>Your plans:</b> everything in your sheets: people, tasks,
-              projects, comments, attachments and the activity log.
+              <b>Your plans:</b> everything in your sheets: people, tasks, projects, comments, attachments and the activity log.
             </li>
             <li>
-              <b>Workspaces:</b> who is in which workspace and with what role,
-              and pending invites (the invited email address).
+              <b>Workspaces:</b> who is in which workspace and with what role, and pending invites (the invited email address).
             </li>
             <li>
-              <b>Settings:</b> your daily digest choice, your time zone and the
-              address you use PrepWeek at.
+              <b>Settings:</b> your daily digest choice, your time zone and the address you use PrepWeek at.
             </li>
             <li>
-              <b>Purchases:</b> an AppSumo licence key, or a Paddle customer and
-              subscription reference. Card details stay with Paddle; we never
-              see them.
+              <b>Purchases:</b> an AppSumo licence key, or a Paddle customer and subscription reference. Card details stay with Paddle; we never see them.
             </li>
           </ul>,
         ],
         [
-          "On your device",
+          'On your device',
           <p>
-            Your browser keeps a copy of the sheets you open so PrepWeek works
-            offline, plus small preferences (theme, last sheet). We set one
-            cookie to keep you signed in, and short-lived ones during Google
-            sign-in and AppSumo activation. No analytics or advertising cookies.
-            Signing out removes the copies of your workspace’s sheets from that
-            device.
+            Your browser keeps a copy of the sheets you open so PrepWeek works offline, plus small preferences (theme, last sheet). We set one cookie
+            to keep you signed in, and short-lived ones during Google sign-in and AppSumo activation. No analytics or advertising cookies. Signing out
+            removes the copies of your workspace’s sheets from that device.
           </p>,
         ],
         [
-          "Who helps us run it",
+          'Who helps us run it',
           <ul>
             <li>
               <b>Cloudflare</b> hosts PrepWeek and stores your data.
             </li>
             <li>
-              <b>Mailchimp Transactional (Mandrill)</b> sends sign-in links,
-              invites and the daily digest. We don’t track opens or clicks.
+              <b>Mailchimp Transactional (Mandrill)</b> sends sign-in links, invites and the daily digest. We don’t track opens or clicks.
             </li>
             <li>
               <b>Google</b>, only if you choose “Continue with Google”.
             </li>
             <li>
-              <b>Paddle</b> (our reseller for subscriptions, who also handles
-              VAT and invoices) and <b>AppSumo</b> handle payments.
+              <b>Paddle</b> (our reseller for subscriptions, who also handles VAT and invoices) and <b>AppSumo</b> handle payments.
             </li>
           </ul>,
         ],
         [
-          "Your data is yours",
+          'Your data is yours',
           <p>
-            Export everything you have access to at any time (your avatar menu →
-            Export my data, or a sheet’s ⋯ menu → Import and export). Delete
-            your account from the same menu: workspaces only you are in are
-            deleted with their sheets, right away. Deleted sheets are wiped from
-            our live storage.
+            Export everything you have access to at any time (your avatar menu → Export my data, or a sheet’s ⋯ menu → Import and export). Delete
+            your account from the same menu: workspaces only you are in are deleted with their sheets, right away. Deleted sheets are wiped from our
+            live storage.
           </p>,
         ],
         [
-          "Questions",
+          'Questions',
           <p>
-            Write to <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.
-            PrepWeek isn’t meant for children under 16.
+            Write to <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>. PrepWeek isn’t meant for children under 16.
           </p>,
         ],
       ]}
@@ -620,77 +456,47 @@ export function TermsPage() {
       title="Terms"
       lede="The short version: use PrepWeek to plan your team’s work, keep it legal, and your plans stay yours."
       sections={[
+        ['Your account', <p>You’re responsible for what happens in your account and workspaces. Keep your email account safe: it’s how you sign in.</p>],
         [
-          "Your account",
+          'Your content',
           <p>
-            You’re responsible for what happens in your account and workspaces.
-            Keep your email account safe: it’s how you sign in.
-          </p>,
-        ],
-        [
-          "Your content",
-          <p>
-            Your plans, comments and files belong to you. You give us permission
-            to store and process them only to run PrepWeek for you and the
+            Your plans, comments and files belong to you. You give us permission to store and process them only to run PrepWeek for you and the
             people you share with. You can export or delete them any time.
           </p>,
         ],
         [
-          "Fair use",
+          'Fair use',
           <p>
-            Don’t use PrepWeek for anything illegal, to send spam, to upload
-            malware, or to break or overload the service. We may suspend
-            accounts that do.
+            Don’t use PrepWeek for anything illegal, to send spam, to upload malware, or to break or overload the service. We may suspend accounts that
+            do.
           </p>,
         ],
         [
-          "Plans and payments",
+          'Plans and payments',
           <ul>
+            <li>The free plan covers {FREE_PEOPLE} planned people per workspace. Paid plans and AppSumo tiers cover more; logins are always unlimited.</li>
             <li>
-              The free plan covers {FREE_PEOPLE} planned people per workspace.
-              Paid plans and AppSumo tiers cover more; logins are always
-              unlimited.
+              Subscriptions are sold by our online reseller Paddle.com, the merchant of record for these orders. Paddle handles payment, VAT,
+              invoices and billing questions; their buyer terms apply to the purchase.
             </li>
+            <li>Subscriptions renew until you cancel; cancelling keeps your plan until the end of the period you paid for.</li>
+            <li>Changed your mind? Ask within 14 days of a subscription payment and you get it back in full.</li>
             <li>
-              Subscriptions are sold by our online reseller Paddle.com, the
-              merchant of record for these orders. Paddle handles payment, VAT,
-              invoices and billing questions; their buyer terms apply to the
-              purchase.
-            </li>
-            <li>
-              Subscriptions renew until you cancel; cancelling keeps your plan
-              until the end of the period you paid for.
-            </li>
-            <li>
-              Changed your mind? Ask within 14 days of a subscription payment
-              and you get it back in full.
-            </li>
-            <li>
-              AppSumo licences are for the lifetime of PrepWeek, with refunds
-              through AppSumo within 60 days. After a refund or a lapsed
-              subscription the workspace goes back to the free plan; nothing is
-              deleted.
+              AppSumo licences are for the lifetime of PrepWeek, with refunds through AppSumo within 60 days. After a refund or a lapsed
+              subscription the workspace goes back to the free plan; nothing is deleted.
             </li>
           </ul>,
         ],
         [
-          "The service",
+          'The service',
           <p>
-            We work hard to keep PrepWeek running and your data safe, but it’s
-            provided as is: we can’t promise it will never be down or wrong, and
-            we’re not liable for indirect losses. Keep exports of anything you
-            can’t afford to lose.
+            We work hard to keep PrepWeek running and your data safe, but it’s provided as is: we can’t promise it will never be down or wrong, and
+            we’re not liable for indirect losses. Keep exports of anything you can’t afford to lose.
           </p>,
         ],
+        ['Changes', <p>If these terms change in a way that matters, we’ll say so in the app or by email before it applies.</p>],
         [
-          "Changes",
-          <p>
-            If these terms change in a way that matters, we’ll say so in the app
-            or by email before it applies.
-          </p>,
-        ],
-        [
-          "Contact",
+          'Contact',
           <p>
             <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>
           </p>,

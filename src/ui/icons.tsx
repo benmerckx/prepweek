@@ -253,6 +253,11 @@ export const Clock = ({ size = 16 }: { size?: number }) => (
     <path d="M8 5v3.25l2 1.25" />
   </Svg>
 );
+export const Hourglass = ({ size = 16 }: { size?: number }) => (
+  <Svg size={size}>
+    <path d="M4.5 2.5h7M4.5 13.5h7M5.5 2.5c0 3 5 3.5 5 5.5s-5 2.5-5 5.5M10.5 2.5c0 3-5 3.5-5 5.5s5 2.5 5 5.5" />
+  </Svg>
+);
 export const Swatch = ({ size = 16 }: { size?: number }) => (
   <Svg size={size}>
     <rect x="2.5" y="4" width="11" height="8" rx="2" />

@@ -1,5 +1,5 @@
-import type { DirectoryDurableObject } from "./directory.ts";
-import type { PresenceDurableObject, SheetDurableObject } from "./index.ts";
+import type { DirectoryDurableObject } from './directory.ts';
+import type { PresenceDurableObject, SheetDurableObject } from './index.ts';
 
 export interface Env {
   /** Optional R2 bucket for attachment bytes. */

@@ -60,6 +60,27 @@ export const formatDuration = (min: number): string => {
 };
 
 /**
+ * An estimate as typed: "6h", "1h 30m", "1h30", "90m", "1.5" or "1,5" (hours),
+ * "2:30". Minutes, or null when it isn't one (or is zero).
+ */
+export const parseEstimate = (s: string): number | null => {
+  const t = s.trim().toLowerCase().replace(',', '.');
+  if (!t) return null;
+  let min: number;
+  const clock = /^(\d+):(\d{2})$/.exec(t);
+  const units = /^(?:(\d+(?:\.\d+)?)\s*h(?:ours?|rs?)?)?\s*(?:(\d+)\s*(?:m(?:in(?:utes?)?)?)?)?$/.exec(t);
+  if (clock) min = +clock[1]! * 60 + +clock[2]!;
+  else if (/^\d+(?:\.\d+)?$/.test(t)) min = +t * 60;
+  else if (units && (units[1] || units[2])) min = (units[1] ? +units[1] * 60 : 0) + (units[2] ? +units[2] : 0);
+  else return null;
+  min = Math.round(min);
+  return min > 0 && min < 10000 * 60 ? min : null;
+};
+
+/** "6h", "7.5h": hours, briefly. */
+export const formatHours = (h: number): string => `${Math.round(h * 10) / 10}h`;
+
+/**
  * The time a task gets when you add one: an hour from 9:00, or for a task
  * today during working hours, an hour from the next full hour.
  */

@@ -1,13 +1,14 @@
 // Export the plan as CSV, in the columns Teamweek / Toggl Plan exports use
 // (so the file opens in a spreadsheet and imports back into PrepWeek or
-// elsewhere), plus PrepWeek's own: type, color and notes.
+// elsewhere), plus PrepWeek's own: type, color and notes. Estimates are in
+// minutes, as Teamweek writes them.
 
 import { getUser, parseTags, store, type TaskRow } from '../data/store.ts';
 import { ymd } from '../lib/dates.ts';
 
 const HEADER = [
   'Task name', 'Task status', 'Type', 'Project name', 'Client name', 'Tags', 'Assignee name', 'Assignee email',
-  'Start date', 'End date', 'Recurrence', 'Repeat until', 'Start time', 'End time', 'Color', 'Notes', 'Task ID',
+  'Start date', 'End date', 'Recurrence', 'Repeat until', 'Start time', 'End time', 'Estimated minutes', 'Color', 'Notes', 'Task ID',
 ];
 
 const iso = (day: number) => {
@@ -44,6 +45,7 @@ export const planCsv = (): string => {
         t.repeat && t.repeatUntil ? iso(t.repeatUntil) : '',
         time?.[1] ?? '',
         time?.[2] ?? '',
+        t.estimate || '',
         t.color,
         t.notes ?? '',
         // Rows of one task for several people share it, so it imports as one.

@@ -1,4 +1,4 @@
-import { formatTime } from '../lib/times.ts';
+import { formatDuration, formatTime } from '../lib/times.ts';
 import { memo, useLayoutEffect, useRef } from 'react';
 import { labelPinner } from './pin.ts';
 import { Away, Check, Comment, ListCheck, Notes, Paperclip, Repeat, People as PeopleIcon } from '../ui/icons.tsx';
@@ -36,7 +36,7 @@ export const TaskBlock = memo(function TaskBlock({ task, scale, dims, selected, 
       className={cls}
       data-task={task.id}
       data-pattern={(!task.off && task.pattern) || undefined}
-      title={[task.title || (task.off ? 'Time off' : 'Untitled'), task.project, formatRange(task.start, task.end), task.tags.map((t) => `#${t}`).join(' ')].filter(Boolean).join(' · ')}
+      title={[task.title || (task.off ? 'Time off' : 'Untitled'), task.project, formatRange(task.start, task.end), task.estimate ? `${formatDuration(task.estimate)} estimated` : '', task.tags.map((t) => `#${t}`).join(' ')].filter(Boolean).join(' · ')}
       style={{
         transform: `translate(${left}px, ${dims.pad + task.lane * dims.laneH}px)`,
         width,
@@ -60,7 +60,9 @@ export const TaskBlock = memo(function TaskBlock({ task, scale, dims, selected, 
                   task.time && formatTime(task.time),
                   task.project && task.project !== task.title && width > (tall ? 100 : 180) ? task.project : '',
                   task.client && task.project && width > (tall ? 190 : 280) ? task.client : '',
-                  task.time && days === 1 ? '' : `${days}d`,
+                  // "3d", "6h" for a day's estimate, "3d · 20h" for a longer one.
+                  task.time && days === 1 ? '' : task.estimate && days === 1 ? '' : `${days}d`,
+                  task.estimate ? formatDuration(task.estimate) : '',
                 ]
                   .filter(Boolean)
                   .join(' · ')}

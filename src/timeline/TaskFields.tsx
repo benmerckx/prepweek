@@ -1,10 +1,11 @@
 // Fields in the task details panel: who it's for, dates, time of day, and
 // the block's look (color + pattern).
 
+import { useEffect, useState } from 'react';
 import { Button, Dialog, DialogTrigger, Menu, MenuItem, MenuTrigger, Popover } from 'react-aria-components';
 import { PALETTE, PATTERNS, groupMembers, setAssignees, store, updateTask, type UserRow } from '../data/store.ts';
 import { workdays } from '../lib/dates.ts';
-import { DAY_END, TIME_STEP, defaultTime, formatClock, formatDuration, joinTime, moveStart, parseTime } from '../lib/times.ts';
+import { DAY_END, TIME_STEP, defaultTime, formatClock, formatDuration, formatHours, joinTime, moveStart, parseEstimate, parseTime } from '../lib/times.ts';
 import { DayButton, Select, type Option } from '../ui/Select.tsx';
 import { Check, ChevronDown, Close, Plus } from '../ui/icons.tsx';
 import { PatternChip, PatternPicker } from './PatternPicker.tsx';
@@ -113,6 +114,37 @@ const clockOptions = (from: number, to: number, extra: number, label: (m: number
   if (extra >= from && extra <= to && !mins.includes(extra)) mins.push(extra), mins.sort((a, b) => a - b);
   return mins.map((m) => ({ value: String(m), label: label(m) }));
 };
+
+/** Estimated work for the whole block: "6h", "1h 30m"… and per workday when it spans several. */
+export function EstimateField({ task, autoFocus }: { task: TaskView; autoFocus?: boolean }) {
+  const [text, setText] = useState(task.estimate ? formatDuration(task.estimate) : '');
+  const [bad, setBad] = useState(false);
+  useEffect(() => setText(task.estimate ? formatDuration(task.estimate) : ''), [task.estimate]);
+  const days = workdays(task.start, task.end) || task.end - task.start + 1;
+  const save = () => {
+    const min = text.trim() ? parseEstimate(text) : 0;
+    setBad(min === null);
+    if (min === null || min === task.estimate) return;
+    updateTask(task.series, { estimate: min }, min ? 'Set estimate' : 'Remove estimate');
+    if (min) setText(formatDuration(min));
+  };
+  return (
+    <div className="prop-estimate">
+      <input
+        className={'prop-input' + (bad ? ' bad' : '')}
+        value={text}
+        placeholder="e.g. 6h or 1h 30m"
+        aria-label="Estimate"
+        aria-invalid={bad}
+        autoFocus={autoFocus}
+        onChange={(e) => setText(e.currentTarget.value)}
+        onBlur={save}
+        onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+      />
+      {task.estimate > 0 && days > 1 && <span className="prop-hint-text">{formatHours(task.estimate / 60 / days)} a day</span>}
+    </div>
+  );
+}
 
 export function TimeField({ task }: { task: TaskView }) {
   const parsed = parseTime(task.time);

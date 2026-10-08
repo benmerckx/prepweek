@@ -7,19 +7,27 @@ import type { TaskView, TimelineModel } from './model.ts';
 import { ProjectField, TagField } from './Projects.tsx';
 import { Discussion } from './Discussion.tsx';
 
-import { DateField, LookField, PeopleField, TimeField } from './TaskFields.tsx';
+import { DateField, EstimateField, LookField, PeopleField, TimeField } from './TaskFields.tsx';
 import { Checklist, KindField, LinksField } from './Planning.tsx';
 import { DatePicker, Select, isPopoverOpen, type Option } from '../ui/Select.tsx';
-import { Away, Calendar, Check, Clock, Close, Folder, People as PeopleIcon, Plus, Repeat, Swatch, Tag, Trash, Waits } from '../ui/icons.tsx';
+import { Away, Calendar, Check, Clock, Close, Folder, Hourglass, People as PeopleIcon, Plus, Repeat, Swatch, Tag, Trash, Waits } from '../ui/icons.tsx';
 import { loadChunk } from '../lib/chunks.ts';
 
 // Lexical loads on first use, not on page load.
 const RichNotes = lazy(() => loadChunk(() => import('./RichNotes.tsx')));
 
 /** Details a task often doesn't need: offered as "+ Time", "+ Tags"… */
-type Extra = 'time' | 'tags' | 'repeat' | 'waits' | 'checks' | 'off';
-const EXTRAS: Extra[] = ['time', 'tags', 'repeat', 'checks', 'waits', 'off'];
-const EXTRA_LABELS: Record<Extra, string> = { time: 'Time', tags: 'Tags', repeat: 'Repeat', checks: 'Checklist', waits: 'Waits for', off: 'Time off' };
+type Extra = 'estimate' | 'time' | 'tags' | 'repeat' | 'waits' | 'checks' | 'off';
+const EXTRAS: Extra[] = ['estimate', 'time', 'tags', 'repeat', 'checks', 'waits', 'off'];
+const EXTRA_LABELS: Record<Extra, string> = {
+  estimate: 'Estimate',
+  time: 'Time',
+  tags: 'Tags',
+  repeat: 'Repeat',
+  checks: 'Checklist',
+  waits: 'Waits for',
+  off: 'Time off',
+};
 
 interface Props {
   task: TaskView;
@@ -42,6 +50,7 @@ export function Editor({ task, model, sheet, side, readOnly, onClose, onRetarget
   // Optional details show once they have a value, or once asked for.
   const [extra, setExtra] = useState<Set<Extra>>(() => new Set());
   const hasValue: Record<Extra, boolean> = {
+    estimate: task.estimate > 0,
     time: !!task.time,
     tags: task.tags.length > 0,
     repeat: !!task.repeat,
@@ -224,6 +233,11 @@ export function Editor({ task, model, sheet, side, readOnly, onClose, onRetarget
           <Prop icon={<Calendar size={15} />} label="Dates">
             <DateField task={task} onRetarget={onRetarget} />
           </Prop>
+          {!task.off && show('estimate') && (
+            <Prop icon={<Hourglass size={15} />} label="Estimate">
+              <EstimateField task={task} autoFocus={extra.has('estimate') && !hasValue.estimate} />
+            </Prop>
+          )}
           {show('time') && (
             <Prop icon={<Clock size={15} />} label="Time">
               <TimeField task={task} />

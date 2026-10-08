@@ -978,7 +978,7 @@ function Import() {
 /** What Teamweek / Toggl Plan users asked for, and what PrepWeek does about it. */
 const ASKED: { ask: string; answer: string; color: string }[] = [
   { ask: 'Can one task have two people on it?', answer: 'Put anyone on a task. A block in each row, edits in sync, one conversation.', color: C.blue },
-  { ask: 'Who’s off next week?', answer: 'Time off and public holidays sit right in the timeline, and never count as booked.', color: C.slate },
+  { ask: 'Who has room next week?', answer: 'Estimates, working hours and time off per person, so “booked” means hours. Holidays never count as busy.', color: C.slate },
   { ask: 'This can’t start until that’s done.', answer: 'Dependencies with arrows. Push one task back and everything waiting for it moves along.', color: C.violet },
   { ask: 'I need a real checklist.', answer: 'Checklists on every task, with the progress right on the block.', color: C.green },
   { ask: 'Let me get my data out.', answer: 'Export to CSV whenever you like, in the same columns you import.', color: C.amber },

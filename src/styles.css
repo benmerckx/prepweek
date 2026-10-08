@@ -1083,6 +1083,17 @@ svg {
 .load-over {
   background: var(--accent-solid);
 }
+/* More hours planned than they work. */
+.person-sub.over {
+  color: var(--danger);
+  font-weight: 560;
+}
+.person-sub.over .load-fill {
+  background: color-mix(in srgb, var(--danger) 55%, transparent);
+}
+.person-sub.over .load-over {
+  background: var(--danger);
+}
 .person-input {
   width: 100%;
   padding: 3px 6px;
@@ -3092,6 +3103,17 @@ button.tag-chip {
   font: inherit;
   font-size: 13px;
 }
+.pe-field > .pe-hours {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  width: auto;
+}
+.pe-hours input {
+  flex: none;
+  width: 64px;
+}
 .pe-field input:focus {
   border-color: var(--accent);
   box-shadow: var(--ring);
@@ -4837,6 +4859,39 @@ a.menu-item {
 }
 .prop-add {
   color: var(--text-dim);
+}
+.prop-estimate {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.prop-estimate .prop-input {
+  width: 9em;
+  min-height: 32px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  outline: none;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+.prop-estimate .prop-input:hover {
+  background: var(--hover);
+}
+.prop-estimate .prop-input:focus {
+  border-color: var(--accent);
+  background: var(--bg);
+  box-shadow: var(--ring);
+}
+.prop-estimate .prop-input.bad {
+  border-color: var(--danger);
+}
+.prop-hint-text {
+  color: var(--text-faint);
+  font-size: 12px;
+  white-space: nowrap;
 }
 .prop-hint {
   display: inline-flex;

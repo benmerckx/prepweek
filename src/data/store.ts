@@ -19,7 +19,19 @@ const OLD_PALETTES = [
   ['#3f6fb5', '#3a8a5f', '#c4513a', '#c9952f', '#7d5bb5', '#2b8a96', '#c2527d', '#7a7268', '#6f8f2f', '#cf6a2e'],
 ];
 
-export type UserRow = { name: string; color: string; order: number; email: string; team?: string; avatar?: string };
+export type UserRow = {
+  name: string;
+  color: string;
+  order: number;
+  email: string;
+  team?: string;
+  avatar?: string;
+  /** Working hours a day (0 = the default, DEFAULT_HOURS). */
+  hours?: number;
+};
+
+/** A working day, for people without their own hours. */
+export const DEFAULT_HOURS = 8;
 export type TaskRow = {
   userId: string;
   start: number; // day number, inclusive
@@ -52,6 +64,8 @@ export type TaskRow = {
   group?: string;
   /** '' = work, 'off' = time off (holiday, leave, sick): not counted as booked. */
   kind?: string;
+  /** Estimated work for the whole block, in minutes (0 = none). */
+  estimate?: number;
 };
 
 export const store = createMergeableStore();
@@ -65,6 +79,7 @@ store.setTablesSchema({
     team: { type: 'string', default: '' },
     /** Profile picture URL, from the account tied to this row (see identity.ts). */
     avatar: { type: 'string', default: '' },
+    hours: { type: 'number', default: 0 },
   },
   tasks: {
     userId: { type: 'string', default: '' },
@@ -84,6 +99,7 @@ store.setTablesSchema({
     skip: { type: 'string', default: '' },
     group: { type: 'string', default: '' },
     kind: { type: 'string', default: '' },
+    estimate: { type: 'number', default: 0 },
   },
   // Projects group tasks across people; a client groups projects.
   // `client` is the client's name as text (from before clients were their
@@ -988,6 +1004,7 @@ export const applyImport = async (
       repeatUntil?: number;
       group?: string;
       kind?: string;
+      estimate?: number;
     }[];
   },
   mode: ImportMode = 'add',
@@ -1102,6 +1119,7 @@ export const applyImport = async (
           repeatUntil: t.repeatUntil ?? 0,
           group: t.group ?? '',
           kind: t.kind ?? '',
+          estimate: t.estimate ?? 0,
         });
       }
     }),

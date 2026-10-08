@@ -65,6 +65,15 @@ describe('teamweek import', () => {
     expect(relaunch.end).toBe(dayFromYMD(2026, 9, 9));
     expect(relaunch.project).toBe('Acme');
     expect(relaunch.tags).toBe('ux,web,Design'); // segment becomes a tag
+    expect(relaunch.estimate).toBe(480);
+    expect(relaunch.notes).toBe('');
+    expect(plan.tasks.find((t) => t.title === 'Pairing')!.estimate).toBeUndefined();
+  });
+
+  test('estimates in hours, when the column says so', () => {
+    const opts = { mapping: guessMapping(header!), dateOrder: 'dmy' as const, includeDone: false, unassigned: 'skip' as const, estimateUnit: 'h' as const };
+    const relaunch = buildPlan(rows, opts, []).tasks.find((t) => t.title === 'Website relaunch, phase 2')!;
+    expect(relaunch.estimate).toBe(480 * 60);
   });
 
   test('ids are deterministic so re-importing updates instead of duplicating', () => {

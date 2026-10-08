@@ -1,7 +1,8 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { PALETTE, commit, deleteUser, getUser, isReadOnly, renameTeam, reorderUsers, store, updateUser } from '../data/store.ts';
+import { DEFAULT_HOURS, PALETTE, commit, deleteUser, getUser, isReadOnly, renameTeam, reorderUsers, store, updateUser } from '../data/store.ts';
 import { isWeekend, weekdayShort, ymd } from '../lib/dates.ts';
+import { formatHours, parseTime } from '../lib/times.ts';
 import { useBackToClose } from '../lib/useBackToClose.ts';
 import { Away, Check, ChevronDown, Trash } from '../ui/icons.tsx';
 import { getMe as getAccount, getPeople, type People } from '../data/account.ts';
@@ -274,14 +275,19 @@ const initials = (name: string) =>
 const LOAD_DAYS = 28;
 
 /**
- * Share of the workdays in the next four weeks someone is around for that
- * have at least one task, how much of it is parallel work (2+ tasks on the
- * same day), and until when they're away if they're off today. Weekends,
- * days off for everyone and their own time off don't count.
+ * How booked someone is over the next four weeks, in hours against their
+ * working day: an estimate spreads over the block's workdays, a timed task
+ * counts its time, and a task without either fills the day (two of those on
+ * one day don't make it 200%: that's parallel work, shown apart). Done work,
+ * weekends, days off for everyone and their own time off don't count. Also
+ * until when they're away if they're off today.
  */
 const upcomingLoad = (row: RowLayout, today: number, daysOff: ReadonlySet<number>) => {
   const end = today + LOAD_DAYS - 1;
-  const work = new Map<number, number>();
+  const cap = row.hours || DEFAULT_HOURS;
+  const workday = (d: number) => !isWeekend(d) && !daysOff.has(d);
+  const hours = new Map<number, number>();
+  const full = new Map<number, number>();
   const away = new Set<number>();
   // Tasks are sorted by start; none is longer than maxSpan.
   let lo = 0;
@@ -300,28 +306,40 @@ const upcomingLoad = (row: RowLayout, today: number, daysOff: ReadonlySet<number
       for (let d = t.start; d <= t.end; d++) away.add(d);
       continue;
     }
-    if (t.start > end) continue;
-    for (let d = Math.max(t.start, today); d <= Math.min(t.end, end); d++) work.set(d, (work.get(d) ?? 0) + 1);
+    if (t.start > end || t.done) continue;
+    const timed = parseTime(t.time);
+    let perDay = 0;
+    if (t.estimate > 0) {
+      let n = 0;
+      for (let d = t.start; d <= t.end; d++) if (workday(d)) n++;
+      perDay = t.estimate / 60 / (n || t.end - t.start + 1);
+    } else if (timed?.end != null) perDay = (timed.end - timed.start) / 60;
+    for (let d = Math.max(t.start, today); d <= Math.min(t.end, end); d++) {
+      if (perDay) hours.set(d, (hours.get(d) ?? 0) + perDay);
+      else full.set(d, (full.get(d) ?? 0) + 1);
+    }
   }
   let booked = 0;
-  let parallel = 0;
+  let over = 0;
   let total = 0;
   for (let d = today; d <= end; d++) {
-    if (isWeekend(d) || daysOff.has(d) || away.has(d)) continue;
+    if (!workday(d) || away.has(d)) continue;
     total++;
-    const n = work.get(d) ?? 0;
-    if (n) booked++;
-    if (n > 1) parallel++;
+    const h = hours.get(d) ?? 0;
+    const f = full.get(d) ?? 0;
+    booked += Math.max(f ? cap : 0, h);
+    if (h > cap + 0.01 || f > 1) over++;
   }
   if (away.has(today)) {
     // Last day off, carrying on over weekends and days off in between.
     awayEnd = today;
     for (let d = today + 1; d < today + 90; d++) {
       if (away.has(d)) awayEnd = d;
-      else if (!isWeekend(d) && !daysOff.has(d)) break;
+      else if (workday(d)) break;
     }
   }
-  return { pct: total ? booked / total : 0, parallel: total ? parallel / total : 0, awayEnd };
+  const capacity = total * cap;
+  return { pct: capacity ? booked / capacity : 0, over: total ? over / total : 0, overDays: over, booked, capacity, cap, awayEnd };
 };
 
 /** "Mon 12": the first workday after `day`. */
@@ -343,7 +361,7 @@ interface RowProps {
 }
 
 const SidebarRow = memo(function SidebarRow({ row, top, lifted, focused, today, daysOff, onFocusPerson, onEdit }: RowProps) {
-  const load = useMemo(() => upcomingLoad(row, today, daysOff), [row.tasks, today, daysOff]); // eslint-disable-line react-hooks/exhaustive-deps
+  const load = useMemo(() => upcomingLoad(row, today, daysOff), [row.tasks, row.hours, today, daysOff]); // eslint-disable-line react-hooks/exhaustive-deps
   const first = row.name.split(/\s+/)[0];
   return (
     <div
@@ -370,10 +388,16 @@ const SidebarRow = memo(function SidebarRow({ row, top, lifted, focused, today, 
             Away, back {backOn(load.awayEnd, daysOff)}
           </span>
         ) : (
-          <span className="person-sub" title="Booked workdays in the next 4 weeks (time off and days off not counted)">
+          <span
+            className={'person-sub' + (load.pct > 1.005 ? ' over' : '')}
+            title={
+              `Next 4 weeks: ${formatHours(load.booked)} booked of ${formatHours(load.capacity)} (${formatHours(load.cap)} a day; time off and days off not counted)` +
+              (load.overDays ? `. Overbooked on ${load.overDays} ${load.overDays === 1 ? 'day' : 'days'}.` : '')
+            }
+          >
             <span className="load">
-              <span className="load-fill" style={{ width: `${Math.round(load.pct * 100)}%` }} />
-              <span className="load-over" style={{ width: `${Math.round(load.parallel * 100)}%` }} />
+              <span className="load-fill" style={{ width: `${Math.min(100, Math.round(load.pct * 100))}%` }} />
+              <span className="load-over" style={{ width: `${Math.round(load.over * 100)}%` }} />
             </span>
             {Math.round(load.pct * 100)}% booked
           </span>
@@ -535,6 +559,27 @@ function PersonEditor({ id, anchor, model, sheet, onClose }: { id: string; ancho
             <option key={t} value={t} />
           ))}
         </datalist>
+      </label>
+      <label className="pe-field">
+        <span>Works</span>
+        <span className="pe-hours">
+          <input
+            type="number"
+            inputMode="decimal"
+            min={0.5}
+            max={24}
+            step={0.5}
+            defaultValue={u.hours || DEFAULT_HOURS}
+            aria-label="Working hours a day"
+            onBlur={(e) => {
+              const h = Math.round(Math.min(24, Math.max(0.5, Number(e.currentTarget.value) || DEFAULT_HOURS)) * 2) / 2;
+              e.currentTarget.value = String(h);
+              if (h !== (u.hours || DEFAULT_HOURS)) updateUser(id, { hours: h === DEFAULT_HOURS ? 0 : h }, 'Change working hours');
+            }}
+            onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+          />
+          hours a day
+        </span>
       </label>
       <AccountField id={id} />
       <div className="swatches">

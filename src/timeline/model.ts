@@ -2,7 +2,7 @@ import type { MergeableStore } from 'tinybase';
 import { HORIZON_DAYS, isRule, occurrenceId, occurrences, parseSkip } from '../lib/recur.ts';
 import { today, workdays } from '../lib/dates.ts';
 import { packLanes, type Cluster, type PackItem } from '../lib/layout.ts';
-import { parseTags, type ClientRow, type ProjectRow, type TaskRow, type UserRow } from '../data/store.ts';
+import { DEFAULT_HOURS, parseTags, type ClientRow, type ProjectRow, type TaskRow, type UserRow } from '../data/store.ts';
 
 // The TimelineModel is a derived, render-ready index over the TinyBase store:
 // users in order, each with its tasks sorted by start and packed into lanes,
@@ -67,6 +67,8 @@ export interface TaskView {
   /** Checklist items, and how many are ticked. */
   checks: number;
   checked: number;
+  /** Estimated minutes for the whole block (0 = none). */
+  estimate: number;
 }
 
 export interface Project extends ProjectRow {
@@ -109,6 +111,8 @@ export interface RowLayout {
   color: string;
   /** Profile picture URL ('' = initials). */
   avatar?: string;
+  /** Working hours a day. */
+  hours?: number;
   tasks: TaskView[]; // sorted by start
   /** Longest task duration in days; bounds the binary search window. */
   maxSpan: number;
@@ -583,6 +587,7 @@ export class TimelineModel {
       off: r.kind === 'off',
       checks: this.checkCount.get(r.group || id)?.n ?? 0,
       checked: this.checkCount.get(r.group || id)?.done ?? 0,
+      estimate: r.estimate ?? 0,
     };
     let m = this.byUser.get(r.userId);
     if (!m) this.byUser.set(r.userId, (m = new Map()));
@@ -651,6 +656,7 @@ export class TimelineModel {
         off: base?.off ?? false,
         checks: base?.checks ?? 0,
         checked: base?.checked ?? 0,
+        estimate: base?.estimate ?? 0,
       };
       views.push(v);
       items.push({ id: v.id, start: v.start, end: v.end, lane: p.lane ?? this.prevLane.get(p.id) });
@@ -668,7 +674,7 @@ export class TimelineModel {
     const m = this.byUser.get(userId);
     if (m) for (const t of tasks) if (m.has(t.id) && !(p && p.id === t.id)) m.set(t.id, t);
     const height = rowHeight(lanesFor(clusters, this.heightWindow[0], this.heightWindow[1], this.today), this.dims);
-    return { kind: 'person', team: user.team ?? '', userId, name: user.name, color: user.color, avatar: user.avatar ?? '', tasks, maxSpan, laneCount, clusters, height };
+    return { kind: 'person', team: user.team ?? '', userId, name: user.name, color: user.color, avatar: user.avatar ?? '', hours: user.hours || DEFAULT_HOURS, tasks, maxSpan, laneCount, clusters, height };
   }
 
   setHeightWindow(d0: number, d1: number) {
@@ -699,7 +705,10 @@ export class TimelineModel {
         const prev = old.get(id);
         if (prev && !this.dirtyUsers.has(id)) {
           const team = u.team ?? '';
-          return prev.name === u.name && prev.color === u.color && prev.team === team && (prev.avatar ?? '') === (u.avatar ?? '') ? prev : { ...prev, name: u.name, color: u.color, team, avatar: u.avatar ?? '' };
+          const hours = u.hours || DEFAULT_HOURS;
+          return prev.name === u.name && prev.color === u.color && prev.team === team && (prev.avatar ?? '') === (u.avatar ?? '') && prev.hours === hours
+            ? prev
+            : { ...prev, name: u.name, color: u.color, team, avatar: u.avatar ?? '', hours };
         }
         return this.layoutRow(id, u);
       };
