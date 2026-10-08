@@ -3827,8 +3827,8 @@ button.tag-chip {
   display: grid;
   place-items: center;
   padding: 24px;
-  background: color-mix(in srgb, var(--bg) 82%, transparent);
-  backdrop-filter: blur(10px);
+  /* Opaque: a sheet you may not open doesn't show through. */
+  background: var(--bg);
 }
 .lock-card {
   max-width: 380px;

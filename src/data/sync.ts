@@ -130,6 +130,10 @@ const connect = (server: string, sheetId: string) =>
   new Promise<void>((resolveFirst) => {
     let delay = 1000;
     let retry: ReturnType<typeof setTimeout> | undefined;
+    // Connections drop now and then (idle sockets get closed, laptops
+    // sleep): reconnecting quietly is not being offline. "Offline" is the
+    // browser saying so, or several attempts in a row failing.
+    let failures = 0;
     const open = async () => {
       clearTimeout(retry);
       retry = undefined;
@@ -139,7 +143,8 @@ const connect = (server: string, sheetId: string) =>
       ws.addEventListener('close', () => {
         void remote?.destroy();
         remote = undefined;
-        setStatus('offline');
+        failures++;
+        setStatus(!navigator.onLine || failures >= 3 ? 'offline' : 'connecting');
         resolveFirst();
         if (retry) return;
         retry = setTimeout(open, delay);
@@ -150,6 +155,7 @@ const connect = (server: string, sheetId: string) =>
         await remote.startSync();
         if (ws.readyState === WebSocket.OPEN) {
           delay = 1000;
+          failures = 0;
           setStatus('online');
         }
       } catch (e) {
@@ -161,6 +167,13 @@ const connect = (server: string, sheetId: string) =>
     };
     setStatus('connecting');
     void open();
-    // Back online: don't wait out the backoff.
-    addEventListener('online', () => retry && open());
+    // Back online, or back to this window: don't wait out the backoff.
+    const now = () => {
+      if (!retry) return;
+      delay = 1000;
+      void open();
+    };
+    addEventListener('online', now);
+    addEventListener('focus', now);
+    document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && now());
   });

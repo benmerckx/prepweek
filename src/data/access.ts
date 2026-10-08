@@ -7,6 +7,7 @@
 
 import { setReadOnly } from './store.ts';
 import type { PlanInfo } from '../lib/plans.ts';
+import { isClaimed, markClaimed, wasSignedIn } from './claimed.ts';
 
 export type Role = 'edit' | 'view' | 'none';
 export interface ShareInfo {
@@ -78,6 +79,9 @@ export const hasServer = () => !!server;
 
 const apply = (next: ShareInfo) => {
   info = next;
+  // Remember whether this sheet belongs to a workspace (see claimed.ts).
+  if (next.workspace) markClaimed(sheet, true);
+  else if (next.workspace === null && next.role !== 'none') markClaimed(sheet, false);
   setReadOnly(next.role !== 'edit');
   emit();
 };
@@ -86,6 +90,10 @@ const apply = (next: ShareInfo) => {
 export const loadAccess = async (serverHttp: string | null) => {
   server = serverHttp;
   if (!server) return apply({ role: 'edit', private: false });
+  // A sheet this device knows is claimed, with nobody signed in: locked
+  // until the server says otherwise (and still locked when it can't be
+  // reached), rather than open from the local copy.
+  if (isClaimed(sheet) && !wasSignedIn()) apply({ role: 'none', private: false, signedIn: false });
   try {
     const res = await fetch(withKey(`${server}/share/${encodeURIComponent(sheet)}`), { cache: 'no-store' });
     if (res.ok) apply((await res.json()) as ShareInfo);

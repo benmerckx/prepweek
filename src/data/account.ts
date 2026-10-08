@@ -4,6 +4,7 @@
 // app works as a local, account-less planner.
 
 import { getKey } from './access.ts';
+import { forgetLocalCopy, markClaimed, rememberSignedIn } from './claimed.ts';
 import type { PlanInfo } from '../lib/plans.ts';
 
 export interface Account {
@@ -75,6 +76,11 @@ export const loadMe = async (timeoutMs = 2500): Promise<Me | null> => {
   } catch {
     me = null;
   }
+  // null: accounts unavailable here (offline): what we knew stays.
+  if (me) {
+    rememberSignedIn(!!me.user);
+    for (const w of me.workspaces) for (const s of w.sheets) markClaimed(s.id, true);
+  }
   emit();
   syncDigestZone();
   return me;
@@ -120,8 +126,20 @@ export const sendMagicLink = (email: string, next: string) => api<{ sent: boolea
 export const googleUrl = (next: string) => `/auth/google?next=${encodeURIComponent(next)}`;
 /** Ask the app to show the sign-in dialog (from anywhere). */
 export const requestSignIn = () => window.dispatchEvent(new Event('prepweek:signin'));
+/**
+ * Sign out. The workspace's sheets stay on this device only as "claimed":
+ * their local copies go, so the next person at this computer can't open
+ * them without signing in.
+ */
 export const signOut = async () => {
+  const sheets = me?.workspaces.flatMap((w) => w.sheets.map((s) => s.id)) ?? [];
   await api('POST', '/auth/logout');
+  rememberSignedIn(false);
+  for (const id of sheets) {
+    markClaimed(id, true);
+    forgetLocalCopy(id);
+  }
+  if (sheets.includes(lastSheet() ?? '')) forgetLastSheet();
   await loadMe();
 };
 
