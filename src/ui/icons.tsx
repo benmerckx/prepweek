@@ -47,8 +47,8 @@ export const Minus = () => (
     <path d="M3.5 8h9" />
   </Svg>
 );
-export const Plus = () => (
-  <Svg>
+export const Plus = ({ size }: { size?: number } = {}) => (
+  <Svg size={size}>
     <path d="M8 3.5v9M3.5 8h9" />
   </Svg>
 );

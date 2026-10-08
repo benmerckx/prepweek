@@ -188,7 +188,7 @@ export function LinksField({ task, readOnly, onOpen }: { task: TaskView; readOnl
 }
 
 /** Checklist items: tick, rename in place, add with Enter. */
-export function Checklist({ task, readOnly }: { task: TaskView; readOnly?: boolean }) {
+export function Checklist({ task, readOnly, autoFocus }: { task: TaskView; readOnly?: boolean; autoFocus?: boolean }) {
   useTable('checks');
   const items = checksOf(task.thread);
   const add = useRef<HTMLInputElement>(null);
@@ -250,6 +250,7 @@ export function Checklist({ task, readOnly }: { task: TaskView; readOnly?: boole
       {!readOnly && (
         <input
           ref={add}
+          autoFocus={autoFocus}
           className="check-add"
           placeholder={items.length ? 'Add an item' : 'Add a step, a to-do…'}
           onKeyDown={(e) => {

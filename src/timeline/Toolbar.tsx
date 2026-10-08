@@ -93,7 +93,7 @@ export const Toolbar = memo(function Toolbar(props: Props) {
   const { model, onToday, onPage } = props;
   const [searchOpen, setSearchOpen] = useState(false);
   /** The "…" menu: its main list, or the focus-on-people list in its place. */
-  const [moreView, setMoreView] = useState<'main' | 'focus'>('main');
+  const [moreView, setMoreView] = useState<'main' | 'focus' | 'data'>('main');
 
   // Close dropdown menus on any press outside them.
   useEffect(() => {
@@ -209,6 +209,29 @@ export const Toolbar = memo(function Toolbar(props: Props) {
         <div className="tb-menu tb-more-menu" onClick={(e) => (e.currentTarget.parentElement as HTMLDetailsElement).removeAttribute('open')}>
           {moreView === 'focus' ? (
             <FocusSection {...props} onBack={() => setMoreView('main')} />
+          ) : moreView === 'data' ? (
+            <div className="focus-section" onClick={(e) => e.stopPropagation()}>
+              <div className="focus-head">
+                <button className="focus-back" onClick={() => setMoreView('main')} aria-label="Back">
+                  <ChevronLeft />
+                  Import and export
+                </button>
+              </div>
+              {!props.readOnly && (
+                <button className="menu-item" onClick={props.onImport}>
+                  <Upload />
+                  Import from Teamweek…
+                </button>
+              )}
+              <button className="menu-item" onClick={props.onExport}>
+                <Download />
+                Export as CSV
+              </button>
+              <button className="menu-item" onClick={props.onCalendar}>
+                <Calendar />
+                Add to your calendar…
+              </button>
+            </div>
           ) : (
           <>
           <div className="tb-menu-stats">
@@ -222,34 +245,10 @@ export const Toolbar = memo(function Toolbar(props: Props) {
             <LinkIcon />
             Share…
           </button>
-          {!props.readOnly && (
-            <button className="menu-item" onClick={props.onImport}>
-              <Upload />
-              Import from Teamweek…
-            </button>
-          )}
-          <button className="menu-item" onClick={props.onExport}>
-            <Download />
-            Export as CSV
+          <button className="menu-item" onClick={props.onOpenActivity}>
+            <History />
+            Activity
           </button>
-          <button className="menu-item" onClick={props.onCalendar}>
-            <Calendar />
-            Add to your calendar…
-          </button>
-          {!props.readOnly && (
-            <>
-              <button className="menu-item" disabled={!(hist & 1) || !!(hist & 4)} onClick={() => void undo()}>
-                {hist & 4 ? <span className="spinner" aria-label="Undoing" /> : <Undo />}
-                Undo
-                <kbd className="menu-kbd">⌘Z</kbd>
-              </button>
-              <button className="menu-item" disabled={!(hist & 2)} onClick={() => void redo()}>
-                <Redo />
-                Redo
-                <kbd className="menu-kbd">⇧⌘Z</kbd>
-              </button>
-            </>
-          )}
           {plan && model.allUsers().length > 0 && (
             <button
               className="menu-item"
@@ -267,10 +266,18 @@ export const Toolbar = memo(function Toolbar(props: Props) {
               </span>
             </button>
           )}
-          <button className="menu-item" onClick={props.onPalette}>
-            <SearchIc />
-            Command palette
-            <kbd className="menu-kbd">⌘K</kbd>
+          <button
+            className="menu-item"
+            onClick={(e) => {
+              e.stopPropagation();
+              setMoreView('data');
+            }}
+          >
+            <Download />
+            Import and export
+            <span className="menu-next">
+              <ChevronRight />
+            </span>
           </button>
           {installable && (
             <button className="menu-item" onClick={() => void install()}>
@@ -278,23 +285,39 @@ export const Toolbar = memo(function Toolbar(props: Props) {
               Install app
             </button>
           )}
-          <button className="menu-item" onClick={props.onOpenActivity}>
-            <History />
-            Activity
-          </button>
-          <button className="menu-item" onClick={() => navigate({ section: 'projects' })}>
-            <Folder />
-            Projects
-          </button>
-          <button className="menu-item" onClick={() => navigate({ section: 'clients' })}>
-            <Briefcase />
-            Clients
-          </button>
+          {/* Phones: what the toolbar has no room for (tabs, theme, undo). */}
+          <div className="phone-only">
+            <div className="menu-sep" />
+            <button className="menu-item" onClick={() => navigate({ section: 'projects' })}>
+              <Folder />
+              Projects
+            </button>
+            <button className="menu-item" onClick={() => navigate({ section: 'clients' })}>
+              <Briefcase />
+              Clients
+            </button>
+            {!props.readOnly && (
+              <>
+                <button className="menu-item" disabled={!(hist & 1) || !!(hist & 4)} onClick={() => void undo()}>
+                  {hist & 4 ? <span className="spinner" aria-label="Undoing" /> : <Undo />}
+                  Undo
+                </button>
+                <button className="menu-item" disabled={!(hist & 2)} onClick={() => void redo()}>
+                  <Redo />
+                  Redo
+                </button>
+              </>
+            )}
+          </div>
           <div className="menu-sep" />
-          <div className="menu-label">View</div>
           <Toggle label="Hide weekends" on={props.hideWeekends} onToggle={props.onToggleWeekends} />
           <Toggle label="Compact rows" on={props.dense} onToggle={props.onToggleDense} />
-          <Toggle label="Dark mode" on={theme === 'dark'} onToggle={toggleTheme} />
+          <div className="phone-only">
+            <Toggle label="Dark mode" on={theme === 'dark'} onToggle={toggleTheme} />
+          </div>
+          <button className="menu-foot desk-only" onClick={props.onPalette}>
+            Everything else: <kbd>⌘K</kbd>
+          </button>
           </>
           )}
         </div>

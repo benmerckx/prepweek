@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { Attachments, attachFiles } from './Attachments.tsx';
-import { deleteTask, getTask, updateTask } from '../data/store.ts';
+import { deleteTask, getTask, linksOf, updateTask } from '../data/store.ts';
 import { RULES, RULE_LABELS, type Rule } from '../lib/recur.ts';
 import { formatDay } from '../lib/dates.ts';
 import type { TaskView, TimelineModel } from './model.ts';
@@ -10,11 +10,16 @@ import { Discussion } from './Discussion.tsx';
 import { DateField, LookField, PeopleField, TimeField } from './TaskFields.tsx';
 import { Checklist, KindField, LinksField } from './Planning.tsx';
 import { DatePicker, Select, isPopoverOpen, type Option } from '../ui/Select.tsx';
-import { Away, Calendar, Check, Clock, Close, Folder, People as PeopleIcon, Repeat, Swatch, Tag, Trash, Waits } from '../ui/icons.tsx';
+import { Away, Calendar, Check, Clock, Close, Folder, People as PeopleIcon, Plus, Repeat, Swatch, Tag, Trash, Waits } from '../ui/icons.tsx';
 import { loadChunk } from '../lib/chunks.ts';
 
 // Lexical loads on first use, not on page load.
 const RichNotes = lazy(() => loadChunk(() => import('./RichNotes.tsx')));
+
+/** Details a task often doesn't need: offered as "+ Time", "+ Tags"… */
+type Extra = 'time' | 'tags' | 'repeat' | 'waits' | 'checks' | 'off';
+const EXTRAS: Extra[] = ['time', 'tags', 'repeat', 'checks', 'waits', 'off'];
+const EXTRA_LABELS: Record<Extra, string> = { time: 'Time', tags: 'Tags', repeat: 'Repeat', checks: 'Checklist', waits: 'Waits for', off: 'Time off' };
 
 interface Props {
   task: TaskView;
@@ -34,6 +39,18 @@ interface Props {
 
 export function Editor({ task, model, sheet, side, readOnly, onClose, onRetarget, enter = true }: Props) {
   const ref = useRef<HTMLDivElement>(null);
+  // Optional details show once they have a value, or once asked for.
+  const [extra, setExtra] = useState<Set<Extra>>(() => new Set());
+  const hasValue: Record<Extra, boolean> = {
+    time: !!task.time,
+    tags: task.tags.length > 0,
+    repeat: !!task.repeat,
+    waits: linksOf(task.thread).waitsFor.length + linksOf(task.thread).blocking.length > 0,
+    checks: task.checks > 0,
+    off: task.off,
+  };
+  const show = (k: Extra) => hasValue[k] || extra.has(k);
+  const hidden = (task.off ? (['time', 'repeat'] as Extra[]) : EXTRAS).filter((k) => !show(k));
   const titleRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState('');
   const [dropping, setDropping] = useState(false);
@@ -207,34 +224,62 @@ export function Editor({ task, model, sheet, side, readOnly, onClose, onRetarget
           <Prop icon={<Calendar size={15} />} label="Dates">
             <DateField task={task} onRetarget={onRetarget} />
           </Prop>
-          <Prop icon={<Clock size={15} />} label="Time">
-            <TimeField task={task} />
-          </Prop>
-          <Prop icon={<Away size={15} />} label="Type">
-            <KindField task={task} />
-          </Prop>
+          {show('time') && (
+            <Prop icon={<Clock size={15} />} label="Time">
+              <TimeField task={task} />
+            </Prop>
+          )}
+          {task.off && (
+            <Prop icon={<Away size={15} />} label="Type">
+              <KindField task={task} />
+            </Prop>
+          )}
           {!task.off && (
             <>
-              <Prop icon={<Waits size={15} />} label="Waits for">
-                <LinksField task={task} readOnly={readOnly} onOpen={onRetarget} />
-              </Prop>
               <Prop icon={<Folder size={15} />} label="Project">
                 <ProjectField task={task} model={model} />
               </Prop>
-              <Prop icon={<Tag size={15} />} label="Tags">
-                <TagField task={task} model={model} />
-              </Prop>
+              {show('waits') && (
+                <Prop icon={<Waits size={15} />} label="Waits for">
+                  <LinksField task={task} readOnly={readOnly} onOpen={onRetarget} />
+                </Prop>
+              )}
+              {show('tags') && (
+                <Prop icon={<Tag size={15} />} label="Tags">
+                  <TagField task={task} model={model} />
+                </Prop>
+              )}
             </>
           )}
-          <Prop icon={<Repeat size={15} />} label="Repeat">
-            <RepeatField task={task} />
-          </Prop>
+          {show('repeat') && (
+            <Prop icon={<Repeat size={15} />} label="Repeat">
+              <RepeatField task={task} />
+            </Prop>
+          )}
           {!task.off && (
             <Prop icon={<Swatch size={15} />} label="Color">
               <LookField task={task} readOnly={readOnly} />
             </Prop>
           )}
         </div>
+        {!readOnly && hidden.length > 0 && (
+          <div className="editor-more" aria-label="Add details">
+            {hidden.map((k) => (
+              <button
+                key={k}
+                type="button"
+                className="editor-more-chip"
+                onClick={() => {
+                  if (k === 'off') updateTask(task.series, { kind: 'off' }, 'Mark as time off');
+                  else setExtra((x) => new Set(x).add(k));
+                }}
+              >
+                <Plus size={13} />
+                {EXTRA_LABELS[k]}
+              </button>
+            ))}
+          </div>
+        )}
         <section className="editor-notes-section">
           <h3 className="editor-section-title">Description</h3>
           <Suspense fallback={<div className="rich-notes loading">{task.notes || 'Add details…'}</div>}>
@@ -247,7 +292,7 @@ export function Editor({ task, model, sheet, side, readOnly, onClose, onRetarget
             />
           </Suspense>
         </section>
-        {!task.off && <Checklist task={task} readOnly={readOnly} />}
+        {!task.off && show('checks') && <Checklist task={task} readOnly={readOnly} autoFocus={extra.has('checks')} />}
       </fieldset>
       <Attachments taskId={task.thread} onError={setError} />
       {error && <p className="editor-error">{error}</p>}

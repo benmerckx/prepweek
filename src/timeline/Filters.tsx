@@ -30,6 +30,10 @@ export function FilterMenu({
   const counts = useMemo(() => (open ? model.projectCounts() : new Map<string, number>()), [open, model.version]); // eslint-disable-line react-hooks/exhaustive-deps
   const tags = useMemo(() => (open ? model.allTags() : []), [open, model.version]); // eslint-disable-line react-hooks/exhaustive-deps
   const projects = model.projects.filter((p) => !p.archived || filter.projects.includes(p.id));
+  const [q, setQ] = useState('');
+  const query = q.trim().toLowerCase();
+  const shownProjects = query ? projects.filter((p) => p.name.toLowerCase().includes(query) || p.client.toLowerCase().includes(query)) : projects;
+  const shownTags = query ? tags.filter((t) => t.toLowerCase().includes(query)) : tags;
 
   const Item = ({ id, label, color, sub }: { id: string; label: string; color?: string; sub?: string }) => {
     const on = filter.projects.includes(id);
@@ -48,7 +52,14 @@ export function FilterMenu({
   };
 
   return (
-    <details className="tb-filter tb-dd" ref={ref} onToggle={(e) => setOpen(e.currentTarget.open)}>
+    <details
+      className="tb-filter tb-dd"
+      ref={ref}
+      onToggle={(e) => {
+        setOpen(e.currentTarget.open);
+        if (!e.currentTarget.open) setQ('');
+      }}
+    >
       <summary className={'btn icon' + (n ? ' active' : '')} aria-label="Filter" title="Filter by project or tag">
         <FilterIcon />
         {n > 0 && <span className="tb-badge">{n}</span>}
@@ -63,50 +74,58 @@ export function FilterMenu({
           )}
         </div>
         {open && (
-          <div className="fl-scroll">
-            <div className="menu-label">Projects</div>
-            {projects.length === 0 && <p className="fl-empty">No projects yet.</p>}
-            {byClient(projects).map(([client, ps]) => (
-              <div key={client || '-'} className="fl-group">
-                {client && <div className="fl-client">{client}</div>}
-                {ps.map((p) => (
-                  <Item key={p.id} id={p.id} label={p.name} color={p.color} sub={String(counts.get(p.id) ?? 0)} />
-                ))}
-              </div>
-            ))}
-            {projects.length > 0 && <Item id="" label="No project" sub={String(counts.get('') ?? 0)} />}
+          <>
+            <input
+              className="fl-search"
+              autoFocus
+              placeholder="Find a project, client or tag…"
+              value={q}
+              onChange={(e) => setQ(e.currentTarget.value)}
+              onKeyDown={(e) => e.key === 'Escape' && q && (e.stopPropagation(), setQ(''))}
+            />
+            <div className="fl-scroll">
+              {shownTags.length > 0 && (
+                <div className="fl-tags">
+                  {shownTags.map((t) => {
+                    const on = filter.tags.includes(t.toLowerCase());
+                    return (
+                      <button
+                        key={t}
+                        className={'tag-chip' + (on ? ' on' : '')}
+                        aria-pressed={on}
+                        onClick={() => onFilter({ ...filter, tags: toggle(filter.tags, t.toLowerCase()) })}
+                      >
+                        {t}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              {projects.length === 0 && <p className="fl-empty">No projects yet.</p>}
+              {query
+                ? shownProjects.map((p) => <Item key={p.id} id={p.id} label={p.name} color={p.color} sub={p.client || String(counts.get(p.id) ?? 0)} />)
+                : byClient(projects).map(([client, ps]) => (
+                    <div key={client || '-'} className="fl-group">
+                      {client && <div className="fl-client">{client}</div>}
+                      {ps.map((p) => (
+                        <Item key={p.id} id={p.id} label={p.name} color={p.color} sub={String(counts.get(p.id) ?? 0)} />
+                      ))}
+                    </div>
+                  ))}
+              {!query && projects.length > 0 && <Item id="" label="No project" sub={String(counts.get('') ?? 0)} />}
+              {query && !shownProjects.length && !shownTags.length && <p className="fl-empty">Nothing matches “{q.trim()}”.</p>}
+            </div>
             <button
-              className="menu-item"
+              className="fl-foot"
               onClick={() => {
                 ref.current?.removeAttribute('open');
                 onManageProjects();
               }}
             >
               <Folder />
-              Manage projects…
+              Manage projects
             </button>
-            <div className="menu-sep" />
-            <div className="menu-label">Tags</div>
-            {tags.length === 0 ? (
-              <p className="fl-empty">No tags yet. Add them in the task editor.</p>
-            ) : (
-              <div className="fl-tags">
-                {tags.map((t) => {
-                  const on = filter.tags.includes(t.toLowerCase());
-                  return (
-                    <button
-                      key={t}
-                      className={'tag-chip' + (on ? ' on' : '')}
-                      aria-pressed={on}
-                      onClick={() => onFilter({ ...filter, tags: toggle(filter.tags, t.toLowerCase()) })}
-                    >
-                      {t}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+          </>
         )}
       </div>
     </details>

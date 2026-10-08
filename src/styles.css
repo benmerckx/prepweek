@@ -6618,3 +6618,106 @@ a.menu-item {
 .plan-modal .share-actions .btn {
   text-decoration: none;
 }
+/* Menu rows only phones need (the toolbar shows them on bigger screens). */
+.app:not(.compact) .phone-only,
+.app.compact .desk-only {
+  display: none;
+}
+.phone-only {
+  display: contents;
+}
+.menu-foot {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 8px 10px 4px;
+  border: 0;
+  border-top: 1px solid var(--border);
+  background: none;
+  color: var(--text-faint);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+.menu-foot:hover {
+  color: var(--text-dim);
+}
+.menu-foot kbd {
+  font: inherit;
+  padding: 1px 5px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+/* Task details: optional fields wait behind "+ Time", "+ Tags"… */
+.editor-more {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 2px 0 4px;
+}
+.editor-more-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 10px 0 7px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 13px;
+  background: none;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.editor-more-chip:hover {
+  border-style: solid;
+  color: var(--text);
+  background: var(--hover);
+}
+/* Filter menu: search on top, a list that scrolls, a quiet footer. */
+.fl-menu {
+  display: flex;
+  flex-direction: column;
+}
+.fl-scroll > * {
+  flex-shrink: 0;
+}
+.fl-search {
+  margin: 8px 8px 2px;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+}
+.fl-search:focus {
+  border-color: var(--border-strong);
+}
+.fl-tags {
+  padding: 6px 4px 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+.fl-foot {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 0;
+  border-top: 1px solid var(--border);
+  background: none;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.fl-foot:hover {
+  color: var(--text);
+  background: var(--hover);
+}
