@@ -9,7 +9,7 @@
     <meta property="og:description" content="The team planner you can read at a glance. Live, works offline, and brings your Teamweek history along." />
     <meta property="og:type" content="website" />
     <meta name="theme-color" content="#fbfafc" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#151419" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#292c34" media="(prefers-color-scheme: dark)" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="PrepWeek" />
@@ -21,7 +21,7 @@
       } catch (e) {}
       document.documentElement.dataset.theme = t;
       document.querySelectorAll('meta[name=theme-color]').forEach(function (m) {
-        m.content = t === 'dark' ? '#151419' : '#fbfafc';
+        m.content = t === 'dark' ? '#292c34' : '#fbfafc';
       });
       // The home page (see main.tsx) skips the "opening your sheet" screen.
       if (/^\/(welcome|appsumo|help|roadmap)?\/?$/.test(location.pathname)) document.documentElement.dataset.landing = '';
@@ -93,13 +93,13 @@
       @media (prefers-color-scheme: dark) {
         html:not([data-theme='light']),
         html:not([data-theme='light']) body {
-          background: #151419;
+          background: #292c34;
         }
         html:not([data-theme='light']) .boot {
-          color: #9c97a5;
+          color: #9aa0ac;
         }
         html:not([data-theme='light']) .boot-bars i {
-          background-image: linear-gradient(90deg, #211f26 0%, #2b2831 50%, #211f26 100%);
+          background-image: linear-gradient(90deg, #30333c 0%, #3a3e48 50%, #30333c 100%);
         }
         html:not([data-theme='light']) .boot-stripes {
           fill: #74726a;
@@ -107,13 +107,13 @@
       }
       html[data-theme='dark'],
       html[data-theme='dark'] body {
-        background: #151419;
+        background: #292c34;
       }
       html[data-theme='dark'] .boot {
-        color: #9c97a5;
+        color: #9aa0ac;
       }
       html[data-theme='dark'] .boot-bars i {
-        background-image: linear-gradient(90deg, #211f26 0%, #2b2831 50%, #211f26 100%);
+        background-image: linear-gradient(90deg, #30333c 0%, #3a3e48 50%, #30333c 100%);
       }
       html[data-theme='dark'] .boot-stripes {
         fill: #74726a;

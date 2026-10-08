@@ -234,31 +234,28 @@ const PEOPLE: { name: string; color: string; load: number; blocks: HeroBlock[] }
   },
 ];
 
-/** Weekly plateaus for the mini scrubber, from a fixed seed. */
-const useSeries = () =>
+/** The mini scrubber's plan: a row of blocks per person, from a fixed seed. */
+const MINI_ROWS = 6;
+const useMiniPlan = () =>
   useMemo(() => {
     let seed = 7;
-    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-    const colors = [C.blue, C.red, C.amber, C.green, C.violet];
-    return colors.map((color, i) => {
-      const weeks = Array.from({ length: 26 }, (_, w) => 0.25 + 0.5 * rnd() + 0.18 * Math.sin((w + i * 3) / 3.2));
-      // Plateau per week with short S-curves between, like the app's scrubber.
-      const W = 600 / 26;
-      const y = (v: number) => 46 - Math.max(0.05, Math.min(1, v)) * 36 - i * 1.5;
-      let d = `M0 ${y(weeks[0]!)}`;
-      weeks.forEach((v, w) => {
-        if (w === 0) return;
-        const xb = w * W;
-        const prev = y(weeks[w - 1]!);
-        d += ` L${xb - 4} ${prev} C${xb} ${prev} ${xb} ${y(v)} ${xb + 4} ${y(v)}`;
-      });
-      d += ` L600 ${y(weeks.at(-1)!)}`;
-      return { color, d };
-    });
+    const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    const colors = [C.blue, C.red, C.amber, C.green, C.violet, C.cyan, C.pink];
+    const out: { row: number; x: number; w: number; color: string }[] = [];
+    for (let row = 0; row < MINI_ROWS; row++) {
+      let x = rnd() * 3;
+      while (x < 100) {
+        const w = 1.5 + rnd() * 9;
+        out.push({ row, x, w: Math.min(w, 100 - x), color: colors[Math.floor(rnd() * colors.length)]! });
+        x += w + 0.4 + (rnd() < 0.25 ? rnd() * 7 : 0);
+      }
+    }
+    return out;
   }, []);
 
-function Scrubber({ handle = true }: { handle?: boolean }) {
-  const series = useSeries();
+/** The app's scrubber, small: a miniature of the plan. `only` fades all but that color. */
+function Scrubber({ handle = true, only }: { handle?: boolean; only?: string }) {
+  const blocks = useMiniPlan();
   return (
     <div className="lp-scrub">
       <div className="lp-scrub-months">
@@ -268,11 +265,21 @@ function Scrubber({ handle = true }: { handle?: boolean }) {
           </span>
         ))}
       </div>
-      <svg className="lp-scrub-graph" viewBox="0 0 600 50" preserveAspectRatio="none" aria-hidden>
-        {series.map((s, i) => (
-          <path key={s.color} d={s.d} stroke={s.color} style={{ ['--i' as string]: i }} />
+      <div className="lp-scrub-plan" aria-hidden>
+        {blocks.map((b, i) => (
+          <i
+            key={i}
+            style={{
+              left: `${b.x}%`,
+              width: `${b.w}%`,
+              top: `${(b.row / MINI_ROWS) * 100}%`,
+              background: b.color,
+              opacity: only && b.color !== only ? 0.14 : undefined,
+              ['--i' as string]: b.row,
+            }}
+          />
         ))}
-      </svg>
+      </div>
       <span className="lp-scrub-today" />
       {handle && <span className="lp-scrub-handle" />}
     </div>
@@ -549,7 +556,7 @@ function ScrubVisual() {
         </span>
         <span className="lp-chip ghost">+ filter</span>
       </div>
-      <Scrubber />
+      <Scrubber only={C.blue} />
     </div>
   );
 }
@@ -674,7 +681,6 @@ function Features() {
     <section className="lp-section" id="features">
       <div className="lp-wrap">
         <Reveal className="lp-heading">
-          <span className="lp-eyebrow" style={{ ['--c' as string]: C.blue }}>Everything in one view</span>
           <h2>Planning that keeps up with the week.</h2>
           <p>For studios, agencies and product teams who plan people, not tickets.</p>
         </Reveal>
@@ -685,7 +691,7 @@ function Features() {
           <Card tint={C.pink} title="Live, together" text="See who’s looking at what. Every edit, comment and @mention shows up for the whole team instantly." delay={80}>
             <LiveVisual />
           </Card>
-          <Card tint={C.amber} title="The months ahead" text="A strip along the bottom charts how busy every week is. Filter on a project and see where its work lands." delay={0}>
+          <Card tint={C.amber} title="The months ahead" text="A strip along the bottom shows months of the plan at once, everyone’s blocks in their colors. Filter on a project and see where its work lands." delay={0}>
             <ScrubVisual />
           </Card>
           <Card tint={C.red} title="Projects and clients" text="Give every project a color and a pattern you can spot anywhere, and a page with its people, dates and notes." delay={80}>
@@ -812,7 +818,6 @@ function Mobile() {
           <Phone />
         </Reveal>
         <Reveal className="lp-split-copy" delay={100}>
-          <span className="lp-eyebrow" style={{ ['--c' as string]: C.green }}>On your phone</span>
           <h2>Your whole plan, in your pocket.</h2>
           <p>
             Made for small screens, not squeezed onto them. Check who’s on what from the train, and move things the moment plans
@@ -843,7 +848,6 @@ function Steps() {
     <section className="lp-section">
       <div className="lp-wrap">
         <Reveal className="lp-heading">
-          <span className="lp-eyebrow" style={{ ['--c' as string]: C.amber }}>Getting started</span>
           <h2>Up and running before your coffee cools.</h2>
         </Reveal>
         <ol className="lp-steps">
@@ -938,7 +942,6 @@ function Import() {
     <section className="lp-section lp-import" id="import">
       <div className="lp-wrap lp-split">
         <Reveal className="lp-split-copy">
-          <span className="lp-eyebrow" style={{ ['--c' as string]: C.pink }}>Moving from Teamweek?</span>
           <h2>Bring your whole history along.</h2>
           <p>Drop in your Teamweek export and pick up exactly where you left off: people, projects and every block, details intact.</p>
           <ul className="lp-checks">
@@ -978,7 +981,6 @@ function Honest() {
     <section className="lp-section lp-honest" id="why">
       <div className="lp-wrap">
         <Reveal className="lp-heading">
-          <span className="lp-eyebrow" style={{ ['--c' as string]: C.violet }}>The honest bit</span>
           <h2>Yes, it’s a Teamweek clone.</h2>
           <p>
             Teamweek got planning right: people down the side, weeks across the top, work you can grab and drag. Then it became Toggl Plan,

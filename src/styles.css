@@ -24,7 +24,7 @@
   /* Text */
   --text: #221f28;
   --text-dim: #66616f;
-  --text-faint: #9893a1;
+  --text-faint: #736e7c;
 
   /* Brand & signals */
   --accent: #c23c63;
@@ -78,33 +78,33 @@
 /* Dark: follows the system unless the theme toggle picked one. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --bg: #151419;
-    --panel: #1b1a20;
-    --panel-2: #24222a;
-    --raised: #1f1d24;
-    --border: #2e2b34;
-    --border-strong: #3e3a45;
-    --hover: rgba(235, 228, 252, 0.06);
+    --bg: #292c34;
+    --panel: #2e3139;
+    --panel-2: #353943;
+    --raised: #30333c;
+    --border: #3a3e48;
+    --border-strong: #4a4f5b;
+    --hover: rgba(220, 228, 255, 0.06);
 
-    --text: #ebe9f0;
-    --text-dim: #aaa5b3;
-    --text-faint: #78737f;
+    --text: #e8eaf0;
+    --text-dim: #aeb3bf;
+    --text-faint: #959ba8;
 
     --accent: #f08aa6;
-    --accent-hover: #fbf8ff;
+    --accent-hover: #ffffff;
     --accent-soft: rgba(240, 138, 166, 0.16);
-    --accent-text: #19171d;
-    --accent-solid: #ebe9f0;
+    --accent-text: #1f2128;
+    --accent-solid: #e8eaf0;
     --today: #ef6f88;
     --danger: #ef7a6b;
 
-    --grid-day: rgba(235, 228, 252, 0.04);
-    --grid-week: rgba(235, 228, 252, 0.09);
-    --weekend: rgba(235, 228, 252, 0.035);
-    --row-line: #211f26;
+    --grid-day: rgba(220, 228, 255, 0.04);
+    --grid-week: rgba(220, 228, 255, 0.09);
+    --weekend: rgba(220, 228, 255, 0.035);
+    --row-line: #30333c;
 
-    --block-l: 0.8;
-  --block-tint: 26%;
+    --block-l: 0.83;
+    --block-tint: 26%;
     --block-tint-hover: 33%;
     --block-tint-strong: 40%;
     --block-ink-base: #ffffff;
@@ -115,47 +115,47 @@
     --shadow-lift: 0 12px 28px -6px rgba(0, 0, 0, 0.7), 0 2px 6px rgba(0, 0, 0, 0.5);
     --ring: 0 0 0 3px rgba(240, 138, 166, 0.3);
 
-    --mm-bg: #1b1a20;
-    --mm-band: rgba(235, 228, 252, 0.025);
-    --mm-line: rgba(235, 228, 252, 0.16);
-    --mm-text: #8a8594;
-    --mm-text-strong: #ebe9f0;
+    --mm-bg: #2e3139;
+    --mm-band: rgba(220, 228, 255, 0.025);
+    --mm-line: rgba(220, 228, 255, 0.16);
+    --mm-text: #8a909c;
+    --mm-text-strong: #e8eaf0;
     --mm-slider: rgba(240, 138, 166, 0.14);
     --mm-slider-border: rgba(240, 138, 166, 0.8);
     --mm-today: #ef6f88;
-    --mm-hover: rgba(235, 233, 240, 0.45);
-    --mm-dim: rgba(21, 20, 25, 0.42);
+    --mm-hover: rgba(232, 234, 240, 0.45);
+    --mm-dim: rgba(41, 44, 52, 0.42);
     --mm-ink: #f08aa6;
     color-scheme: dark;
   }
 }
 :root[data-theme='dark'] {
-  --bg: #151419;
-  --panel: #1b1a20;
-  --panel-2: #24222a;
-  --raised: #1f1d24;
-  --border: #2e2b34;
-  --border-strong: #3e3a45;
-  --hover: rgba(235, 228, 252, 0.06);
+  --bg: #292c34;
+  --panel: #2e3139;
+  --panel-2: #353943;
+  --raised: #30333c;
+  --border: #3a3e48;
+  --border-strong: #4a4f5b;
+  --hover: rgba(220, 228, 255, 0.06);
 
-  --text: #ebe9f0;
-  --text-dim: #aaa5b3;
-  --text-faint: #78737f;
+  --text: #e8eaf0;
+  --text-dim: #aeb3bf;
+  --text-faint: #959ba8;
 
   --accent: #f08aa6;
-  --accent-hover: #fbf8ff;
+  --accent-hover: #ffffff;
   --accent-soft: rgba(240, 138, 166, 0.16);
-  --accent-text: #19171d;
-  --accent-solid: #ebe9f0;
+  --accent-text: #1f2128;
+  --accent-solid: #e8eaf0;
   --today: #ef6f88;
   --danger: #ef7a6b;
 
-  --grid-day: rgba(235, 228, 252, 0.04);
-  --grid-week: rgba(235, 228, 252, 0.09);
-  --weekend: rgba(235, 228, 252, 0.035);
-  --row-line: #211f26;
+  --grid-day: rgba(220, 228, 255, 0.04);
+  --grid-week: rgba(220, 228, 255, 0.09);
+  --weekend: rgba(220, 228, 255, 0.035);
+  --row-line: #30333c;
 
-  --block-l: 0.8;
+  --block-l: 0.83;
   --block-tint: 26%;
   --block-tint-hover: 33%;
   --block-tint-strong: 40%;
@@ -167,16 +167,16 @@
   --shadow-lift: 0 12px 28px -6px rgba(0, 0, 0, 0.7), 0 2px 6px rgba(0, 0, 0, 0.5);
   --ring: 0 0 0 3px rgba(240, 138, 166, 0.3);
 
-  --mm-bg: #1b1a20;
-  --mm-band: rgba(235, 228, 252, 0.025);
-  --mm-line: rgba(235, 228, 252, 0.16);
-  --mm-text: #8a8594;
-  --mm-text-strong: #ebe9f0;
+  --mm-bg: #2e3139;
+  --mm-band: rgba(220, 228, 255, 0.025);
+  --mm-line: rgba(220, 228, 255, 0.16);
+  --mm-text: #8a909c;
+  --mm-text-strong: #e8eaf0;
   --mm-slider: rgba(240, 138, 166, 0.14);
   --mm-slider-border: rgba(240, 138, 166, 0.8);
   --mm-today: #ef6f88;
-  --mm-hover: rgba(235, 233, 240, 0.45);
-  --mm-dim: rgba(21, 20, 25, 0.42);
+  --mm-hover: rgba(232, 234, 240, 0.45);
+  --mm-dim: rgba(41, 44, 52, 0.42);
   --mm-ink: #f08aa6;
   color-scheme: dark;
 }
@@ -1315,7 +1315,8 @@ svg {
 .task-meta {
   font-size: 11px;
   font-weight: 500;
-  opacity: 0.82;
+  /* Small text: kept at 4.5:1 or better on every block color. */
+  opacity: 0.92;
   font-variant-numeric: tabular-nums;
 }
 .task.untitled {
@@ -2370,7 +2371,7 @@ svg {
   align-self: center;
   font-size: 10.5px;
   font-weight: 600;
-  opacity: 0.6;
+  opacity: 0.8;
 }
 
 /* =============================================================================
@@ -4513,7 +4514,7 @@ a.menu-item {
   [data-pattern] {
     /* Tone on tone: a little deeper than the fill, like a print. */
     --pc: oklch(from var(--fill, var(--c)) calc(l - 0.09) calc(c * 1.3) h);
-    --pat-op: 0.55;
+    --pat-op: 0.42;
   }
 }
 .task.untitled[data-pattern],
@@ -4661,18 +4662,18 @@ a.menu-item {
        same hue on top: like a highlighter on paper. Loud colors (a vivid
        one from an import) come out the same depth as the rest. */
     --fill: oklch(from var(--c) var(--block-l) min(calc(c * 0.7), 0.115) h);
-    --ink: oklch(from var(--c) 0.34 min(c, 0.13) h);
+    --ink: oklch(from var(--c) 0.29 min(c, 0.13) h);
   }
 }
 .task.done {
   --pc: var(--c);
   background: color-mix(in oklab, var(--c) 10%, var(--bg));
-  color: color-mix(in oklab, var(--c) 45%, var(--text-dim));
+  /* Quiet but readable (6:1 or better): the strike-through says done. */
+  color: color-mix(in oklab, var(--c) 40%, var(--text));
   text-shadow: none;
   box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--c) 22%, transparent);
 }
 .task.done .task-title {
-  opacity: 0.8;
   text-decoration: line-through;
   text-decoration-color: color-mix(in oklab, currentColor 45%, transparent);
 }

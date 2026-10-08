@@ -189,7 +189,7 @@ export async function handleAuth(req: Request, env: Env, url: URL): Promise<Resp
 main{background:#fffeff;border-radius:16px;padding:36px 32px;border:1px solid #e4e1e9;text-align:center;max-width:340px;margin:16px}
 img{display:block;margin:0 auto 22px}h1{font-size:20px;margin:0 0 6px}p{margin:0 0 22px;color:#66616f}
 button{font:inherit;font-weight:600;color:#fbfafc;background:#26222d;border:0;border-radius:10px;padding:12px 28px;cursor:pointer}button:hover{background:#3a3443}
-@media (prefers-color-scheme:dark){body{background:#151419;color:#ebe9f0}main{background:#1b1a20;border-color:#2e2b34}p{color:#aaa5b3}button,a{background:#ebe9f0;color:#19171d}}</style></head>
+@media (prefers-color-scheme:dark){body{background:#292c34;color:#e8eaf0}main{background:#2e3139;border-color:#3a3e48}p{color:#aeb3bf}button,a{background:#e8eaf0;color:#1f2128}}</style></head>
 <body><main><img src="/icons/icon-192.png" width="56" height="56" alt=""><h1>Sign in to PrepWeek</h1><p>Continue to finish signing in.</p>
 <form method="post" action="/auth/verify"><input type="hidden" name="token" value="${token}"><button autofocus>Continue</button></form></main></body></html>`,
       { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'referrer-policy': 'same-origin' } },
@@ -267,7 +267,7 @@ export const page = (heading: string, text: string, origin: string, action = `<a
 <style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f5f3f7;color:#221f28;font:15px/1.55 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif}
 main{max-width:420px;margin:24px 16px;background:#fff;border:1px solid #e4e1e9;border-radius:14px;padding:28px}h1{margin:0 0 10px;font-size:20px}p{margin:0 0 20px;color:#66616f}
 a,button{display:inline-block;padding:10px 18px;border:0;border-radius:9px;background:#26222d;color:#fbfafc;text-decoration:none;font:inherit;font-weight:600;cursor:pointer}form{margin:0}
-@media (prefers-color-scheme:dark){body{background:#151419;color:#ebe9f0}main{background:#1b1a20;border-color:#2e2b34}p{color:#aaa5b3}button,a{background:#ebe9f0;color:#19171d}}</style></head>
+@media (prefers-color-scheme:dark){body{background:#292c34;color:#e8eaf0}main{background:#2e3139;border-color:#3a3e48}p{color:#aeb3bf}button,a{background:#e8eaf0;color:#1f2128}}</style></head>
 <body><main><h1>${heading}</h1><p>${text}</p>${action}</main></body></html>`,
     { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } },
   );
