@@ -4,6 +4,7 @@ import { createWsSynchronizer } from 'tinybase/synchronizers/synchronizer-ws-cli
 import { store } from './store.ts';
 import { seed } from './seed.ts';
 import { accessReady, getAccess, onAccess, withKey } from './access.ts';
+import { forgetLocalCopy } from './claimed.ts';
 
 export type SyncStatus = 'local' | 'connecting' | 'online' | 'offline';
 
@@ -101,7 +102,7 @@ export const startSync = async (sheetId: string, served = false) => {
   if (!server || !local.empty) settle();
   else setTimeout(settle, 5000);
   if (server)
-    connect(server, sheetId)
+    connect(server, sheetId, local.empty)
       .catch((e) => {
         // e.g. refused because the sheet is private and our link isn't valid.
         console.warn('Sync connection failed', e);
@@ -118,6 +119,32 @@ export const startSync = async (sheetId: string, served = false) => {
 const SYNC_FRAGMENT = 768 * 1024;
 /** Seconds to wait for a reply (large payloads take a while). */
 const SYNC_TIMEOUT = 30;
+const epochKey = (sheet: string) => `prepweek:epoch:${sheet}`;
+/** Which rebuild of the plan this device's copy comes from (0: none yet). */
+const getEpoch = (sheet: string) => {
+  try {
+    return Number(localStorage.getItem(epochKey(sheet)) ?? 0) || 0;
+  } catch {
+    return 0;
+  }
+};
+const setEpoch = (sheet: string, epoch: number) => {
+  try {
+    localStorage.setItem(epochKey(sheet), String(epoch));
+  } catch {}
+};
+const startOver = (sheet: string, epoch: number) => {
+  try {
+    // Never loop: one start-over a minute at most.
+    const last = Number(sessionStorage.getItem('prepweek:startedOver') ?? 0);
+    if (Date.now() - last < 60_000) return console.warn('Plan was rebuilt again; not reloading twice in a minute');
+    sessionStorage.setItem('prepweek:startedOver', String(Date.now()));
+  } catch {}
+  setEpoch(sheet, epoch);
+  forgetLocalCopy(sheet);
+  location.reload();
+};
+
 /** Without a connection this long (and the browser online), say "Offline". */
 const OFFLINE_AFTER = 20_000;
 /** TinyBase reports a closed socket as an error ("tinybase:5"): that's a reconnect, not news. */
@@ -134,7 +161,7 @@ const quietErrors = (e: unknown) => {
  * A new connection starts with a full (hash-based) sync, which also covers
  * edits made offline. Resolves once the first attempt connected or failed.
  */
-const connect = (server: string, sheetId: string) =>
+const connect = (server: string, sheetId: string, fresh: boolean) =>
   new Promise<void>((resolveFirst) => {
     let delay = 1000;
     let retry: ReturnType<typeof setTimeout> | undefined;
@@ -163,15 +190,29 @@ const connect = (server: string, sheetId: string) =>
       await accessReady(server.replace(/^ws/, 'http').replace(/\/sync\/?$/, ''));
       if (locked()) return resolveFirst();
       // A function call, so a reconnect after the share links are reset uses the new key.
-      const ws = new WebSocket(withKey(`${server.replace(/\/$/, '')}/${encodeURIComponent(sheetId)}`));
+      const url = withKey(`${server.replace(/\/$/, '')}/${encodeURIComponent(sheetId)}`);
+      const ws = new WebSocket(`${url}${url.includes('?') ? '&' : '?'}e=${getEpoch(sheetId)}`);
       // Keepalive: a socket with nothing to say gets closed along the way
       // (proxies, the edge). The server answers "ping" itself; the "pong"
       // stops here, before TinyBase's own listener (added after this one).
       ws.addEventListener('message', (e) => e.data === 'pong' && e.stopImmediatePropagation());
       const ping = setInterval(() => ws.readyState === WebSocket.OPEN && ws.send('ping'), 30_000);
       let remote: Awaited<ReturnType<typeof createWsSynchronizer>> | undefined;
-      ws.addEventListener('close', () => {
+      ws.addEventListener('close', (ev) => {
         clearInterval(ping);
+        // The plan was rebuilt on the server (see worker rebuild): this copy
+        // is from before, and syncing it would bring back what the rebuild
+        // left out. Drop it and start over from the server's.
+        if (ev.code === 4002) {
+          const epoch = Number(/epoch:(\d+)/.exec(ev.reason)?.[1] ?? 0);
+          // Nothing here from before (a new device): just take the new epoch.
+          if (fresh) {
+            setEpoch(sheetId, epoch);
+            fresh = false;
+            return void open();
+          }
+          return startOver(sheetId, epoch);
+        }
         void remote?.destroy();
         remote = undefined;
         // Reconnecting quietly is not being offline: say so only when the
@@ -191,6 +232,8 @@ const connect = (server: string, sheetId: string) =>
         if (ws.readyState === WebSocket.OPEN) {
           delay = 1000;
           downSince = 0;
+          // From here on this copy has the plan in it.
+          fresh = false;
           clearTimeout(offlineTimer);
           setStatus('online');
         }

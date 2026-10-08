@@ -1,4 +1,4 @@
-import type { MergeableStore } from 'tinybase';
+import type { MergeableStore, Store } from 'tinybase';
 import { HORIZON_DAYS, isRule, occurrenceId, occurrences, parseSkip } from '../lib/recur.ts';
 import { today, workdays } from '../lib/dates.ts';
 import { packLanes, type Cluster, type PackItem } from '../lib/layout.ts';
@@ -69,6 +69,8 @@ export interface TaskView {
   checked: number;
   /** Estimated minutes for the whole block (0 = none). */
   estimate: number;
+  /** From the archive (finished a while ago): shown, not editable until restored. */
+  archived?: boolean;
 }
 
 export interface Project extends ProjectRow {
@@ -236,7 +238,14 @@ export class TimelineModel {
   private usersDirty = true;
   private listeners = new Set<() => void>();
 
-  constructor(private store: MergeableStore) {
+  /**
+   * `archive`: tasks that finished a while ago, loaded as you scroll back
+   * (data/archive.ts). Read-only, and the live plan wins for the same id.
+   */
+  constructor(
+    private store: MergeableStore,
+    private archive?: Store,
+  ) {
     // Attachments first, so tasks are created with their badge counts.
     for (const id of store.getRowIds('attachments')) this.ingestAttachment(id);
     for (const id of store.getRowIds('comments')) this.ingestComment(id);
@@ -269,6 +278,26 @@ export class TimelineModel {
       if (touched.size || has('users')) this.flush();
       else if (has('milestones') || has('projects') || has('clients') || has('views') || has('links')) this.finish();
     });
+    archive?.addDidFinishTransactionListener(() => {
+      const [tables] = archive.getTransactionChanges();
+      const ids = Object.keys(tables.tasks ?? {});
+      for (const id of ids) this.ingestTask(id);
+      if (ids.length) this.flush();
+    });
+  }
+
+  /** A task's stored row: the live plan's, else the archive's. */
+  private taskRow(id: string): { r: TaskRow & Record<string, unknown>; archived: boolean } | null {
+    if (this.store.hasRow('tasks', id)) return { r: this.store.getRow('tasks', id) as TaskRow & Record<string, unknown>, archived: false };
+    if (this.archive?.hasRow('tasks', id)) return { r: this.archive.getRow('tasks', id) as TaskRow & Record<string, unknown>, archived: true };
+    return null;
+  }
+
+  /** Archive totals per project (merged into projectStats once loaded). */
+  private archivedProjects: Map<string, { tasks: number; days: number; first: number; last: number; people: string[] }> | null = null;
+  setArchivedProjects(m: Map<string, { tasks: number; days: number; first: number; last: number; people: string[] }> | null) {
+    this.archivedProjects = m;
+    this.finish();
   }
 
   subscribe = (fn: () => void) => {
@@ -410,6 +439,15 @@ export class TimelineModel {
       if (t.end > s.last) s.last = t.end;
       if (t.userId) s.people.add(t.userId);
     }
+    for (const [pid, a] of this.archivedProjects ?? []) {
+      let s = out.get(pid);
+      if (!s) out.set(pid, (s = { tasks: 0, days: 0, upcoming: 0, first: Infinity, last: -Infinity, people: new Set() }));
+      s.tasks += a.tasks;
+      s.days += a.days;
+      s.first = Math.min(s.first, a.first);
+      s.last = Math.max(s.last, a.last);
+      for (const p of a.people) s.people.add(p);
+    }
     return out;
   }
 
@@ -530,7 +568,7 @@ export class TimelineModel {
   private ingestTask(id: string) {
     // Joining or leaving a group changes how many people its other rows show.
     const prevGroup = this.taskGroup.get(id) ?? '';
-    const nextGroup = this.store.hasRow('tasks', id) ? ((this.store.getCell('tasks', id, 'group') as string) ?? '') : '';
+    const nextGroup = (this.taskRow(id)?.r.group as string | undefined) ?? '';
     if (prevGroup !== nextGroup) {
       if (prevGroup) {
         this.groups.get(prevGroup)?.delete(id);
@@ -554,12 +592,14 @@ export class TimelineModel {
       this.prevLane.delete(o);
     }
     this.occIds.delete(id);
-    if (!this.store.hasRow('tasks', id)) {
+    const found = this.taskRow(id);
+    if (!found) {
       this.prevLane.delete(id);
       this.storedLane.delete(id);
       return;
     }
-    const r = this.store.getRow('tasks', id) as TaskRow;
+    const { r, archived } = found;
+    const count = (k: string) => (archived ? Number(r[k] ?? 0) : 0);
     const start = Math.min(r.start, r.end);
     const end = Math.max(r.start, r.end);
     const view: TaskView = {
@@ -571,8 +611,8 @@ export class TimelineModel {
       color: r.color,
       notes: r.notes,
       lane: -1,
-      files: this.fileCount.get(r.group || id) ?? 0,
-      comments: this.commentCount.get(r.group || id) ?? 0,
+      files: archived ? count('_files') : (this.fileCount.get(r.group || id) ?? 0),
+      comments: archived ? count('_comments') : (this.commentCount.get(r.group || id) ?? 0),
       projectId: r.projectId ?? '',
       project: (r.projectId && this.projectById.get(r.projectId)?.name) || '',
       client: (r.projectId && this.projectById.get(r.projectId)?.client) || '',
@@ -585,9 +625,10 @@ export class TimelineModel {
       done: !!r.done,
       time: r.time ?? '',
       off: r.kind === 'off',
-      checks: this.checkCount.get(r.group || id)?.n ?? 0,
-      checked: this.checkCount.get(r.group || id)?.done ?? 0,
+      checks: archived ? count('_checks') : (this.checkCount.get(r.group || id)?.n ?? 0),
+      checked: archived ? count('_checked') : (this.checkCount.get(r.group || id)?.done ?? 0),
       estimate: r.estimate ?? 0,
+      ...(archived ? { archived: true } : {}),
     };
     let m = this.byUser.get(r.userId);
     if (!m) this.byUser.set(r.userId, (m = new Map()));

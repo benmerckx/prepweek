@@ -1,6 +1,7 @@
 // The planner: everything needed to open a sheet (store, sync, timeline).
 // Loaded on demand by main.tsx, so the landing page doesn't download it.
 
+import { archive } from './data/archive.ts';
 import type { Root } from 'react-dom/client';
 import { migrateClients, migrateColors, store } from './data/store.ts';
 import { getServerHttp, startSync } from './data/sync.ts';
@@ -70,7 +71,7 @@ export const startApp = async (root: Root, account: Promise<Me | null>) => {
     loadIdentity();
     // What we may do here (view-only, or locked out); never blocks first paint.
     void loadAccess(getServerHttp());
-    const model = new TimelineModel(store);
+    const model = new TimelineModel(store, archive);
     root.render(<Timeline model={model} />);
   }
 };

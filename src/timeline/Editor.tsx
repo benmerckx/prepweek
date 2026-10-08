@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { Attachments, attachFiles } from './Attachments.tsx';
-import { deleteTask, getTask, linksOf, updateTask } from '../data/store.ts';
+import { deleteTask, getTask, isReadOnly, linksOf, updateTask } from '../data/store.ts';
+import { restoreArchived } from '../data/archive.ts';
 import { RULES, RULE_LABELS, type Rule } from '../lib/recur.ts';
 import { formatDay } from '../lib/dates.ts';
 import type { TaskView, TimelineModel } from './model.ts';
@@ -43,6 +44,24 @@ interface Props {
   onRetarget(id: string): void;
   /** Play the open animation (not when switching between blocks). */
   enter?: boolean;
+}
+
+/** On a task from the archive: what it is, and the way back into the plan. */
+function ArchivedNote({ task }: { task: TaskView }) {
+  const n = (count: number, one: string) => (count ? `${count} ${one}${count === 1 ? '' : 's'}` : '');
+  const extras = [n(task.comments, 'comment'), n(task.files, 'file'), task.checks ? `${task.checked}/${task.checks} checked` : ''].filter(Boolean).join(', ');
+  return (
+    <div className="editor-archived">
+      <p>
+        <b>Archived.</b> It finished a while ago, so it's kept out of the live plan{extras ? `, with its ${extras}` : ''}. Restore it to change it.
+      </p>
+      {!isReadOnly() && (
+        <button type="button" className="btn" onClick={() => restoreArchived(task.series)}>
+          Restore to edit
+        </button>
+      )}
+    </div>
+  );
 }
 
 export function Editor({ task, model, sheet, side, readOnly, onClose, onRetarget, enter = true }: Props) {
@@ -199,6 +218,7 @@ export function Editor({ task, model, sheet, side, readOnly, onClose, onRetarget
       <button type="button" className="editor-close" aria-label="Close" title="Close (Esc)" onClick={onClose}>
         <Close />
       </button>
+      {task.archived && <ArchivedNote task={task} />}
       <fieldset className="editor-fieldset" disabled={readOnly}>
         <div className="editor-head">
           <button
@@ -308,9 +328,10 @@ export function Editor({ task, model, sheet, side, readOnly, onClose, onRetarget
         </section>
         {!task.off && show('checks') && <Checklist task={task} readOnly={readOnly} autoFocus={extra.has('checks')} />}
       </fieldset>
-      <Attachments taskId={task.thread} onError={setError} />
+      {/* An archived task's files and comments come back with it. */}
+      {!task.archived && <Attachments taskId={task.thread} onError={setError} />}
       {error && <p className="editor-error">{error}</p>}
-      <Discussion taskId={task.thread} collapsed={sheet && !task.comments} />
+      {!task.archived && <Discussion taskId={task.thread} collapsed={sheet && !task.comments} />}
       <div className="editor-actions">
         {!readOnly && (
           <button

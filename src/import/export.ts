@@ -4,6 +4,7 @@
 // minutes, as Teamweek writes them.
 
 import { getUser, parseTags, store, type TaskRow } from '../data/store.ts';
+import { allArchived } from '../data/archive.ts';
 import { ymd } from '../lib/dates.ts';
 
 const HEADER = [
@@ -18,12 +19,17 @@ const iso = (day: number) => {
 const cell = (v: string) => (/[",\n\r]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
 const TIME = /(\d{1,2}:\d{2})\s*[–-]\s*(\d{1,2}:\d{2})/;
 
-/** Every task as a CSV row (a task for several people: a row per person). */
-export const planCsv = (): string => {
+/**
+ * Every task as a CSV row (a task for several people: a row per person),
+ * archived ones (`archived`: id → row) included.
+ */
+export const planCsv = (archived: Record<string, TaskRow> = {}): string => {
   const rows = [HEADER.map(cell).join(',')];
-  const ids = store.getRowIds('tasks').sort((a, b) => (store.getCell('tasks', a, 'start') as number) - (store.getCell('tasks', b, 'start') as number));
+  const all: Record<string, TaskRow> = { ...archived };
+  for (const id of store.getRowIds('tasks')) all[id] = store.getRow('tasks', id) as TaskRow;
+  const ids = Object.keys(all).sort((a, b) => all[a]!.start - all[b]!.start);
   for (const id of ids) {
-    const t = store.getRow('tasks', id) as TaskRow;
+    const t = all[id]!;
     const user = getUser(t.userId);
     const project = t.projectId && store.hasRow('projects', t.projectId) ? store.getRow('projects', t.projectId) : null;
     const clientId = (project?.clientId as string) || '';
@@ -59,9 +65,11 @@ export const planCsv = (): string => {
 };
 
 /** Save the CSV as a download. */
-export const downloadPlanCsv = (name: string) => {
+export const downloadPlanCsv = async (name: string) => {
+  const archived: Record<string, TaskRow> = {};
+  for (const b of await allArchived().catch(() => [])) Object.assign(archived, b.tasks);
   // A BOM, so Excel reads it as UTF-8.
-  const blob = new Blob(['﻿', planCsv()], { type: 'text/csv;charset=utf-8' });
+  const blob = new Blob(['﻿', planCsv(archived)], { type: 'text/csv;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = `${(name || 'prepweek').replace(/[^\w\- ]+/g, '').trim() || 'prepweek'} ${iso(Math.floor(Date.now() / 86_400_000))}.csv`;

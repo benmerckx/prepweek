@@ -86,13 +86,26 @@ export class Viewport {
     return this.scale.x(day);
   }
 
+  /** Asked to show a day outside the scrollable range: re-centre it there (synchronously). */
+  onOutOfRange?: (day: number) => void;
+  /** Mid re-centring: the view is about to be placed, don't keep the old one. */
+  recentring = false;
+
   /** Scroll so `day` (fractional) sits at `frac` of the visible width. */
   scrollToDay(day: number, frac = 0.5, smooth = false, top?: number) {
     const s = this.scroller;
     if (!s) return;
+    // Outside the range: it's centred on the day, and the jump is instant
+    // (a smooth one would start from wherever the old view ended up).
+    const outside = day < this.origin || day >= this.origin + this.rangeDays;
+    if (outside) {
+      this.recentring = true;
+      this.onOutOfRange?.(day);
+      this.recentring = false;
+    }
     const left = this.scale.xF(day) - this.viewWidth * frac;
     // One call for both axes: a second smooth scroll would cancel the first.
-    s.scrollTo({ left, ...(top !== undefined ? { top: Math.max(0, top) } : {}), behavior: smooth ? 'smooth' : 'instant' });
+    s.scrollTo({ left, ...(top !== undefined ? { top: Math.max(0, top) } : {}), behavior: smooth && !outside ? 'smooth' : 'instant' });
   }
 
   maxScrollLeft() {

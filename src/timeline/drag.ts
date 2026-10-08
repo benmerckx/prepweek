@@ -38,6 +38,8 @@ interface Session {
   anchor: number;
   /** The task's lane in the layout at pointerdown. */
   lane0?: number;
+  /** An archived block: it can be selected and opened, not moved. */
+  locked?: boolean;
   downX: number;
   downY: number;
   lastX: number;
@@ -119,7 +121,7 @@ export class DragController {
       // Grab offset from the edge being dragged, so the edge doesn't jump to
       // the pointer (matters for the offset touch knobs).
       const grab = kind === 'resize-end' ? col - sc.col(task.end + 1) : col - sc.col(task.start);
-      this.s = { ...base, kind, taskId: task.id, userId: task.userId, start: task.start, end: task.end, grab, anchor: 0, lane0: this.model.laneOf(task.id) };
+      this.s = { ...base, kind, taskId: task.id, userId: task.userId, start: task.start, end: task.end, grab, anchor: 0, lane0: this.model.laneOf(task.id), locked: !!task.archived };
     } else {
       // View-only: tapping a block selects it, nothing else.
       if (isReadOnly()) return;
@@ -156,7 +158,8 @@ export class DragController {
     }
     if (!s.started) {
       if (Math.hypot(e.clientX - s.downX, e.clientY - s.downY) < SLOP) return;
-      if (isReadOnly()) return this.end();
+      // View-only, or archived (restore it first): selecting only.
+      if (isReadOnly() || s.locked) return this.end();
       this.begin();
     }
     this.update();
@@ -175,7 +178,7 @@ export class DragController {
     const s = this.s;
     if (!s?.pending) return;
     s.pending = false;
-    if (isReadOnly()) return;
+    if (isReadOnly() || s.locked) return;
     navigator.vibrate?.(8);
     this.begin();
     this.update();

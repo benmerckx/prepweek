@@ -253,6 +253,10 @@ const HELP: { title: string; items: [string, ReactNode][] }[] = [
     items: [
       ['Does it work offline?', 'Yes. Your plan lives on your device and syncs when you’re back online; changes from others merge in.'],
       ['Can I get my data out?', '⋯ → Export as CSV, any time, in the same columns as the import. ⋯ → Add to your calendar gives a live link for Google, Apple or Outlook.'],
+      [
+        'Why can’t I edit an old task?',
+        'Tasks that finished more than three months ago move to the archive, so plans with years of history stay quick. They still show when you scroll back. Open one and press Restore to edit to bring it back into the plan.',
+      ],
       ['Can I undo a mistake?', 'Yes: ⌘Z / Ctrl+Z undoes your own changes, and the Activity panel shows who changed what.'],
     ],
   },

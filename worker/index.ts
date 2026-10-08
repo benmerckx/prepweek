@@ -10,7 +10,8 @@
 //   wss://<host>/sync/<sheetId>      → Durable Object named "sync/<sheetId>"
 //   wss://<host>/presence/<sheetId>  → presence relay for the sheet
 //   /files/<sheetId>/<id>            → attachment bytes in R2
-//   /share/<sheetId>                 → GET sharing state, POST enable/rotate/disable/feed
+//   /share/<sheetId>                 → GET sharing state, POST enable/rotate/disable/feed/rebuild
+//   /archive/<sheetId>?from=&to=     → archived tasks in a date range (see archive.ts)
 //   /ical/<sheetId>/<person|all>.ics?f=<feed key> → calendar feed (no cookie: calendar apps)
 //   /auth/*, /api/*                  → accounts, workspaces, sheets (auth.ts)
 //   /auth/appsumo/*, /api/appsumo/*  → AppSumo licences (appsumo.ts)
@@ -25,9 +26,13 @@ import { buildCalendar } from './ical.ts';
 import { appsumoApi, appsumoCallback, appsumoWebhook } from './appsumo.ts';
 import { billingApi } from './billing.ts';
 import { personKey } from '../src/lib/plans.ts';
+import { rebuildTables } from '../src/lib/rebuild.ts';
+import { today } from '../src/lib/dates.ts';
+import { archiveOf } from './archive.ts';
 import type { Env } from './env.ts';
 
 export { DirectoryDurableObject } from './directory.ts';
+export { ArchiveDurableObject } from './archive.ts';
 
 export type Role = 'edit' | 'view' | 'none';
 interface Share {
@@ -46,11 +51,16 @@ const newToken = () => {
 };
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
+/** A plan this big is rebuilt even with people connected (they reload). */
+const BIG_PLAN_TASKS = 15_000;
 
 export class SheetDurableObject extends WsServerDurableObject {
   // Set by createPersister, which TinyBase calls from its constructor: before
   // this class's own fields exist, so no private field or initializer here.
   declare sheetStore: ReturnType<typeof createMergeableStore> | undefined;
+  declare sheetPersister: ReturnType<typeof createDurableObjectSqlStoragePersister> | undefined;
 
   // Stored "fragmented": a row per table/row/value. The default JSON mode
   // keeps the whole sheet in one row, and Cloudflare caps a row at 2 MB, so a
@@ -110,6 +120,7 @@ export class SheetDurableObject extends WsServerDurableObject {
       sql.exec('DROP TABLE tinybase');
     }
     skipWrites = true;
+    this.sheetPersister = persister;
     let saving = false;
     persister.addStatusListener((_, status) => {
       if (status === 2 /* saving */) saving = true;
@@ -229,6 +240,85 @@ export class SheetDurableObject extends WsServerDurableObject {
   }
 
   /**
+   * Rebuild the live plan: tasks that finished a while ago go to the archive,
+   * and the plan is saved again without what it no longer needs (deleted
+   * rows, cells at their default value, old activity; see lib/rebuild.ts).
+   * Everyone is disconnected; their devices drop their copy (a new epoch)
+   * and download the lean one. The object then restarts, freeing the old
+   * copy. Unless forced, only when it makes a real difference.
+   */
+  async rebuild(force = false, dry = false): Promise<string> {
+    const store = this.sheetStore;
+    const sheet = this.ctx.storage.kv.get<string>('sheet');
+    if (!store || !sheet) return 'nothing to rebuild';
+    const sql = this.ctx.storage.sql;
+    // As JSON: TinyBase's objects have no prototype (and this is a copy).
+    const { tables, bundles, dropped } = rebuildTables(JSON.parse(JSON.stringify(store.getTables())), today(), Date.now());
+    const stored = sql.exec<{ n: number }>('SELECT COUNT(*) AS n FROM tinybase_tables').one().n;
+    // Stored rows: a row per table row, plus one per cell changed since
+    // (and the rows of deleted things). Needed: the lean plan's rows.
+    let rows = 0;
+    for (const table of Object.values(tables)) rows += Object.keys(table).length;
+    const worth = bundles.length >= 200 || dropped.activity >= 1000 || dropped.orphans >= 500 || stored > rows * 1.5 + 2000;
+    if (dry || (!force && !worth)) return `${dry ? 'dry run' : 'not needed'}: ${stored} stored rows, ${rows} needed, ${bundles.length} to archive`;
+    // The archive first: if this stops halfway, the plan still has them.
+    const archive = archiveOf(this.env as Env, sheet);
+    for (let i = 0; i < bundles.length; i += 300) await archive.put(JSON.stringify(bundles.slice(i, i + 300)));
+    // Threads that are live (restored from the archive since): not archived twice.
+    const live = new Set(Object.entries(tables.tasks ?? {}).map(([id, t]) => (t.group as string) || id));
+    if (live.size) await archive.forget([...live]);
+    // From here on nothing waits on anything else, so no message comes in
+    // between: a new epoch turns every reconnecting device away until it
+    // has dropped its copy, then the lean plan replaces the stored one.
+    this.ctx.storage.kv.put('epoch', (this.ctx.storage.kv.get<number>('epoch') ?? 0) + 1);
+    this.ctx.storage.kv.put('rebuilt', Date.now());
+    await this.sheetPersister?.stopAutoSave();
+    this.kick('Plan rebuilt');
+    const lean = createMergeableStore();
+    lean.transaction(() => {
+      lean.setTables(tables as Parameters<typeof lean.setTables>[0]);
+      lean.setValues(JSON.parse(JSON.stringify(store.getValues())));
+    });
+    // Written beside the stored plan first, then swapped in one transaction:
+    // stopping halfway (memory, a deploy) leaves the old plan as it was.
+    sql.exec('DROP TABLE IF EXISTS rebuild_tinybase_tables');
+    sql.exec('DROP TABLE IF EXISTS rebuild_tinybase_values');
+    await createDurableObjectSqlStoragePersister(lean, sql, { mode: 'fragmented', storagePrefix: 'rebuild_' }).save();
+    this.ctx.storage.transactionSync(() => {
+      sql.exec('DELETE FROM tinybase_tables');
+      sql.exec('INSERT INTO tinybase_tables SELECT * FROM rebuild_tinybase_tables');
+      sql.exec('DELETE FROM tinybase_values');
+      sql.exec('INSERT INTO tinybase_values SELECT * FROM rebuild_tinybase_values');
+      sql.exec('DROP TABLE rebuild_tinybase_tables');
+      sql.exec('DROP TABLE rebuild_tinybase_values');
+    });
+    const after = sql.exec<{ n: number }>('SELECT COUNT(*) AS n FROM tinybase_tables').one().n;
+    // Start over from the lean copy (the old one goes with this instance).
+    setTimeout(() => this.ctx.abort('Rebuilt'), 50);
+    const msg = `rebuilt: ${stored} → ${after} stored rows, ${bundles.length} threads archived, ${dropped.orphans} orphans and ${dropped.activity} old activity dropped`;
+    console.log(sheet, msg);
+    return msg;
+  }
+
+  /**
+   * Daily: rebuild when it's worth it. Only while nobody is connected (they
+   * would have to reload), unless the plan is so big it can't wait.
+   */
+  override async alarm() {
+    const busy = this.ctx.getWebSockets().length > 0;
+    const big = (this.sheetStore?.getRowCount('tasks') ?? 0) > BIG_PLAN_TASKS;
+    const due = Date.now() - (this.ctx.storage.kv.get<number>('rebuilt') ?? 0) > DAY_MS;
+    if (due && (!busy || big)) {
+      // Checked (or done): not again today.
+      this.ctx.storage.kv.put('rebuilt', Date.now());
+      const r = await this.rebuild().catch((e) => `failed: ${e instanceof Error ? e.message : e}`);
+      if (!r.startsWith('rebuilt')) console.log(this.ctx.storage.kv.get('sheet'), 'rebuild', r);
+      if (r.startsWith('rebuilt')) return; // restarting; the next connection sets the alarm again
+    }
+    await this.ctx.storage.setAlarm(Date.now() + (due && busy ? HOUR_MS : DAY_MS));
+  }
+
+  /**
    * Attachment files whose attachment was removed: at most weekly, when
    * someone connects. Only files over a week old, so a just-uploaded file
    * whose row hasn't arrived yet (or an undo soon after) is safe.
@@ -238,7 +328,8 @@ export class SheetDurableObject extends WsServerDurableObject {
     if (!files || !this.sheetStore) return;
     if (Date.now() - ((await this.ctx.storage.get<number>('filesCollected')) ?? 0) < WEEK_MS) return;
     await this.ctx.storage.put('filesCollected', Date.now());
-    const live = new Set(this.sheetStore.getRowIds('attachments'));
+    // Files on archived tasks are still in use.
+    const live = new Set([...this.sheetStore.getRowIds('attachments'), ...(await archiveOf(this.env as Env, sheet).fileIds())]);
     const prefix = `${sheet}/`;
     for (let cursor: string | undefined; ; ) {
       const page = await files.list({ prefix, cursor });
@@ -316,6 +407,16 @@ export class SheetDurableObject extends WsServerDurableObject {
       if (this.ctx.storage.kv.get('sheet') !== decodeURIComponent(sheet)) this.ctx.storage.kv.put('sheet', decodeURIComponent(sheet));
       this.#watchPeople(decodeURIComponent(sheet));
     }
+    // A device holding a copy from before the last rebuild drops it and
+    // starts over: syncing it would bring back everything the rebuild left out.
+    const epoch = this.ctx.storage.kv.get<number>('epoch') ?? 0;
+    if (sheet && Number(new URL(request.url).searchParams.get('e') ?? 0) !== epoch) {
+      const { 0: client, 1: server } = new WebSocketPair();
+      server.accept();
+      server.close(4002, `epoch:${epoch}`);
+      return new Response(null, { status: 101, webSocket: client });
+    }
+    if (sheet && (await this.ctx.storage.getAlarm()) === null) await this.ctx.storage.setAlarm(Date.now() + 10 * 60 * 1000);
     const role = request.headers.get('x-prepweek-role');
     const response = await super.fetch!(request);
     // Mark view-only sockets; the mark lives on the socket (survives hibernation).
@@ -446,7 +547,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
   // A deploy that didn't come from wrangler.toml (e.g. edited in the dashboard).
   if (!env.DIRECTORY || !env.SHEETS || !env.PRESENCE) {
-    if (!/^\/(sync|files|presence|share|auth|api)\//.test(url.pathname)) return env.ASSETS.fetch(request);
+    if (!/^\/(sync|files|presence|share|archive|auth|api)\//.test(url.pathname)) return env.ASSETS.fetch(request);
     return new Response('Server misconfigured: the Durable Object bindings (SHEETS, PRESENCE, DIRECTORY) are missing. Deploy with wrangler.toml.', { status: 500 });
   }
   if (url.pathname === '/auth/appsumo/callback') return appsumoCallback(request, env, url);
@@ -464,7 +565,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
     if (body === null) return new Response('This calendar link has expired', { status: 404 });
     return new Response(body, { headers: { 'content-type': 'text/calendar; charset=utf-8', 'cache-control': 'private, max-age=300', 'content-disposition': 'inline; filename="prepweek.ics"' } });
   }
-  const route = /^\/(sync|files|presence|share)\/([^/]+)/.exec(url.pathname);
+  const route = /^\/(sync|files|presence|share|archive)\/([^/]+)/.exec(url.pathname);
   if (!route) return env.ASSETS.fetch(request);
   const kind = route[1]!;
   const sheet = decodeURIComponent(route[2]!);
@@ -485,6 +586,8 @@ async function handle(request: Request, env: Env): Promise<Response> {
       // Anyone who may see the sheet may subscribe to it in their calendar.
       if (url.searchParams.has('feed')) return json({ feed: await stub.feedKey() });
       if (role !== 'edit') return forbidden();
+      // Rebuild now (normally daily, when worth it; see SheetDurableObject.rebuild).
+      if (url.searchParams.has('rebuild')) return json({ result: await stub.rebuild(true, url.searchParams.get('rebuild') === 'dry') });
       const { action } = (await request.json().catch(() => ({}))) as { action?: string };
       if (action !== 'enable' && action !== 'rotate' && action !== 'disable') return json({ error: 'Unknown action' }, 400);
       // Without a workspace, the links are the only lock: they can't go.
@@ -497,6 +600,17 @@ async function handle(request: Request, env: Env): Promise<Response> {
   }
 
   if (role === 'none') return forbidden();
+  if (kind === 'archive') {
+    const archive = archiveOf(env, sheet);
+    const text = (body: string) => new Response(body, { headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
+    if (url.searchParams.has('summary')) return text(await archive.summary());
+    if (url.searchParams.has('meta')) return json(await archive.meta());
+    if (url.searchParams.has('page')) return text(await archive.page(url.searchParams.get('page') ?? ''));
+    const from = Number(url.searchParams.get('from'));
+    const to = Number(url.searchParams.get('to'));
+    if (!Number.isFinite(from) || !Number.isFinite(to)) return json({ error: 'from and to are days' }, 400);
+    return text(await archive.range(from, to));
+  }
   if (kind === 'sync') {
     if (request.headers.get('upgrade')?.toLowerCase() !== 'websocket') return new Response('Upgrade required', { status: 426 });
     // The role is decided here, never by the client.

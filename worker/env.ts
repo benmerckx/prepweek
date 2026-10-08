@@ -1,5 +1,6 @@
 import type { DirectoryDurableObject } from './directory.ts';
 import type { PresenceDurableObject, SheetDurableObject } from './index.ts';
+import type { ArchiveDurableObject } from './archive.ts';
 
 export interface Env {
   /** Optional R2 bucket for attachment bytes. */
@@ -7,6 +8,8 @@ export interface Env {
   SHEETS: DurableObjectNamespace<SheetDurableObject>;
   PRESENCE: DurableObjectNamespace<PresenceDurableObject>;
   DIRECTORY: DurableObjectNamespace<DirectoryDurableObject>;
+  /** Each sheet's archive: tasks that finished a while ago (archive.ts). */
+  ARCHIVES: DurableObjectNamespace<ArchiveDurableObject>;
   ASSETS: Fetcher;
   /** Optional: send magic links and invites with Mandrill (Mailchimp Transactional). */
   MANDRILL_API_KEY?: string;

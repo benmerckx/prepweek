@@ -46,11 +46,25 @@ export const directory = (env: Env) => env.DIRECTORY.get(env.DIRECTORY.idFromNam
  * open ones: they reconnect and are checked again. With `wipe`, the sheets
  * were deleted: free their storage and attachment files too.
  */
+/** A sheet's archive (archive.ts; not imported here, it needs the Workers runtime). */
+const archiveOf = (env: Env, sheet: string) => env.ARCHIVES.get(env.ARCHIVES.idFromName(sheet));
+
+/** Every archived task of a sheet (bundles, see archive.ts), for the data export. */
+const archivedOf = async (env: Env, sheet: string) => {
+  const out: unknown[] = [];
+  for (let after: string | null = ''; after !== null; ) {
+    const page = JSON.parse(await archiveOf(env, sheet).page(after)) as { bundles: unknown[]; next: string | null };
+    out.push(...page.bundles);
+    after = page.next;
+  }
+  return out;
+};
+
 const dropConnections = async (env: Env, sheets: string[], wipe = false) => {
   await Promise.all(
     sheets.map(async (id) => {
       const sheet = env.SHEETS.get(env.SHEETS.idFromName(`sync/${id}`));
-      await Promise.all([wipe ? sheet.wipe() : sheet.kick(), env.PRESENCE.get(env.PRESENCE.idFromName(id)).kick()]);
+      await Promise.all([wipe ? sheet.wipe() : sheet.kick(), env.PRESENCE.get(env.PRESENCE.idFromName(id)).kick(), wipe ? archiveOf(env, id).wipe() : null]);
       if (!wipe || !env.FILES) return;
       for (let cursor: string | undefined; ; ) {
         const page = await env.FILES.list({ prefix: `${id}/`, cursor });
@@ -350,7 +364,12 @@ export async function handleApi(req: Request, env: Env, url: URL): Promise<Respo
           name: w.name,
           role: w.role,
           sheets: await Promise.all(
-            w.sheets.map(async (s) => ({ id: s.id, name: s.name, ...(JSON.parse(await env.SHEETS.get(env.SHEETS.idFromName(`sync/${s.id}`)).exportTables()) as { tables: unknown; values: unknown }) })),
+            w.sheets.map(async (s) => ({
+              id: s.id,
+              name: s.name,
+              ...(JSON.parse(await env.SHEETS.get(env.SHEETS.idFromName(`sync/${s.id}`)).exportTables()) as { tables: unknown; values: unknown }),
+              archived: await archivedOf(env, s.id),
+            })),
           ),
         })),
       );

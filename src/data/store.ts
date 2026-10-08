@@ -1,5 +1,6 @@
 import { createMergeableStore, type Row } from 'tinybase';
 import { isRule, occurrenceStart, parseSkip, splitOccurrence } from '../lib/recur.ts';
+import { TASK_DEFAULTS } from '../lib/rebuild.ts';
 import { isWeekend } from '../lib/dates.ts';
 
 // One MergeableStore per "sheet". It is a CRDT (hybrid logical clocks per
@@ -244,8 +245,6 @@ export const newId = (): string => {
 
 const NOT_RECURRING = { repeat: '', repeatUntil: 0, skip: '' };
 
-/** Optional task cells at their default value: absent and default read the same. */
-const TASK_DEFAULTS: Record<string, unknown> = { projectId: '', tags: '', repeat: '', pattern: '', done: false, time: '', repeatUntil: 0, skip: '', group: '', kind: '', estimate: 0 };
 /** A default value is only written over a value; it never adds a cell. */
 const adds = (id: string, k: string, v: unknown) => !(k in TASK_DEFAULTS && TASK_DEFAULTS[k] === v && !store.hasCell('tasks', id, k));
 /** A task row without the default cells it doesn't need. */
@@ -385,7 +384,7 @@ export const deleteComment = (id: string) => commit('Delete comment', [['comment
 // changes that arrived from other collaborators. Instead each local command
 // records the cells it changed, and undo only restores those cells.
 
-type TableId = 'users' | 'tasks' | 'milestones' | 'attachments' | 'projects' | 'clients' | 'views' | 'comments' | 'links' | 'checks';
+export type TableId = 'users' | 'tasks' | 'milestones' | 'attachments' | 'projects' | 'clients' | 'views' | 'comments' | 'links' | 'checks';
 type Snap = { table: TableId; id: string; row: Row | null };
 type Entry = { label: string; before: Snap[]; after: Snap[] };
 

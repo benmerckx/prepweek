@@ -246,6 +246,25 @@ with Worker secrets (`wrangler secret put …`) and the `[vars]` in `wrangler.to
 Without a mail provider, `wrangler dev` on localhost shows the magic link on
 screen instead of emailing it.
 
+### Big plans: archive and rebuild
+
+A sheet's Durable Object keeps its whole live plan in memory (TinyBase), and
+a Durable Object has 128 MB. So once a day (the object's alarm) a sheet is
+rebuilt when that's worth it (`src/lib/rebuild.ts`, `SheetDurableObject.rebuild`):
+
+- Tasks that finished more than 90 days ago move to the sheet's archive
+  (`worker/archive.ts`), plain SQLite rows that take no memory until asked
+  for. The app fetches them a few weeks at a time as you scroll back; they're
+  read-only until restored.
+- The live plan is saved again without what it no longer needs: rows of
+  deleted things, cells at their default value, activity older than 90 days.
+- Every device is disconnected, and a new epoch makes each one drop its local
+  copy and download the lean plan (a device with nothing stored just carries
+  on). Unsynced offline edits on a device from before the rebuild are lost.
+
+Rebuilds wait until nobody is connected, unless the plan has more than 15,000
+tasks. `POST /share/<sheet>?rebuild` forces one (`?rebuild=dry` only reports).
+
 ### Sharing
 
 A sheet in a workspace opens for the workspace's members (after logging

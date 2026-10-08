@@ -1,5 +1,6 @@
+import { archiveSummary, ensureArchive, loadArchiveSummary } from '../data/archive.ts';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { createPortal } from 'react-dom';
+import { createPortal, flushSync } from 'react-dom';
 import { CHUNK, COMFORTABLE, COMPACT, type TimelineModel } from './model.ts';
 import { Scale } from './scale.ts';
 import { LinkLayer } from './Links.tsx';
@@ -32,7 +33,7 @@ import { MilestoneBand, MilestoneEditor, MilestoneLines, type MsDrag } from './M
 import { Flag, Minus, Plus } from '../ui/icons.tsx';
 import { useBackToClose } from '../lib/useBackToClose.ts';
 import { createMilestone, createTask, createUser, deleteTask, discardNewTask, getTask, getUser, MILESTONE_COLORS, PALETTE, redo, store, undo, updateTask, type ViewConfig } from '../data/store.ts';
-import { dayFromYMD, formatRange, startOfWeek, startOfYear, today as getToday, ymd } from '../lib/dates.ts';
+import { formatRange, startOfWeek, today as getToday } from '../lib/dates.ts';
 
 interface Win {
   d0: number;
@@ -89,6 +90,26 @@ const isTyping = (t: EventTarget | null) =>
   // Also dropdown lists and calendars: their keys (Backspace, arrows) are theirs.
   (t.isContentEditable || t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || !!t.closest('.ui-pop'));
 
+/** Steps the scrollable range grows by (a multiple of the render tile, CHUNK). */
+const RANGE_STEP = 7 * CHUNK;
+const RANGE_MAX = 3 * RANGE_STEP;
+const rangeAround = (day: number) => {
+  const origin = startOfWeek(Math.floor(day) - RANGE_STEP);
+  return { origin, days: 2 * RANGE_STEP };
+};
+/** Half a year more on one side; the other side goes past a year and a half. */
+const grow = (r: { origin: number; days: number }, dir: -1 | 1) => {
+  let { origin, days } = r;
+  if (dir < 0) origin -= RANGE_STEP;
+  days += RANGE_STEP;
+  const over = days - RANGE_MAX;
+  if (over > 0) {
+    days -= over;
+    if (dir > 0) origin += over;
+  }
+  return { origin, days };
+};
+
 export function Timeline({ model }: { model: TimelineModel }) {
   useSyncExternalStore(model.subscribe, model.getVersion);
   const access = useAccess();
@@ -139,19 +160,12 @@ export function Timeline({ model }: { model: TimelineModel }) {
   const colWRef = useRef(colW);
   colWRef.current = colW;
 
-  // Scrollable range: a few years around today, widened to fit all data.
-  const range = useMemo(() => {
-    const y = ymd(todayDay).y;
-    let a = dayFromYMD(y - 2, 0, 1);
-    let b = dayFromYMD(y + 4, 0, 1) - 1;
-    const ext = model.dataExtent();
-    if (ext) {
-      a = Math.min(a, startOfYear(ext[0]));
-      b = Math.max(b, dayFromYMD(ymd(ext[1]).y + 1, 0, 1) - 1);
-    }
-    a = startOfWeek(a);
-    return { origin: a, days: b - a + 1 };
-  }, [model, todayDay]);
+  // Scrollable range: about a year around where you are, so the scrollbar
+  // stays usable (a small drag isn't years). Finishing a scroll near an edge
+  // (letting go of the scrollbar, the end of a swipe) adds half a year there,
+  // and the far side goes once it's more than a year and a half. A jump
+  // further away (today, search, a date) centres it on that day.
+  const [range, setRange] = useState(() => rangeAround(todayDay));
 
   // View options: both are per-device preferences.
   const [hideWeekends, setHideWeekends] = useState(() => readFlag(WEEKENDS_KEY));
@@ -164,6 +178,39 @@ export function Timeline({ model }: { model: TimelineModel }) {
   const scale = useMemo(() => new Scale(range.origin, colW, hideWeekends), [range.origin, colW, hideWeekends]);
   vp.scale = scale;
   vp.rangeDays = range.days;
+  vp.onOutOfRange = (day) => flushSync(() => setRange(rangeAround(day)));
+  // The range starting elsewhere moves everything: keep the view in place.
+  const prevOrigin = useRef(range.origin);
+  useLayoutEffect(() => {
+    const s = vp.scroller;
+    if (s && prevOrigin.current !== range.origin && !vp.recentring) s.scrollLeft += scale.x(prevOrigin.current);
+    prevOrigin.current = range.origin;
+  }, [range.origin, scale, vp]);
+  useEffect(() => {
+    const s = vp.scroller;
+    if (!s) return;
+    const atEdge = () => {
+      const left = s.scrollLeft;
+      const margin = vp.viewWidth;
+      if (left < margin) setRange((r) => grow(r, -1));
+      else if (left > vp.maxScrollLeft() - margin) setRange((r) => grow(r, 1));
+    };
+    // Where scrollend isn't supported, a pause in scrolling stands in for it.
+    if ('onscrollend' in window) {
+      s.addEventListener('scrollend', atEdge);
+      return () => s.removeEventListener('scrollend', atEdge);
+    }
+    let t: ReturnType<typeof setTimeout> | undefined;
+    const onScroll = () => {
+      clearTimeout(t);
+      t = setTimeout(atEdge, 400);
+    };
+    s.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      clearTimeout(t);
+      s.removeEventListener('scroll', onScroll);
+    };
+  }, [vp]);
 
   const [win, setWin] = useState<Win>({ d0: range.origin, d1: range.origin + CHUNK - 1, r0: 0, r1: 30 });
   const winRef = useRef(win);
@@ -215,6 +262,10 @@ export function Timeline({ model }: { model: TimelineModel }) {
   const manageProjects = useCallback(() => navigate({ section: 'projects' }), []);
   const route = useRoute();
   const onPage = route.section !== 'plan';
+  // The projects and clients pages count archived work too.
+  useEffect(() => {
+    if (onPage) void loadArchiveSummary().then(() => model.setArchivedProjects(archiveSummary()));
+  }, [onPage, model]);
   const onPageRef = useRef(onPage);
   onPageRef.current = onPage;
   /** Search and filters as one predicate; non-matching blocks are faded. */
@@ -300,7 +351,12 @@ export function Timeline({ model }: { model: TimelineModel }) {
           r0: w.r0,
           r1: w.r1,
         };
-    if (!daysOk) model.setHeightWindow(next.d0, next.d1);
+    if (!daysOk) {
+      model.setHeightWindow(next.d0, next.d1);
+      // Scrolled back into history: what's archived there comes in
+      // (and around it, as far as the scrubber shows).
+      ensureArchive(next.d0 - 100, next.d1 + 100);
+    }
     if (!rowsOk) {
       next.r0 = Math.max(0, ra - 4);
       next.r1 = rb + 4;
@@ -899,7 +955,7 @@ export function Timeline({ model }: { model: TimelineModel }) {
           model={model}
           sheet={compact}
           side={!compact}
-          readOnly={readOnly}
+          readOnly={readOnly || !!editTask.archived}
           onClose={closeEditor}
           onRetarget={(id) => {
             setSelected(id);
