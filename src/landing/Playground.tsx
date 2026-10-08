@@ -1,362 +1,254 @@
-// The footer's playground: a little timeline of blocks to fiddle with. Drag
-// a block to another day and it drops into place (blocks stack like lanes in
-// the app, so dropping one low lifts the ones above), tap one to recolor it,
-// tap an empty spot to drop in a new one. Fill a row edge to edge and it
-// clears. Nothing is saved.
+// The footer's little puzzle: fit this week's work into the team's free
+// days. Drag a block onto a row (or tap it, then tap a day); blocks only fit
+// where the days are free. Fill every day and the next week comes up, a
+// little harder each time (more people, some time off in the way).
 
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type PointerEvent as RPointerEvent } from 'react';
 
-const COLORS = ['#3b7bff', '#20b55c', '#f04438', '#f5b301', '#9b5cff', '#0fc2d8', '#f72585', '#8ccf12', '#ff7b1c'];
-const PATTERNS = ['', 'dots', '', 'stripes', '', 'zigzag', 'waves', '', 'triangles', 'rings'];
-const TITLES = [
-  'Coffee', 'Ship it', 'Inbox zero', 'Nap', 'Big launch', '1:1', 'Retro', 'Deep work', 'Lunch', 'Friday drinks',
-  'Bug bash', 'Pitch', 'Standup', 'Pizza', 'Demo day', 'Workshop', 'Moodboard', 'Hotfix', 'Offsite', 'Brainstorm',
-  'Rebrand', 'Focus time', 'Kickoff', 'Walk', 'Cake', 'Review',
-];
-const LANES = 5;
-/** A block (44px) and the gap above it. */
-const LANE_H = 52;
-const FALL_MS = 380;
-const CLEAR_MS = 460;
+const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+const PEOPLE = ['Ava', 'Noah', 'Mila'];
+const COLORS = ['#3f6fb5', '#3a8a5f', '#c4513a', '#c9952f', '#7d5bb5', '#2b8a96', '#c2527d', '#cf6a2e'];
+const TITLES = ['Kickoff', 'Workshop', 'Review', 'Launch', 'Pitch', 'Research', 'Design', 'Build', 'Retro', 'Testing', 'Copy', 'Demo', 'Sprint', 'Interviews', 'Offsite'];
 
-interface B {
+interface Piece {
   id: number;
-  col: number;
-  span: number;
-  /** Lane from the bottom. */
-  row: number;
+  len: number;
   title: string;
   color: string;
-  pattern: string;
-  /** Where it's drawn while held or falling in, between lanes and days. */
-  fx?: number;
-  fy?: number;
-  clearing?: boolean;
+  /** Where it sits on the board, or null in the tray. */
+  at: { row: number; col: number } | null;
+}
+interface Puzzle {
+  rows: number;
+  /** Days already off: "row:col". */
+  off: Set<string>;
+  pieces: Piece[];
 }
 
-/** Drop order for the opening layout: a bottom row one gap short of clearing. */
-const OPENING: Record<5 | 10, Omit<B, 'id' | 'row'>[]> = {
-  10: [
-    { col: 0, span: 4, title: 'Website relaunch', color: '#3b7bff', pattern: 'stripes' },
-    { col: 4, span: 2, title: 'Workshop', color: '#f5b301', pattern: '' },
-    { col: 7, span: 3, title: 'Big launch', color: '#9b5cff', pattern: 'zigzag' },
-    { col: 1, span: 2, title: 'Coffee', color: '#ff7b1c', pattern: '' },
-    { col: 4, span: 3, title: 'Deep work', color: '#20b55c', pattern: 'dots' },
-    { col: 8, span: 1, title: 'Nap', color: '#0fc2d8', pattern: '' },
-    { col: 2, span: 2, title: 'Pizza', color: '#f72585', pattern: 'waves' },
-  ],
-  5: [
-    { col: 0, span: 2, title: 'Relaunch', color: '#3b7bff', pattern: 'stripes' },
-    { col: 3, span: 2, title: 'Big launch', color: '#9b5cff', pattern: 'zigzag' },
-    { col: 1, span: 2, title: 'Coffee', color: '#ff7b1c', pattern: '' },
-    { col: 4, span: 1, title: 'Nap', color: '#0fc2d8', pattern: '' },
-  ],
-};
-const DAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr'];
-
-const pick = <T,>(a: readonly T[]) => a[Math.floor(Math.random() * a.length)]!;
-const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
-const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-/**
- * Stack blocks like lanes: in order of height, each lands on whatever is
- * under its days. `order` overrides the height used for sorting (a block
- * let go between lanes slots in there).
- */
-const settle = (blocks: B[], cols: number, order: Map<number, number> = new Map()): B[] => {
-  const heights = new Array<number>(cols).fill(0);
-  const sorted = [...blocks].sort((a, b) => (order.get(a.id) ?? a.row) - (order.get(b.id) ?? b.row) || a.col - b.col);
-  const rows = new Map<number, number>();
-  for (const b of sorted) {
-    let row = 0;
-    for (let c = b.col; c < b.col + b.span; c++) row = Math.max(row, heights[c]!);
-    for (let c = b.col; c < b.col + b.span; c++) heights[c] = row + 1;
-    rows.set(b.id, row);
+const rand = (n: number) => Math.floor(Math.random() * n);
+const shuffle = <T,>(a: T[]) => {
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = rand(i + 1);
+    [a[i], a[j]] = [a[j]!, a[i]!];
   }
-  return blocks.map((b) => ({ ...b, row: rows.get(b.id)! }));
+  return a;
 };
 
-/** Lanes filled edge to edge. */
-const fullRows = (blocks: B[], cols: number) => {
-  const filled = new Map<number, number>();
-  for (const b of blocks) if (!b.clearing) filled.set(b.row, (filled.get(b.row) ?? 0) + b.span);
-  return [...filled].filter(([, n]) => n >= cols).map(([row]) => row);
+/** A solvable week: free days cut into blocks of 1–3 days, then shuffled. */
+const makePuzzle = (level: number): Puzzle => {
+  const rows = level < 1 ? 2 : 3;
+  const off = new Set<string>();
+  if (level >= 2) for (let k = 0; k < 1 + (level >= 4 ? 1 : 0); k++) off.add(`${rand(rows)}:${rand(5)}`);
+  const pieces: Piece[] = [];
+  const titles = shuffle([...TITLES]);
+  let id = 0;
+  for (let r = 0; r < rows; r++) {
+    let c = 0;
+    while (c < 5) {
+      if (off.has(`${r}:${c}`)) {
+        c++;
+        continue;
+      }
+      let run = 0;
+      while (c + run < 5 && !off.has(`${r}:${c + run}`)) run++;
+      // Cut the free run into pieces, longer ones first so it isn't all 1s.
+      while (run > 0) {
+        const len = Math.min(run, run === 4 ? 2 : 1 + rand(3));
+        pieces.push({ id: id++, len, title: titles[id % titles.length]!, color: COLORS[rand(COLORS.length)]!, at: null });
+        run -= len;
+        c += len;
+      }
+    }
+  }
+  return { rows, off, pieces: shuffle(pieces) };
 };
 
-let nextId = 1;
+const fits = (p: Puzzle, piece: Piece, row: number, col: number) => {
+  if (row < 0 || row >= p.rows || col < 0 || col + piece.len > 5) return false;
+  for (let c = col; c < col + piece.len; c++) {
+    if (p.off.has(`${row}:${c}`)) return false;
+    for (const o of p.pieces) if (o !== piece && o.at && o.at.row === row && c >= o.at.col && c < o.at.col + o.len) return false;
+  }
+  return true;
+};
 
 export function Playground() {
-  const [cols, setCols] = useState<5 | 10>(() => (matchMedia('(max-width: 640px)').matches ? 5 : 10));
-  const [blocks, setBlocks] = useState<B[]>([]);
-  const [cleared, setCleared] = useState(0);
-  const [toast, setToast] = useState<{ text: string; key: number } | null>(null);
+  const [level, setLevel] = useState(0);
+  const [puzzle, setPuzzle] = useState(() => makePuzzle(0));
+  const [picked, setPicked] = useState<number | null>(null);
+  const [drag, setDrag] = useState<{ id: number; dx: number; dy: number; target: { row: number; col: number } | null } | null>(null);
+  const grab = useRef<{ id: number; x: number; y: number; offX: number; moved: boolean } | null>(null);
   const board = useRef<HTMLDivElement>(null);
-  const root = useRef<HTMLElement>(null);
-  const els = useRef(new Map<number, HTMLElement>());
-  const drag = useRef<{ id: number; px: number; py: number; x0: number; y0: number; colW: number; moved: boolean } | null>(null);
-  const live = useRef(blocks);
-  live.current = blocks;
+  const solved = puzzle.pieces.every((p) => p.at);
 
-  const say = useCallback((text: string) => setToast({ text, key: Date.now() }), []);
+  // Solved: a moment to enjoy it, then next week.
   useEffect(() => {
-    if (!toast) return;
-    const t = setTimeout(() => setToast(null), 1800);
+    if (!solved) return;
+    const t = setTimeout(() => {
+      setLevel((l) => l + 1);
+      setPuzzle(makePuzzle(level + 1));
+      setPicked(null);
+    }, 1600);
     return () => clearTimeout(t);
-  }, [toast]);
+  }, [solved, level]);
 
-  /** A little squash when a block lands after a fall. */
-  const bump = useCallback((ids: number[], delay = FALL_MS) => {
-    if (reduced()) return;
-    for (const id of ids)
-      els.current.get(id)?.animate(
-        [{ transform: 'scale(1)' }, { transform: 'scale(1.04, 0.84)' }, { transform: 'scale(0.98, 1.05)' }, { transform: 'scale(1)' }],
-        { duration: 320, delay, easing: 'ease-out' },
-      );
+  const place = useCallback((id: number, at: { row: number; col: number } | null) => {
+    setPuzzle((p) => {
+      const piece = p.pieces.find((x) => x.id === id)!;
+      if (at && !fits(p, piece, at.row, at.col)) return p;
+      return { ...p, pieces: p.pieces.map((x) => (x.id === id ? { ...x, at } : x)) };
+    });
   }, []);
 
-  // Full lanes flash and go; what's above falls in (and may clear again).
-  const clearTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
-  useEffect(() => {
-    if (blocks.some((b) => b.clearing || b.fx !== undefined)) return;
-    const rows = fullRows(blocks, cols);
-    if (!rows.length) return;
-    setBlocks(blocks.map((b) => (rows.includes(b.row) ? { ...b, clearing: true } : b)));
-    setCleared((n) => n + rows.length);
-    say(rows.length > 1 ? `${rows.length} rows cleared!` : pick(['Week cleared!', 'All done. Nice!', 'Cleared!', 'Shipped!']));
-    clearTimer.current = setTimeout(() => {
-      const kept = live.current.filter((b) => !b.clearing);
-      const settled = settle(kept, cols);
-      setBlocks(settled);
-      bump(settled.filter((b) => b.row < kept.find((k) => k.id === b.id)!.row).map((b) => b.id), 180);
-    }, CLEAR_MS);
-  }, [blocks, cols, say, bump]);
-  useEffect(() => () => clearTimeout(clearTimer.current), []);
-
-  /** Put `b` in at its column (falling from `from`, a height between lanes). */
-  const land = useCallback(
-    (others: B[], b: B, from: number, fallback?: B): boolean => {
-      const settled = settle([...others, b], cols, new Map([[b.id, from]]));
-      if (settled.some((x) => x.row >= LANES)) {
-        if (!reduced())
-          board.current?.animate([{ transform: 'none' }, { transform: 'translateX(-6px)' }, { transform: 'translateX(5px)' }, { transform: 'translateX(-3px)' }, { transform: 'none' }], {
-            duration: 360,
-          });
-        say(pick(['Overbooked!', 'Too much on the plate', 'No room this week']));
-        if (fallback) setBlocks([...others, { ...fallback, fx: undefined, fy: undefined }]);
-        return false;
-      }
-      const placed = settled.map((x) => (x.id === b.id ? { ...x, fx: b.fx, fy: b.fy } : x));
-      setBlocks(placed);
-      // Next frame: let go of the drawn position, so it slides/falls into its lane.
-      requestAnimationFrame(() =>
-        requestAnimationFrame(() => {
-          setBlocks((cur) => cur.map((x) => (x.id === b.id ? { ...x, fx: undefined, fy: undefined } : x)));
-          bump([b.id]);
-        }),
-      );
-      return true;
-    },
-    [cols, bump, say],
-  );
-
-  const spawn = useCallback(
-    (spec?: Partial<B>, col?: number) => {
-      const span = spec?.span ?? (cols === 5 ? pick([1, 1, 2]) : pick([1, 2, 2, 3]));
-      const at = clamp(spec?.col ?? (col !== undefined ? col - Math.floor(span / 2) : Math.floor(Math.random() * cols)), 0, cols - span);
-      const b: B = {
-        id: nextId++,
-        col: at,
-        span,
-        row: LANES,
-        title: spec?.title ?? pick(TITLES),
-        color: spec?.color ?? pick(COLORS),
-        pattern: spec?.pattern ?? pick(PATTERNS),
-        fx: at,
-        fy: LANES + 0.6,
-      };
-      return land(live.current.filter((x) => !x.clearing), b, LANES + 1);
-    },
-    [cols, land],
-  );
-
-  // The opening layout rains in once the footer is in view.
-  const started = useRef(false);
-  useEffect(() => {
-    const el = root.current;
-    if (!el) return;
-    const timers: ReturnType<typeof setTimeout>[] = [];
-    const io = new IntersectionObserver(
-      ([e]) => {
-        if (!e?.isIntersecting || started.current) return;
-        started.current = true;
-        OPENING[cols].forEach((spec, i) => timers.push(setTimeout(() => spawn(spec), reduced() ? 0 : 150 + i * 170)));
-      },
-      { threshold: 0.35 },
-    );
-    io.observe(el);
-    return () => {
-      io.disconnect();
-      timers.forEach(clearTimeout);
-    };
-  }, [cols, spawn]);
-
-  // Phone ⇄ desktop: start over at the new width.
-  useEffect(() => {
-    const mq = matchMedia('(max-width: 640px)');
-    const on = () => {
-      const c = mq.matches ? 5 : 10;
-      if (c === cols) return;
-      setCols(c);
-      setBlocks([]);
-      started.current = false;
-    };
-    mq.addEventListener('change', on);
-    return () => mq.removeEventListener('change', on);
-  }, [cols]);
-
-  const recolor = (id: number) => {
-    setBlocks((cur) =>
-      cur.map((b) => (b.id === id ? { ...b, color: COLORS[(COLORS.indexOf(b.color) + 1) % COLORS.length]!, pattern: PATTERNS[(PATTERNS.indexOf(b.pattern) + 3) % PATTERNS.length]! } : b)),
-    );
-    if (!reduced())
-      els.current.get(id)?.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.06)' }, { transform: 'scale(1)' }], { duration: 220, easing: 'ease-out' });
+  /** The board cell under a point, for a piece grabbed `offX` px from its left edge. */
+  const cellAt = (x: number, y: number, offX: number) => {
+    const r = board.current?.getBoundingClientRect();
+    if (!r) return null;
+    const cw = r.width / 5;
+    const rh = r.height / puzzle.rows;
+    if (y < r.top - rh * 0.3 || y > r.bottom + rh * 0.3 || x < r.left - cw || x > r.right + cw) return null;
+    return { row: Math.min(puzzle.rows - 1, Math.max(0, Math.floor((y - r.top) / rh))), col: Math.round((x - offX - r.left) / cw) };
   };
 
-  const move = (id: number, col: number, from: number) => {
-    const b = live.current.find((x) => x.id === id);
-    if (!b || b.clearing) return;
-    const moved = { ...b, col: clamp(Math.round(col), 0, cols - b.span) };
-    land(
-      live.current.filter((x) => x.id !== id && !x.clearing),
-      moved,
-      from,
-      b,
-    );
-  };
-
-  const onDown = (e: PointerEvent<HTMLButtonElement>, b: B) => {
-    if (b.clearing || e.button !== 0) return;
-    e.stopPropagation();
+  const down = (e: RPointerEvent<HTMLButtonElement>, id: number) => {
+    if (solved || e.button !== 0) return;
     e.currentTarget.setPointerCapture(e.pointerId);
-    drag.current = { id: b.id, px: e.clientX, py: e.clientY, x0: b.col, y0: b.row, colW: (board.current?.clientWidth ?? 600) / cols, moved: false };
+    const rect = e.currentTarget.getBoundingClientRect();
+    grab.current = { id, x: e.clientX, y: e.clientY, offX: e.clientX - rect.left, moved: false };
   };
-  const onMove = (e: PointerEvent<HTMLButtonElement>) => {
-    const d = drag.current;
-    if (!d) return;
-    const dx = e.clientX - d.px;
-    const dy = e.clientY - d.py;
-    if (!d.moved && Math.hypot(dx, dy) < 5) return;
-    d.moved = true;
-    setBlocks((cur) =>
-      cur.map((b) => (b.id === d.id ? { ...b, fx: clamp(d.x0 + dx / d.colW, 0, cols - b.span), fy: clamp(d.y0 - dy / LANE_H, 0, LANES + 0.4) } : b)),
-    );
+  const move = (e: RPointerEvent<HTMLButtonElement>) => {
+    const g = grab.current;
+    if (!g) return;
+    const dx = e.clientX - g.x;
+    const dy = e.clientY - g.y;
+    if (!g.moved && Math.hypot(dx, dy) < 5) return;
+    g.moved = true;
+    const t = cellAt(e.clientX, e.clientY, g.offX);
+    const piece = puzzle.pieces.find((p) => p.id === g.id)!;
+    setDrag({ id: g.id, dx, dy, target: t && fits(puzzle, piece, t.row, t.col) ? t : null });
   };
-  const onUp = (b: B) => {
-    const d = drag.current;
-    drag.current = null;
-    if (!d || d.id !== b.id) return;
-    if (!d.moved) return recolor(b.id);
-    const cur = live.current.find((x) => x.id === b.id);
-    if (cur) move(b.id, cur.fx ?? cur.col, (cur.fy ?? cur.row) - 0.5);
+  const up = (e: RPointerEvent<HTMLButtonElement>) => {
+    const g = grab.current;
+    grab.current = null;
+    if (!g) return;
+    if (!g.moved) {
+      setPicked((p) => (p === g.id ? null : g.id));
+      setDrag(null);
+      return;
+    }
+    const t = cellAt(e.clientX, e.clientY, g.offX);
+    const piece = puzzle.pieces.find((p) => p.id === g.id)!;
+    if (t && fits(puzzle, piece, t.row, t.col)) place(g.id, t);
+    // Dropped away from the board: back to the tray.
+    else if (!t) place(g.id, null);
+    setDrag(null);
+    setPicked(null);
   };
-  const onKey = (e: KeyboardEvent<HTMLButtonElement>, b: B) => {
-    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-      e.preventDefault();
-      move(b.id, b.col + (e.key === 'ArrowLeft' ? -1 : 1), b.row - 0.5);
-    } else if (e.key === 'Delete' || e.key === 'Backspace') {
-      setBlocks((cur) => settle(cur.filter((x) => x.id !== b.id), cols));
+
+  /** Tap a day with a block picked up: put it there. */
+  const tapCell = (row: number, col: number) => {
+    if (picked === null) return;
+    const piece = puzzle.pieces.find((p) => p.id === picked)!;
+    // Tapped somewhere it doesn't fit from there: try it ending on that day.
+    const start = fits(puzzle, piece, row, col) ? col : col - piece.len + 1;
+    if (fits(puzzle, piece, row, start)) {
+      place(picked, { row, col: start });
+      setPicked(null);
     }
   };
 
-  /** A tap on an empty spot drops a new block there. */
-  const onBoard = (e: PointerEvent<HTMLDivElement>) => {
-    if (e.target !== e.currentTarget || !board.current) return;
-    const r = board.current.getBoundingClientRect();
-    spawn(undefined, Math.floor(((e.clientX - r.left) / r.width) * cols));
+  const pieceEl = (p: Piece) => {
+    const dragging = drag?.id === p.id;
+    return (
+      <button
+        key={p.id}
+        type="button"
+        className={'lp-fit-piece' + (dragging ? ' dragging' : '') + (picked === p.id ? ' picked' : '')}
+        style={{
+          ['--len' as string]: p.len,
+          ...(p.at ? { gridRow: p.at.row + 1, gridColumn: `${p.at.col + 1} / span ${p.len}` } : {}),
+          ...(dragging ? { transform: `translate(${drag!.dx}px, ${drag!.dy}px)` } : {}),
+        }}
+        aria-label={`${p.title}, ${p.len} day${p.len > 1 ? 's' : ''}${p.at ? `, ${PEOPLE[p.at.row]} from ${DAYS[p.at.col]}` : ''}`}
+        onPointerDown={(e) => down(e, p.id)}
+        onPointerMove={move}
+        onPointerUp={up}
+        onPointerCancel={() => {
+          grab.current = null;
+          setDrag(null);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            setPicked((x) => (x === p.id ? null : p.id));
+          } else if ((e.key === 'Backspace' || e.key === 'Delete') && p.at) place(p.id, null);
+        }}
+      >
+        <span className="task lp-task" style={{ ['--c' as string]: p.color }}>
+          <span className="task-clip">
+            <span className="task-label tall">
+              <span className="task-title">{p.title}</span>
+              <span className="task-sub">
+                <span className="task-meta">{p.len}d</span>
+              </span>
+            </span>
+          </span>
+        </span>
+      </button>
+    );
   };
 
-  const days = Array.from({ length: cols }, (_, i) => `${DAYS[i % 5]} ${[5, 6, 7, 8, 9, 12, 13, 14, 15, 16][i]}`);
-
+  const target = drag?.target;
+  const draggedLen = drag ? puzzle.pieces.find((p) => p.id === drag.id)!.len : 0;
   return (
-    <section className="lp-play" ref={root} aria-label="Playground: blocks to play with">
-      <div className="lp-play-head">
-        <div>
-          <h3>All planned? Have a play.</h3>
-          <p>
-            Drag a block to another day, tap one to recolor it, tap an empty spot to drop in a new one. Fill a row edge to edge to clear it.
-          </p>
-        </div>
-        <div className="lp-play-actions">
-          <span className="lp-play-score" aria-live="polite">
-            <b key={cleared}>{cleared}</b> {cleared === 1 ? 'row' : 'rows'} cleared
-          </span>
-          <button className="lp-btn ghost" onClick={() => spawn()}>
-            Drop a block
-          </button>
-          <button
-            className="lp-btn ghost"
-            onClick={() => {
-              setBlocks([]);
-              setCleared(0);
-              started.current = false;
-              OPENING[cols].forEach((spec, i) => setTimeout(() => spawn(spec), 120 + i * 140));
-            }}
-          >
-            Start over
-          </button>
-        </div>
-      </div>
-      <div className="lp-play-days" style={{ ['--cols' as string]: cols }} aria-hidden>
-        {days.map((d) => (
-          <span key={d}>{d}</span>
-        ))}
-      </div>
-      <div
-        ref={board}
-        className="lp-play-board"
-        style={{ ['--cols' as string]: cols, height: LANES * LANE_H + 8 }}
-        onPointerDown={onBoard}
-      >
-        {blocks.map((b) => {
-          const x = b.fx ?? b.col;
-          const y = b.fy ?? b.row;
-          const held = drag.current?.id === b.id && drag.current.moved;
-          return (
-            <button
-              key={b.id}
-              ref={(el) => {
-                if (el) els.current.set(b.id, el);
-                else els.current.delete(b.id);
-              }}
-              className={'lp-play-block' + (held ? ' held' : '') + (b.clearing ? ' clearing' : '') + (b.fx !== undefined && !held ? ' entering' : '')}
-              style={{ ['--x' as string]: x, ['--y' as string]: y, ['--span' as string]: b.span } as CSSProperties}
-              aria-label={`${b.title}, ${days[b.col]}${b.span > 1 ? ` to ${days[b.col + b.span - 1]}` : ''}. Arrow keys move it, Enter recolors it.`}
-              onPointerDown={(e) => onDown(e, b)}
-              onPointerMove={onMove}
-              onPointerUp={() => onUp(b)}
-              onPointerCancel={() => (drag.current = null)}
-              onKeyDown={(e) => onKey(e, b)}
-              onClick={(e) => e.detail === 0 && recolor(b.id)}
-            >
-              <span className="task lp-task" data-pattern={b.pattern || undefined} style={{ ['--c' as string]: b.color }}>
-                <span className="task-clip">
-                  <span className="task-label tall">
-                    <span className="task-title">{b.title}</span>
-                    <span className="task-sub">
-                      <span className="task-meta">{b.span > 1 ? `${b.span}d` : '1d'}</span>
-                    </span>
-                  </span>
-                </span>
-              </span>
-            </button>
-          );
-        })}
-        {toast && (
-          <span className="lp-play-toast" key={toast.key} role="status">
-            {toast.text}
-          </span>
+    <section className={'lp-fit' + (solved ? ' solved' : '')} aria-label="A small puzzle: plan the week">
+      <p className="lp-fit-title">
+        {solved ? (
+          <b>Week planned. Nice.</b>
+        ) : (
+          <>
+            <b>Spare a minute?</b> Fit this week’s work into the free days.
+          </>
         )}
+        {level > 0 && <span className="lp-fit-score">{level === 1 ? '1 week planned' : `${level} weeks planned`}</span>}
+      </p>
+      <div className="lp-fit-wrap">
+        <div className="lp-fit-names" aria-hidden style={{ ['--rows' as string]: puzzle.rows }}>
+          {PEOPLE.slice(0, puzzle.rows).map((n) => (
+            <span key={n}>{n}</span>
+          ))}
+        </div>
+        <div>
+          <div className="lp-fit-days" aria-hidden>
+            {DAYS.map((d) => (
+              <span key={d}>{d}</span>
+            ))}
+          </div>
+          <div className="lp-fit-board" ref={board} style={{ ['--rows' as string]: puzzle.rows }}>
+            {Array.from({ length: puzzle.rows * 5 }, (_, i) => {
+              const row = Math.floor(i / 5);
+              const col = i % 5;
+              const isOff = puzzle.off.has(`${row}:${col}`);
+              const lit = target && target.row === row && col >= target.col && col < target.col + draggedLen;
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  tabIndex={picked === null || isOff ? -1 : 0}
+                  className={'lp-fit-cell' + (isOff ? ' off' : '') + (lit ? ' lit' : '')}
+                  style={{ gridRow: row + 1, gridColumn: col + 1 }}
+                  aria-label={isOff ? `${PEOPLE[row]} is off on ${DAYS[col]}` : `${PEOPLE[row]}, ${DAYS[col]}`}
+                  onClick={() => tapCell(row, col)}
+                >
+                  {isOff && <span>Off</span>}
+                </button>
+              );
+            })}
+            {puzzle.pieces.filter((p) => p.at).map(pieceEl)}
+          </div>
+        </div>
       </div>
+      <div className="lp-fit-tray">{puzzle.pieces.filter((p) => !p.at).map(pieceEl)}</div>
     </section>
   );
 }
