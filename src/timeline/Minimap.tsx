@@ -6,12 +6,12 @@ import { getPeers, onPeers } from '../data/presence.ts';
 import { onThemeChange } from '../lib/theme.ts';
 import { addMonths, formatDay, monthShort, startOfMonth, startOfWeek, ymd } from '../lib/dates.ts';
 
-// A VS Code–style scrubber for the time axis. On desktop the canvas shows
-// the whole scrollable range (about a year, see Timeline), so the slider
-// moves with the browser's scrollbar. Given a shorter span (phones: about a
-// month) it scrolls proportionally with the main view, like VS Code's
-// minimap. Clicking outside the slider jumps there and keeps scrubbing.
+// A VS Code–style scrubber for the time axis. The canvas shows ~6 months at
+// a time (about a month on phones, or the whole range if it fits); like VS Code's minimap it scrolls
+// proportionally with the main view, so the slider moves linearly with the
+// scroll position. Clicking outside the slider jumps there and keeps scrubbing.
 
+const TARGET_DAYS = 183;
 const LABEL_H = 16;
 
 interface Props {
@@ -20,7 +20,7 @@ interface Props {
   today: number;
   /** Search/filters: the matching work is highlighted on the strip. */
   filter?: TaskFilter;
-  /** Days the strip spans (default: the whole scrollable range; phones: about a month). */
+  /** Days the strip spans (less on phones, where the view is a few days). */
   span?: number;
 }
 
@@ -34,7 +34,7 @@ interface Geo {
   travel: number; // px the slider can travel
 }
 
-export function Minimap({ model, vp, today, filter = null, span = Infinity }: Props) {
+export function Minimap({ model, vp, today, filter = null, span = TARGET_DAYS }: Props) {
   const spanRef = useRef(span);
   spanRef.current = span;
   const filterRef = useRef<TaskFilter>(filter);
@@ -141,9 +141,20 @@ export function Minimap({ model, vp, today, filter = null, span = Infinity }: Pr
         }
         o.fillStyle = mi === 0 ? c['text-strong']! : c.line!;
         o.fillRect(Math.round(x), mi === 0 ? 0 : LABEL_H - 4, 1, mi === 0 ? H : 4);
-        if (w > 26 || mi === 0) {
-          o.fillStyle = mi === 0 ? c['text-strong']! : c.text!;
-          o.fillText(mi === 0 ? String(y) : monthShort(mi), x + 4, LABEL_H / 2 + 1);
+        if (mi === 0) {
+          // A new year: a label you can spot, like Today's.
+          o.font = '700 9.5px "Inter Variable", ui-sans-serif, system-ui, sans-serif';
+          const label = String(y);
+          const lw = o.measureText(label).width + 10;
+          o.beginPath();
+          o.roundRect(Math.round(x), 1, lw, LABEL_H - 2, 4);
+          o.fill();
+          o.fillStyle = c.bg!;
+          o.fillText(label, Math.round(x) + 5, LABEL_H / 2 + 0.5);
+          o.font = '600 10px "Inter Variable", ui-sans-serif, system-ui, sans-serif';
+        } else if (w > 26) {
+          o.fillStyle = c.text!;
+          o.fillText(monthShort(mi), x + 4, LABEL_H / 2 + 1);
         }
       }
       // Weeks: a tick at each Monday; zoomed in (phones), its date too. The
