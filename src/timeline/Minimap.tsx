@@ -6,13 +6,12 @@ import { getPeers, onPeers } from '../data/presence.ts';
 import { onThemeChange } from '../lib/theme.ts';
 import { addMonths, formatDay, monthShort, startOfMonth, startOfWeek, ymd } from '../lib/dates.ts';
 
-// A VS Code–style scrubber for the time axis. The canvas shows ~6 months at
-// a time (about a month on phones, or the whole range if it fits); like VS Code's minimap it scrolls
-// proportionally with the main view, so the slider moves linearly with the
-// scroll position and you can traverse years with one drag. Clicking outside
-// the slider jumps there and keeps scrubbing.
+// A VS Code–style scrubber for the time axis. On desktop the canvas shows
+// the whole scrollable range (about a year, see Timeline), so the slider
+// moves with the browser's scrollbar. Given a shorter span (phones: about a
+// month) it scrolls proportionally with the main view, like VS Code's
+// minimap. Clicking outside the slider jumps there and keeps scrubbing.
 
-const TARGET_DAYS = 183;
 const LABEL_H = 16;
 
 interface Props {
@@ -21,7 +20,7 @@ interface Props {
   today: number;
   /** Search/filters: the matching work is highlighted on the strip. */
   filter?: TaskFilter;
-  /** Days the strip spans (less on phones, where the view is a few days). */
+  /** Days the strip spans (default: the whole scrollable range; phones: about a month). */
   span?: number;
 }
 
@@ -35,7 +34,7 @@ interface Geo {
   travel: number; // px the slider can travel
 }
 
-export function Minimap({ model, vp, today, filter = null, span = TARGET_DAYS }: Props) {
+export function Minimap({ model, vp, today, filter = null, span = Infinity }: Props) {
   const spanRef = useRef(span);
   spanRef.current = span;
   const filterRef = useRef<TaskFilter>(filter);
