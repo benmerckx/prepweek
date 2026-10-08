@@ -13,36 +13,36 @@
   --font-title: 'Nunito Variable', var(--font);
 
   /* Surfaces */
-  --bg: #ffffff;
-  --panel: #f9f9fb;
-  --panel-2: #f0f0f3;
-  --raised: #ffffff;
-  --border: #e4e4e9;
-  --border-strong: #cdced6;
-  --hover: rgba(0, 0, 51, 0.045);
+  --bg: #fbfaf7;
+  --panel: #f5f3ee;
+  --panel-2: #ece9e2;
+  --raised: #fffefb;
+  --border: #e5e1d8;
+  --border-strong: #d0cabf;
+  --hover: rgba(60, 45, 25, 0.05);
 
   /* Text */
-  --text: #1c2024;
-  --text-dim: #60646c;
-  --text-faint: #8b8d98;
+  --text: #23201b;
+  --text-dim: #67615a;
+  --text-faint: #9a948b;
 
   /* Brand & signals */
-  --accent: #3e63dd;
-  --accent-hover: #3358d4;
-  --accent-soft: rgba(62, 99, 221, 0.1);
-  --accent-text: #ffffff;
+  --accent: #b9512b;
+  --accent-hover: #3d3730;
+  --accent-soft: rgba(185, 81, 43, 0.1);
+  --accent-text: #fbfaf7;
   /* Accent as a fill (buttons, badges); --accent is its text color. */
-  --accent-solid: #3e63dd;
-  --today: #ef4444;
-  --danger: #dc2626;
-  --ok: #16a34a;
-  --warn: #d97706;
+  --accent-solid: #2a2621;
+  --today: #d4572a;
+  --danger: #c9372c;
+  --ok: #3a8a5f;
+  --warn: #b98a2e;
 
   /* Timeline grid */
-  --grid-day: rgba(0, 0, 51, 0.045);
-  --grid-week: rgba(0, 0, 51, 0.1);
-  --weekend: rgba(0, 0, 51, 0.05);
-  --row-line: #f0f0f3;
+  --grid-day: rgba(60, 45, 25, 0.05);
+  --grid-week: rgba(60, 45, 25, 0.11);
+  --weekend: rgba(60, 45, 25, 0.04);
+  --row-line: #eeebe4;
 
   /* Blocks: tint of the task color on the canvas, ink in the same hue. */
   --block-tint: 17%;
@@ -53,23 +53,23 @@
 
   --radius: 8px;
   --radius-sm: 6px;
-  --shadow-sm: 0 1px 2px rgba(0, 0, 51, 0.06);
-  --shadow: 0 12px 32px -8px rgba(0, 0, 51, 0.2), 0 2px 6px rgba(0, 0, 51, 0.07);
-  --shadow-lift: 0 10px 24px -6px rgba(0, 0, 51, 0.28), 0 2px 6px rgba(0, 0, 51, 0.1);
-  --ring: 0 0 0 3px rgba(62, 99, 221, 0.25);
+  --shadow-sm: 0 1px 2px rgba(40, 30, 15, 0.06);
+  --shadow: 0 12px 32px -8px rgba(40, 30, 15, 0.18), 0 2px 6px rgba(40, 30, 15, 0.06);
+  --shadow-lift: 0 10px 24px -6px rgba(40, 30, 15, 0.24), 0 2px 6px rgba(40, 30, 15, 0.08);
+  --ring: 0 0 0 3px rgba(185, 81, 43, 0.22);
 
   /* Minimap (read by canvas code) */
-  --mm-bg: #f9f9fb;
-  --mm-band: rgba(0, 0, 51, 0.03);
-  --mm-line: rgba(0, 0, 51, 0.16);
-  --mm-text: #80838d;
-  --mm-text-strong: #1c2024;
-  --mm-slider: rgba(62, 99, 221, 0.13);
-  --mm-slider-border: rgba(62, 99, 221, 0.75);
-  --mm-today: #ef4444;
-  --mm-hover: rgba(28, 32, 36, 0.45);
-  --mm-dim: rgba(249, 249, 251, 0.38);
-  --mm-ink: #3e63dd;
+  --mm-bg: #f5f3ee;
+  --mm-band: rgba(60, 45, 25, 0.03);
+  --mm-line: rgba(60, 45, 25, 0.16);
+  --mm-text: #8f897f;
+  --mm-text-strong: #23201b;
+  --mm-slider: rgba(185, 81, 43, 0.1);
+  --mm-slider-border: rgba(185, 81, 43, 0.7);
+  --mm-today: #d4572a;
+  --mm-hover: rgba(35, 32, 27, 0.45);
+  --mm-dim: rgba(245, 243, 238, 0.38);
+  --mm-ink: #b9512b;
 
   color-scheme: light dark;
 }
@@ -77,30 +77,30 @@
 /* Dark: follows the system unless the theme toggle picked one. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --bg: #111113;
-    --panel: #18191b;
-    --panel-2: #212225;
-    --raised: #1c1d20;
-    --border: #2b2d31;
-    --border-strong: #3b3f45;
-    --hover: rgba(221, 234, 248, 0.06);
+    --bg: #161513;
+    --panel: #1c1b18;
+    --panel-2: #252320;
+    --raised: #201e1b;
+    --border: #2f2c28;
+    --border-strong: #3f3b35;
+    --hover: rgba(250, 240, 225, 0.06);
 
-    --text: #edeef0;
-    --text-dim: #b0b4ba;
-    --text-faint: #777b84;
+    --text: #ece8e1;
+    --text-dim: #aba49a;
+    --text-faint: #7a746b;
 
-    --accent: #9eb1ff;
-    --accent-hover: #5472e4;
-    --accent-soft: rgba(84, 114, 228, 0.18);
-    --accent-text: #ffffff;
-    --accent-solid: #3e63dd;
-    --today: #f87171;
-    --danger: #f87171;
+    --accent: #ee9a73;
+    --accent-hover: #fffaf2;
+    --accent-soft: rgba(238, 154, 115, 0.16);
+    --accent-text: #1a1816;
+    --accent-solid: #ece8e1;
+    --today: #ee7d52;
+    --danger: #ef7a6b;
 
-    --grid-day: rgba(221, 234, 248, 0.04);
-    --grid-week: rgba(221, 234, 248, 0.09);
-    --weekend: rgba(221, 234, 248, 0.045);
-    --row-line: #1f2023;
+    --grid-day: rgba(250, 240, 225, 0.04);
+    --grid-week: rgba(250, 240, 225, 0.09);
+    --weekend: rgba(250, 240, 225, 0.035);
+    --row-line: #23211e;
 
     --block-tint: 26%;
     --block-tint-hover: 33%;
@@ -111,47 +111,47 @@
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
     --shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.6), 0 2px 8px rgba(0, 0, 0, 0.4);
     --shadow-lift: 0 12px 28px -6px rgba(0, 0, 0, 0.7), 0 2px 6px rgba(0, 0, 0, 0.5);
-    --ring: 0 0 0 3px rgba(84, 114, 228, 0.35);
+    --ring: 0 0 0 3px rgba(238, 154, 115, 0.3);
 
-    --mm-bg: #18191b;
-    --mm-band: rgba(221, 234, 248, 0.025);
-    --mm-line: rgba(221, 234, 248, 0.16);
-    --mm-text: #80838d;
-    --mm-text-strong: #edeef0;
-    --mm-slider: rgba(84, 114, 228, 0.18);
-    --mm-slider-border: rgba(158, 177, 255, 0.8);
-    --mm-today: #f87171;
-    --mm-hover: rgba(237, 238, 240, 0.45);
-    --mm-dim: rgba(17, 17, 19, 0.42);
-    --mm-ink: #9eb1ff;
+    --mm-bg: #1c1b18;
+    --mm-band: rgba(250, 240, 225, 0.025);
+    --mm-line: rgba(250, 240, 225, 0.16);
+    --mm-text: #8a847a;
+    --mm-text-strong: #ece8e1;
+    --mm-slider: rgba(238, 154, 115, 0.14);
+    --mm-slider-border: rgba(238, 154, 115, 0.8);
+    --mm-today: #ee7d52;
+    --mm-hover: rgba(236, 232, 225, 0.45);
+    --mm-dim: rgba(22, 21, 19, 0.42);
+    --mm-ink: #ee9a73;
     color-scheme: dark;
   }
 }
 :root[data-theme='dark'] {
-  --bg: #111113;
-  --panel: #18191b;
-  --panel-2: #212225;
-  --raised: #1c1d20;
-  --border: #2b2d31;
-  --border-strong: #3b3f45;
-  --hover: rgba(221, 234, 248, 0.06);
+  --bg: #161513;
+  --panel: #1c1b18;
+  --panel-2: #252320;
+  --raised: #201e1b;
+  --border: #2f2c28;
+  --border-strong: #3f3b35;
+  --hover: rgba(250, 240, 225, 0.06);
 
-  --text: #edeef0;
-  --text-dim: #b0b4ba;
-  --text-faint: #777b84;
+  --text: #ece8e1;
+  --text-dim: #aba49a;
+  --text-faint: #7a746b;
 
-  --accent: #9eb1ff;
-  --accent-hover: #5472e4;
-  --accent-soft: rgba(84, 114, 228, 0.18);
-  --accent-text: #ffffff;
-  --accent-solid: #3e63dd;
-  --today: #f87171;
-  --danger: #f87171;
+  --accent: #ee9a73;
+  --accent-hover: #fffaf2;
+  --accent-soft: rgba(238, 154, 115, 0.16);
+  --accent-text: #1a1816;
+  --accent-solid: #ece8e1;
+  --today: #ee7d52;
+  --danger: #ef7a6b;
 
-  --grid-day: rgba(221, 234, 248, 0.04);
-  --grid-week: rgba(221, 234, 248, 0.09);
-  --weekend: rgba(221, 234, 248, 0.045);
-  --row-line: #1f2023;
+  --grid-day: rgba(250, 240, 225, 0.04);
+  --grid-week: rgba(250, 240, 225, 0.09);
+  --weekend: rgba(250, 240, 225, 0.035);
+  --row-line: #23211e;
 
   --block-tint: 26%;
   --block-tint-hover: 33%;
@@ -162,19 +162,19 @@
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.6), 0 2px 8px rgba(0, 0, 0, 0.4);
   --shadow-lift: 0 12px 28px -6px rgba(0, 0, 0, 0.7), 0 2px 6px rgba(0, 0, 0, 0.5);
-  --ring: 0 0 0 3px rgba(84, 114, 228, 0.35);
+  --ring: 0 0 0 3px rgba(238, 154, 115, 0.3);
 
-  --mm-bg: #18191b;
-  --mm-band: rgba(221, 234, 248, 0.025);
-  --mm-line: rgba(221, 234, 248, 0.16);
-  --mm-text: #80838d;
-  --mm-text-strong: #edeef0;
-  --mm-slider: rgba(84, 114, 228, 0.18);
-  --mm-slider-border: rgba(158, 177, 255, 0.8);
-  --mm-today: #f87171;
-  --mm-hover: rgba(237, 238, 240, 0.45);
-  --mm-dim: rgba(17, 17, 19, 0.42);
-  --mm-ink: #9eb1ff;
+  --mm-bg: #1c1b18;
+  --mm-band: rgba(250, 240, 225, 0.025);
+  --mm-line: rgba(250, 240, 225, 0.16);
+  --mm-text: #8a847a;
+  --mm-text-strong: #ece8e1;
+  --mm-slider: rgba(238, 154, 115, 0.14);
+  --mm-slider-border: rgba(238, 154, 115, 0.8);
+  --mm-today: #ee7d52;
+  --mm-hover: rgba(236, 232, 225, 0.45);
+  --mm-dim: rgba(22, 21, 19, 0.42);
+  --mm-ink: #ee9a73;
   color-scheme: dark;
 }
 :root[data-theme='light'] {
@@ -311,7 +311,7 @@ svg {
   background: var(--accent-solid);
   border-color: transparent;
   color: var(--accent-text);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  box-shadow: none;
 }
 .btn.primary:hover:not(:disabled) {
   background: var(--accent-hover);
@@ -1251,11 +1251,9 @@ svg {
   left: 0;
   border-radius: var(--radius-sm);
   background: var(--fill);
-  /* A slight sheen, so blocks stand out from the grid. */
-  background-image: linear-gradient(180deg, rgb(255 255 255 / 0.12), rgb(255 255 255 / 0) 55%, rgb(0 0 0 / 0.06));
   color: #fff;
-  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.18);
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.14);
+  /* Matte: flat color, a hairline edge at the bottom, like paper. */
+  box-shadow: inset 0 -1px 0 rgb(0 0 0 / 0.12);
   cursor: grab;
   user-select: none;
   -webkit-user-select: none;
@@ -4508,8 +4506,9 @@ a.menu-item {
 }
 @supports (color: oklch(from red l c h)) {
   [data-pattern] {
-    --pc: oklch(from var(--fill, var(--c)) calc(l + 0.14) calc(c * 1.1) h);
-    --pat-op: 0.7;
+    /* Tone on tone: a little lighter than the fill, like a print. */
+    --pc: oklch(from var(--fill, var(--c)) calc(l + 0.07) c h);
+    --pat-op: 0.75;
   }
 }
 .task.untitled[data-pattern],
@@ -4653,9 +4652,10 @@ a.menu-item {
 @supports (color: oklch(from red l c h)) {
   .task,
   .pattern-swatch {
-    /* Every hue at about the same depth: light ones (gold, lime) darken
-       enough for white text, dark ones keep their punch. */
-    --fill: oklch(from var(--c) min(l, 0.64) calc(c * 1.04) h);
+    /* Every hue at about the same depth and a matte saturation: light ones
+       (ochre, olive) darken enough for white text, loud ones (a vivid color
+       from an import) calm down to sit with the rest. */
+    --fill: oklch(from var(--c) clamp(0.5, l, 0.62) min(c, 0.125) h);
   }
 }
 .task.done {
@@ -5897,7 +5897,7 @@ a.menu-item {
 }
 .ui-date-seg[data-focused] {
   background: var(--accent-solid);
-  color: #fff;
+  color: var(--accent-text);
 }
 .ui-date-placeholder {
   flex: 1;
@@ -5998,7 +5998,7 @@ a.menu-item {
 }
 .ui-cal-cell[data-selected] {
   background: var(--accent-solid);
-  color: #fff;
+  color: var(--accent-text);
   font-weight: 600;
 }
 .ui-cal-cell[data-disabled] {
@@ -6492,7 +6492,7 @@ a.menu-item {
 .check-box.on {
   border-color: var(--accent-solid);
   background: var(--accent-solid);
-  color: #fff;
+  color: var(--accent-text);
 }
 .check-text,
 .check-add {

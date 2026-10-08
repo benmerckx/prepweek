@@ -29,7 +29,7 @@ import { ImportDialog } from '../import/ImportDialog.tsx';
 import { MilestoneBand, MilestoneEditor, MilestoneLines, type MsDrag } from './Milestones.tsx';
 import { Flag, Minus, Plus } from '../ui/icons.tsx';
 import { useBackToClose } from '../lib/useBackToClose.ts';
-import { createMilestone, createTask, createUser, deleteTask, discardNewTask, getTask, getUser, MILESTONE_COLORS, redo, store, undo, updateTask, type ViewConfig } from '../data/store.ts';
+import { createMilestone, createTask, createUser, deleteTask, discardNewTask, getTask, getUser, MILESTONE_COLORS, PALETTE, redo, store, undo, updateTask, type ViewConfig } from '../data/store.ts';
 import { dayFromYMD, formatRange, startOfWeek, startOfYear, today as getToday, ymd } from '../lib/dates.ts';
 
 interface Win {
@@ -537,7 +537,7 @@ export function Timeline({ model }: { model: TimelineModel }) {
             setEditing(null);
             return;
           }
-          const color = getUser(userId)?.color ?? '#3b7bff';
+          const color = getUser(userId)?.color ?? PALETTE[0];
           const id = createTask({ userId, start: day, end: day, title: '', color, lane: -1, notes: '' });
           clickedNew.current = id;
           setSelected(id);
