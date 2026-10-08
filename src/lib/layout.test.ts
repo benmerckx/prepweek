@@ -61,6 +61,29 @@ describe('packLanes', () => {
     expect(lanes.get('b')).toBe(0);
   });
 
+  test('no gaps: tasks float up into lanes left free above them', () => {
+    // d spans everything; e and x need three lanes early on. Later, g kept
+    // lane 2 from a previous layout, but lane 1 is free all through g.
+    const lanes = assertValid([
+      { id: 'd', start: 0, end: 9, lane: 0 },
+      { id: 'e', start: 1, end: 2, lane: 1 },
+      { id: 'x', start: 1, end: 2, lane: 2 },
+      { id: 'g', start: 6, end: 7, lane: 2 },
+    ]);
+    expect(lanes.get('g')).toBe(1);
+    expect(lanes.get('x')).toBe(2);
+  });
+
+  test('no gaps: a freed top lane fills from below', () => {
+    // The task in lane 0 was deleted: the rest move up, keeping their order.
+    const lanes = assertValid([
+      { id: 'a', start: 0, end: 9, lane: 1 },
+      { id: 'b', start: 0, end: 9, lane: 2 },
+      { id: 'c', start: 3, end: 4, lane: 3 },
+    ]);
+    expect([lanes.get('a'), lanes.get('b'), lanes.get('c')]).toEqual([0, 1, 2]);
+  });
+
   test('reports clusters', () => {
     const { clusters } = packLanes([
       { id: 'a', start: 0, end: 2 },
@@ -85,7 +108,11 @@ describe('packLanes', () => {
         if (rnd() < 0.5) item.lane = Math.floor(rnd() * 5);
         items.push(item);
       }
-      assertValid(items);
+      const lanes = assertValid(items);
+      // And no task has a lane above it that's free for its whole span.
+      for (const it of items)
+        for (let l = 0; l < lanes.get(it.id)!; l++)
+          expect(items.some((o) => o !== it && lanes.get(o.id) === l && overlaps(o, it))).toBe(true);
     }
   });
 

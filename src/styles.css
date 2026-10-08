@@ -5116,9 +5116,6 @@ a.menu-item {
   color: var(--text-dim);
   pointer-events: none;
 }
-.rich-notes.focused .rn-placeholder {
-  top: 38px;
-}
 .rn-p {
   margin: 0;
 }

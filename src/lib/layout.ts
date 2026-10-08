@@ -10,6 +10,9 @@
 //      don't jump around while you drag something nearby or a remote edit
 //      arrives. A task can also carry an explicit lane hint (set when the user
 //      drops it in a particular lane), which is honoured the same way.
+//   4. No gaps: a task never sits below a lane that is free for its whole
+//      span. Kept lanes (3) can leave such holes when the task above moves
+//      away or is deleted, so a last pass lets tasks float up into them.
 //
 // Why (2) and (3) don't conflict: we place tasks in start order. When task t
 // is placed, every task already occupying a lane at t.start overlaps day
@@ -68,6 +71,46 @@ const maxOverlap = (items: PackItem[], from: number, to: number): number => {
   return best;
 };
 
+/**
+ * Move tasks up into lanes that are free for their whole span, until none
+ * can move. Tasks in one lane never overlap, so sorted by start they're also
+ * sorted by end: the lane is free for [start, end] when the last task in it
+ * starting by `end` has ended before `start`.
+ */
+const floatUp = (items: PackItem[], from: number, to: number, lanes: Map<string, number>, laneCount: number) => {
+  const byLane: PackItem[][] = Array.from({ length: laneCount }, () => []);
+  for (let n = from; n < to; n++) byLane[lanes.get(items[n]!.id)!]!.push(items[n]!);
+  /** Index of the last task in `lane` that starts on or before `day` (-1: none). */
+  const lastBy = (lane: PackItem[], day: number) => {
+    let lo = 0;
+    let hi = lane.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (lane[mid]!.start <= day) lo = mid + 1;
+      else hi = mid;
+    }
+    return lo - 1;
+  };
+  for (let moved = true; moved; ) {
+    moved = false;
+    for (let n = from; n < to; n++) {
+      const it = items[n]!;
+      const cur = lanes.get(it.id)!;
+      for (let l = 0; l < cur; l++) {
+        const lane = byLane[l]!;
+        const at = lastBy(lane, it.end);
+        if (at >= 0 && lane[at]!.end >= it.start) continue;
+        const old = byLane[cur]!;
+        old.splice(old.indexOf(it), 1);
+        lane.splice(at + 1, 0, it);
+        lanes.set(it.id, l);
+        moved = true;
+        break;
+      }
+    }
+  }
+};
+
 export const packLanes = (input: readonly PackItem[]): PackResult => {
   const items = input.slice().sort(byStart);
   const lanes = new Map<string, number>();
@@ -88,10 +131,16 @@ export const packLanes = (input: readonly PackItem[]): PackResult => {
     if (k > laneCount) laneCount = k;
     const laneEnd = new Array<number>(k).fill(-Infinity);
 
+    // Lanes kept from before may skip numbers (the task above was deleted):
+    // close them up, so tasks keep their order as they move up.
+    const ranks = new Map<number, number>();
+    for (let n = i; n < j; n++) if (items[n]!.lane !== undefined && items[n]!.lane! >= 0) ranks.set(items[n]!.lane!, 0);
+    [...ranks.keys()].sort((a, b) => a - b).forEach((l, r) => ranks.set(l, r));
+
     for (let n = i; n < j; n++) {
       const it = items[n]!;
       let lane = -1;
-      const pref = it.lane;
+      const pref = it.lane === undefined ? undefined : ranks.get(it.lane);
       if (pref !== undefined && pref >= 0 && pref < k && laneEnd[pref]! < it.start) {
         lane = pref;
       } else {
@@ -112,6 +161,7 @@ export const packLanes = (input: readonly PackItem[]): PackResult => {
       laneEnd[lane] = it.end;
       lanes.set(it.id, lane);
     }
+    floatUp(items, i, j, lanes, laneEnd.length);
     clusters.push({ start: items[i]!.start, end: clusterEnd, lanes: laneEnd.length });
     i = j;
   }
