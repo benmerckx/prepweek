@@ -7,7 +7,7 @@ import { useCallback, useEffect, useRef, useState, type PointerEvent as RPointer
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 const PEOPLE = ['Ava', 'Noah', 'Mila'];
-const COLORS = ['#3f6fb5', '#3a8a5f', '#c4513a', '#c9952f', '#7d5bb5', '#2b8a96', '#c2527d', '#cf6a2e'];
+const COLORS = ['#3b6fd4', '#2a9a6a', '#d9473f', '#d69a1f', '#8452d6', '#1d98ab', '#d2448d', '#e2692a'];
 const TITLES = ['Kickoff', 'Workshop', 'Review', 'Launch', 'Pitch', 'Research', 'Design', 'Build', 'Retro', 'Testing', 'Copy', 'Demo', 'Sprint', 'Interviews', 'Offsite'];
 
 interface Piece {

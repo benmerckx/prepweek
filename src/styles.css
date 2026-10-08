@@ -13,36 +13,36 @@
   --font-title: 'Nunito Variable', var(--font);
 
   /* Surfaces */
-  --bg: #fbfaf7;
-  --panel: #f5f3ee;
-  --panel-2: #ece9e2;
-  --raised: #fffefb;
-  --border: #e5e1d8;
-  --border-strong: #d0cabf;
-  --hover: rgba(60, 45, 25, 0.05);
+  --bg: #fbfafc;
+  --panel: #f5f3f7;
+  --panel-2: #ecebf0;
+  --raised: #fffeff;
+  --border: #e4e1e9;
+  --border-strong: #cfcbd7;
+  --hover: rgba(50, 35, 75, 0.05);
 
   /* Text */
-  --text: #23201b;
-  --text-dim: #67615a;
-  --text-faint: #9a948b;
+  --text: #221f28;
+  --text-dim: #66616f;
+  --text-faint: #9893a1;
 
   /* Brand & signals */
-  --accent: #b9512b;
-  --accent-hover: #3d3730;
-  --accent-soft: rgba(185, 81, 43, 0.1);
-  --accent-text: #fbfaf7;
+  --accent: #c23c63;
+  --accent-hover: #3a3443;
+  --accent-soft: rgba(194, 60, 99, 0.1);
+  --accent-text: #fbfafc;
   /* Accent as a fill (buttons, badges); --accent is its text color. */
-  --accent-solid: #2a2621;
-  --today: #d4572a;
+  --accent-solid: #26222d;
+  --today: #d6455f;
   --danger: #c9372c;
   --ok: #3a8a5f;
   --warn: #b98a2e;
 
   /* Timeline grid */
-  --grid-day: rgba(60, 45, 25, 0.05);
-  --grid-week: rgba(60, 45, 25, 0.11);
-  --weekend: rgba(60, 45, 25, 0.04);
-  --row-line: #eeebe4;
+  --grid-day: rgba(50, 35, 75, 0.05);
+  --grid-week: rgba(50, 35, 75, 0.11);
+  --weekend: rgba(50, 35, 75, 0.04);
+  --row-line: #eeecf2;
 
   /* Blocks: tint of the task color on the canvas, ink in the same hue. */
   --block-tint: 17%;
@@ -53,23 +53,23 @@
 
   --radius: 8px;
   --radius-sm: 6px;
-  --shadow-sm: 0 1px 2px rgba(40, 30, 15, 0.06);
-  --shadow: 0 12px 32px -8px rgba(40, 30, 15, 0.18), 0 2px 6px rgba(40, 30, 15, 0.06);
-  --shadow-lift: 0 10px 24px -6px rgba(40, 30, 15, 0.24), 0 2px 6px rgba(40, 30, 15, 0.08);
-  --ring: 0 0 0 3px rgba(185, 81, 43, 0.22);
+  --shadow-sm: 0 1px 2px rgba(30, 20, 50, 0.06);
+  --shadow: 0 12px 32px -8px rgba(30, 20, 50, 0.18), 0 2px 6px rgba(30, 20, 50, 0.06);
+  --shadow-lift: 0 10px 24px -6px rgba(30, 20, 50, 0.24), 0 2px 6px rgba(30, 20, 50, 0.08);
+  --ring: 0 0 0 3px rgba(194, 60, 99, 0.22);
 
   /* Minimap (read by canvas code) */
-  --mm-bg: #f5f3ee;
-  --mm-band: rgba(60, 45, 25, 0.03);
-  --mm-line: rgba(60, 45, 25, 0.16);
-  --mm-text: #8f897f;
-  --mm-text-strong: #23201b;
-  --mm-slider: rgba(185, 81, 43, 0.1);
-  --mm-slider-border: rgba(185, 81, 43, 0.7);
-  --mm-today: #d4572a;
-  --mm-hover: rgba(35, 32, 27, 0.45);
-  --mm-dim: rgba(245, 243, 238, 0.38);
-  --mm-ink: #b9512b;
+  --mm-bg: #f5f3f7;
+  --mm-band: rgba(50, 35, 75, 0.03);
+  --mm-line: rgba(50, 35, 75, 0.16);
+  --mm-text: #8e8998;
+  --mm-text-strong: #221f28;
+  --mm-slider: rgba(194, 60, 99, 0.1);
+  --mm-slider-border: rgba(194, 60, 99, 0.7);
+  --mm-today: #d6455f;
+  --mm-hover: rgba(34, 31, 40, 0.45);
+  --mm-dim: rgba(245, 243, 247, 0.38);
+  --mm-ink: #c23c63;
 
   color-scheme: light dark;
 }
@@ -77,30 +77,30 @@
 /* Dark: follows the system unless the theme toggle picked one. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --bg: #161513;
-    --panel: #1c1b18;
-    --panel-2: #252320;
-    --raised: #201e1b;
-    --border: #2f2c28;
-    --border-strong: #3f3b35;
-    --hover: rgba(250, 240, 225, 0.06);
+    --bg: #151419;
+    --panel: #1b1a20;
+    --panel-2: #24222a;
+    --raised: #1f1d24;
+    --border: #2e2b34;
+    --border-strong: #3e3a45;
+    --hover: rgba(235, 228, 252, 0.06);
 
-    --text: #ece8e1;
-    --text-dim: #aba49a;
-    --text-faint: #7a746b;
+    --text: #ebe9f0;
+    --text-dim: #aaa5b3;
+    --text-faint: #78737f;
 
-    --accent: #ee9a73;
-    --accent-hover: #fffaf2;
-    --accent-soft: rgba(238, 154, 115, 0.16);
-    --accent-text: #1a1816;
-    --accent-solid: #ece8e1;
-    --today: #ee7d52;
+    --accent: #f08aa6;
+    --accent-hover: #fbf8ff;
+    --accent-soft: rgba(240, 138, 166, 0.16);
+    --accent-text: #19171d;
+    --accent-solid: #ebe9f0;
+    --today: #ef6f88;
     --danger: #ef7a6b;
 
-    --grid-day: rgba(250, 240, 225, 0.04);
-    --grid-week: rgba(250, 240, 225, 0.09);
-    --weekend: rgba(250, 240, 225, 0.035);
-    --row-line: #23211e;
+    --grid-day: rgba(235, 228, 252, 0.04);
+    --grid-week: rgba(235, 228, 252, 0.09);
+    --weekend: rgba(235, 228, 252, 0.035);
+    --row-line: #211f26;
 
     --block-tint: 26%;
     --block-tint-hover: 33%;
@@ -111,47 +111,47 @@
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
     --shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.6), 0 2px 8px rgba(0, 0, 0, 0.4);
     --shadow-lift: 0 12px 28px -6px rgba(0, 0, 0, 0.7), 0 2px 6px rgba(0, 0, 0, 0.5);
-    --ring: 0 0 0 3px rgba(238, 154, 115, 0.3);
+    --ring: 0 0 0 3px rgba(240, 138, 166, 0.3);
 
-    --mm-bg: #1c1b18;
-    --mm-band: rgba(250, 240, 225, 0.025);
-    --mm-line: rgba(250, 240, 225, 0.16);
-    --mm-text: #8a847a;
-    --mm-text-strong: #ece8e1;
-    --mm-slider: rgba(238, 154, 115, 0.14);
-    --mm-slider-border: rgba(238, 154, 115, 0.8);
-    --mm-today: #ee7d52;
-    --mm-hover: rgba(236, 232, 225, 0.45);
-    --mm-dim: rgba(22, 21, 19, 0.42);
-    --mm-ink: #ee9a73;
+    --mm-bg: #1b1a20;
+    --mm-band: rgba(235, 228, 252, 0.025);
+    --mm-line: rgba(235, 228, 252, 0.16);
+    --mm-text: #8a8594;
+    --mm-text-strong: #ebe9f0;
+    --mm-slider: rgba(240, 138, 166, 0.14);
+    --mm-slider-border: rgba(240, 138, 166, 0.8);
+    --mm-today: #ef6f88;
+    --mm-hover: rgba(235, 233, 240, 0.45);
+    --mm-dim: rgba(21, 20, 25, 0.42);
+    --mm-ink: #f08aa6;
     color-scheme: dark;
   }
 }
 :root[data-theme='dark'] {
-  --bg: #161513;
-  --panel: #1c1b18;
-  --panel-2: #252320;
-  --raised: #201e1b;
-  --border: #2f2c28;
-  --border-strong: #3f3b35;
-  --hover: rgba(250, 240, 225, 0.06);
+  --bg: #151419;
+  --panel: #1b1a20;
+  --panel-2: #24222a;
+  --raised: #1f1d24;
+  --border: #2e2b34;
+  --border-strong: #3e3a45;
+  --hover: rgba(235, 228, 252, 0.06);
 
-  --text: #ece8e1;
-  --text-dim: #aba49a;
-  --text-faint: #7a746b;
+  --text: #ebe9f0;
+  --text-dim: #aaa5b3;
+  --text-faint: #78737f;
 
-  --accent: #ee9a73;
-  --accent-hover: #fffaf2;
-  --accent-soft: rgba(238, 154, 115, 0.16);
-  --accent-text: #1a1816;
-  --accent-solid: #ece8e1;
-  --today: #ee7d52;
+  --accent: #f08aa6;
+  --accent-hover: #fbf8ff;
+  --accent-soft: rgba(240, 138, 166, 0.16);
+  --accent-text: #19171d;
+  --accent-solid: #ebe9f0;
+  --today: #ef6f88;
   --danger: #ef7a6b;
 
-  --grid-day: rgba(250, 240, 225, 0.04);
-  --grid-week: rgba(250, 240, 225, 0.09);
-  --weekend: rgba(250, 240, 225, 0.035);
-  --row-line: #23211e;
+  --grid-day: rgba(235, 228, 252, 0.04);
+  --grid-week: rgba(235, 228, 252, 0.09);
+  --weekend: rgba(235, 228, 252, 0.035);
+  --row-line: #211f26;
 
   --block-tint: 26%;
   --block-tint-hover: 33%;
@@ -162,19 +162,19 @@
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.6), 0 2px 8px rgba(0, 0, 0, 0.4);
   --shadow-lift: 0 12px 28px -6px rgba(0, 0, 0, 0.7), 0 2px 6px rgba(0, 0, 0, 0.5);
-  --ring: 0 0 0 3px rgba(238, 154, 115, 0.3);
+  --ring: 0 0 0 3px rgba(240, 138, 166, 0.3);
 
-  --mm-bg: #1c1b18;
-  --mm-band: rgba(250, 240, 225, 0.025);
-  --mm-line: rgba(250, 240, 225, 0.16);
-  --mm-text: #8a847a;
-  --mm-text-strong: #ece8e1;
-  --mm-slider: rgba(238, 154, 115, 0.14);
-  --mm-slider-border: rgba(238, 154, 115, 0.8);
-  --mm-today: #ee7d52;
-  --mm-hover: rgba(236, 232, 225, 0.45);
-  --mm-dim: rgba(22, 21, 19, 0.42);
-  --mm-ink: #ee9a73;
+  --mm-bg: #1b1a20;
+  --mm-band: rgba(235, 228, 252, 0.025);
+  --mm-line: rgba(235, 228, 252, 0.16);
+  --mm-text: #8a8594;
+  --mm-text-strong: #ebe9f0;
+  --mm-slider: rgba(240, 138, 166, 0.14);
+  --mm-slider-border: rgba(240, 138, 166, 0.8);
+  --mm-today: #ef6f88;
+  --mm-hover: rgba(235, 233, 240, 0.45);
+  --mm-dim: rgba(21, 20, 25, 0.42);
+  --mm-ink: #f08aa6;
   color-scheme: dark;
 }
 :root[data-theme='light'] {
@@ -4655,7 +4655,7 @@ a.menu-item {
     /* Every hue at about the same depth and a matte saturation: light ones
        (ochre, olive) darken enough for white text, loud ones (a vivid color
        from an import) calm down to sit with the rest. */
-    --fill: oklch(from var(--c) clamp(0.5, l, 0.62) min(c, 0.125) h);
+    --fill: oklch(from var(--c) clamp(0.5, l, 0.63) min(c, 0.155) h);
   }
 }
 .task.done {

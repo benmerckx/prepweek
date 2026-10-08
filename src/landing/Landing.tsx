@@ -14,16 +14,16 @@ import { Playground } from './Playground.tsx';
 const SignInDialog = lazy(() => loadChunk(() => import('../timeline/Account.tsx'), '/?signin').then((m) => ({ default: m.SignInDialog })));
 
 const C = {
-  blue: '#3f6fb5',
-  green: '#3a8a5f',
-  red: '#c4513a',
-  amber: '#c9952f',
-  violet: '#7d5bb5',
-  cyan: '#2b8a96',
-  pink: '#c2527d',
-  slate: '#7a7268',
-  lime: '#6f8f2f',
-  orange: '#cf6a2e',
+  blue: '#3b6fd4',
+  green: '#2a9a6a',
+  red: '#d9473f',
+  amber: '#d69a1f',
+  violet: '#8452d6',
+  cyan: '#1d98ab',
+  pink: '#d2448d',
+  slate: '#737089',
+  lime: '#6e9b26',
+  orange: '#e2692a',
 };
 
 const startPlanning = () => {

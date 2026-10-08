@@ -185,11 +185,11 @@ export async function handleAuth(req: Request, env: Env, url: URL): Promise<Resp
     const token = escapeHtml(url.searchParams.get('token') ?? '');
     return new Response(
       `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Sign in to PrepWeek</title>
-<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f5f3ee;font:16px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#23201b}
-main{background:#fffefb;border-radius:16px;padding:36px 32px;border:1px solid #e5e1d8;text-align:center;max-width:340px;margin:16px}
-img{display:block;margin:0 auto 22px}h1{font-size:20px;margin:0 0 6px}p{margin:0 0 22px;color:#67615a}
-button{font:inherit;font-weight:600;color:#fbfaf7;background:#2a2621;border:0;border-radius:10px;padding:12px 28px;cursor:pointer}button:hover{background:#3d3730}
-@media (prefers-color-scheme:dark){body{background:#161513;color:#ece8e1}main{background:#1c1b18;border-color:#2f2c28}p{color:#aba49a}button,a{background:#ece8e1;color:#1a1816}}</style></head>
+<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f5f3f7;font:16px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#221f28}
+main{background:#fffeff;border-radius:16px;padding:36px 32px;border:1px solid #e4e1e9;text-align:center;max-width:340px;margin:16px}
+img{display:block;margin:0 auto 22px}h1{font-size:20px;margin:0 0 6px}p{margin:0 0 22px;color:#66616f}
+button{font:inherit;font-weight:600;color:#fbfafc;background:#26222d;border:0;border-radius:10px;padding:12px 28px;cursor:pointer}button:hover{background:#3a3443}
+@media (prefers-color-scheme:dark){body{background:#151419;color:#ebe9f0}main{background:#1b1a20;border-color:#2e2b34}p{color:#aaa5b3}button,a{background:#ebe9f0;color:#19171d}}</style></head>
 <body><main><img src="/icons/icon-192.png" width="56" height="56" alt=""><h1>Sign in to PrepWeek</h1><p>Continue to finish signing in.</p>
 <form method="post" action="/auth/verify"><input type="hidden" name="token" value="${token}"><button autofocus>Continue</button></form></main></body></html>`,
       { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'referrer-policy': 'same-origin' } },
@@ -264,10 +264,10 @@ button{font:inherit;font-weight:600;color:#fbfaf7;background:#2a2621;border:0;bo
 export const page = (heading: string, text: string, origin: string, action = `<a href="${origin}/app">Open PrepWeek</a>`) =>
   new Response(
     `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${heading}</title>
-<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f5f3ee;color:#23201b;font:15px/1.55 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif}
-main{max-width:420px;margin:24px 16px;background:#fff;border:1px solid #e5e1d8;border-radius:14px;padding:28px}h1{margin:0 0 10px;font-size:20px}p{margin:0 0 20px;color:#67615a}
-a,button{display:inline-block;padding:10px 18px;border:0;border-radius:9px;background:#2a2621;color:#fbfaf7;text-decoration:none;font:inherit;font-weight:600;cursor:pointer}form{margin:0}
-@media (prefers-color-scheme:dark){body{background:#161513;color:#ece8e1}main{background:#1c1b18;border-color:#2f2c28}p{color:#aba49a}button,a{background:#ece8e1;color:#1a1816}}</style></head>
+<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f5f3f7;color:#221f28;font:15px/1.55 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif}
+main{max-width:420px;margin:24px 16px;background:#fff;border:1px solid #e4e1e9;border-radius:14px;padding:28px}h1{margin:0 0 10px;font-size:20px}p{margin:0 0 20px;color:#66616f}
+a,button{display:inline-block;padding:10px 18px;border:0;border-radius:9px;background:#26222d;color:#fbfafc;text-decoration:none;font:inherit;font-weight:600;cursor:pointer}form{margin:0}
+@media (prefers-color-scheme:dark){body{background:#151419;color:#ebe9f0}main{background:#1b1a20;border-color:#2e2b34}p{color:#aaa5b3}button,a{background:#ebe9f0;color:#19171d}}</style></head>
 <body><main><h1>${heading}</h1><p>${text}</p>${action}</main></body></html>`,
     { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } },
   );

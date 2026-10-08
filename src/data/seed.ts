@@ -47,10 +47,10 @@ export const seed = (people = 24, density = 1, seedValue = 7) => {
     const t0 = today();
     const ms: [number, string, string][] = [
       [t0 - 26, 'Kickoff', '#6b7c93'],
-      [t0 + 9, 'Design freeze', '#7d5bb5'],
+      [t0 + 9, 'Design freeze', '#8452d6'],
       [t0 + 31, 'v2 launch', '#ef4444'],
-      [t0 + 52, 'Offsite', '#3a8a5f'],
-      [t0 + 80, 'Year-end freeze', '#3f6fb5'],
+      [t0 + 52, 'Offsite', '#2a9a6a'],
+      [t0 + 80, 'Year-end freeze', '#3b6fd4'],
     ];
     for (const [day, title, color] of ms) store.setRow('milestones', newId(), { day, title, color });
     const projectId = new Map<string, string>();

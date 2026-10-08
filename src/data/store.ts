@@ -6,17 +6,17 @@ import { isWeekend } from '../lib/dates.ts';
 // cell), so local edits, other tabs and a Cloudflare Durable Object can all
 // merge deterministically. See ./sync.ts for the wiring.
 
-// Ten hues spread around the wheel, earthy and matte: denim, jade,
-// terracotta, ochre, plum, teal, rose, stone, olive, rust. Blocks draw them at
+// Ten hues spread around the wheel, clear but not loud. Blocks draw them at
 // one depth under white text (see .task in styles.css).
 export const PALETTE = [
-  '#3f6fb5', '#3a8a5f', '#c4513a', '#c9952f', '#7d5bb5',
-  '#2b8a96', '#c2527d', '#7a7268', '#6f8f2f', '#cf6a2e',
+  '#3b6fd4', '#2a9a6a', '#d9473f', '#d69a1f', '#8452d6',
+  '#1d98ab', '#d2448d', '#737089', '#6e9b26', '#e2692a',
 ] as const;
 /** Earlier palettes, in the same order (sheets get the current colors). */
 const OLD_PALETTES = [
   ['#4f7cff', '#22a06b', '#e5484d', '#f59e0b', '#8b5cf6', '#06b6d4', '#ec4899', '#64748b', '#84cc16', '#f97316'],
   ['#3b7bff', '#20b55c', '#f04438', '#f5b301', '#9b5cff', '#0fc2d8', '#f72585', '#6b7c93', '#8ccf12', '#ff7b1c'],
+  ['#3f6fb5', '#3a8a5f', '#c4513a', '#c9952f', '#7d5bb5', '#2b8a96', '#c2527d', '#7a7268', '#6f8f2f', '#cf6a2e'],
 ];
 
 export type UserRow = { name: string; color: string; order: number; email: string; team?: string; avatar?: string };
@@ -213,7 +213,7 @@ export type AttachmentRow = {
 export const PATTERNS = ['dots', 'stripes', 'zigzag', 'waves', 'triangles', 'rings'] as const;
 
 /** First is the default; not red, so milestones don't read as "today". */
-export const MILESTONE_COLORS = ['#7d5bb5', '#3f6fb5', '#2b8a96', '#3a8a5f', '#c9952f', '#c4513a', '#c2527d', '#7a7268'] as const;
+export const MILESTONE_COLORS = ['#8452d6', '#3b6fd4', '#1d98ab', '#2a9a6a', '#d69a1f', '#d9473f', '#d2448d', '#737089'] as const;
 
 const ALPHABET = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
 /** 16 random base62 chars (~95 bits); works outside secure contexts too. */
