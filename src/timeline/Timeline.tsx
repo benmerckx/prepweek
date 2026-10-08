@@ -34,7 +34,7 @@ import { MilestoneBand, MilestoneEditor, MilestoneLines, type MsDrag } from './M
 import { Flag, Minus, Plus } from '../ui/icons.tsx';
 import { useBackToClose } from '../lib/useBackToClose.ts';
 import { createMilestone, createTask, createUser, deleteTask, discardNewTask, getTask, getUser, MILESTONE_COLORS, PALETTE, redo, store, undo, updateTask, type ViewConfig } from '../data/store.ts';
-import { formatRange, startOfWeek, today as getToday } from '../lib/dates.ts';
+import { startOfWeek, today as getToday } from '../lib/dates.ts';
 
 interface Win {
   d0: number;
@@ -1129,10 +1129,6 @@ export function Timeline({ model }: { model: TimelineModel }) {
         </div>
       )}
       <div className="bottombar">
-        <div className="bottombar-left">
-          <VisibleRange vp={vp} />
-          <span>Drag the strip to scrub through time</span>
-        </div>
         <Minimap model={model} vp={vp} today={todayDay} filter={filter} span={compact ? 35 : undefined} />
       </div>
       {msEdit && <MilestoneEditor key={msEdit.id} id={msEdit.id} anchor={msEdit.anchor} fresh={msEdit.fresh} sheet={compact} onClose={() => setMsEdit(null)} />}
@@ -1194,22 +1190,6 @@ export function Timeline({ model }: { model: TimelineModel }) {
       )}
     </div>
   );
-}
-
-/** Updates imperatively on scroll; never re-renders the timeline. */
-function VisibleRange({ vp }: { vp: Viewport }) {
-  const ref = useRef<HTMLSpanElement>(null);
-  useEffect(() => {
-    const update = () => {
-      if (!ref.current || !vp.scroller) return;
-      const a = Math.floor(vp.firstVisibleDay + 0.5);
-      const b = Math.floor(vp.firstVisibleDay + vp.visibleDays - 0.5);
-      ref.current.textContent = formatRange(a, Math.max(a, b));
-    };
-    update();
-    return vp.onChange(update);
-  }, [vp]);
-  return <span className="range-label" ref={ref} />;
 }
 
 /**
