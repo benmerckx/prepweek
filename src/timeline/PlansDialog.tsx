@@ -152,9 +152,6 @@ export function PlansDialog({ workspaceId, onClose }: { workspaceId: string; onC
                 Invoices, card and cancelling
               </button>
             )}
-            <a className="link-btn" href="/appsumo">
-              Have an AppSumo code?
-            </a>
           </div>
           <p className="share-foot">
             Payments by Paddle, our reseller: they handle VAT and invoices. Cancel any time; the plan stays until the end of the period you paid for.

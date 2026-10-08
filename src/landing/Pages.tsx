@@ -257,12 +257,11 @@ const HELP: { title: string; items: [string, ReactNode][] }[] = [
     ],
   },
   {
-    title: 'Plans and AppSumo',
+    title: 'Plans',
     items: [
       ['What counts as a person?', `A row you plan for. Logins are unlimited: anyone can sign in, comment and plan. The free plan covers ${FREE_PEOPLE} people per workspace.`],
-      ['How do I redeem my AppSumo code?', <>Press Activate on AppSumo, sign in, and pick your workspace. Step by step on the <a href="/appsumo">AppSumo page</a>.</>],
-      ['Can I upgrade my AppSumo tier?', 'Yes, on AppSumo. Press Activate again afterwards if asked; your workspace keeps its data and moves up to the new tier.'],
-      ['Refunds?', 'AppSumo purchases are refundable through AppSumo for 60 days. After a refund the workspace returns to the free plan; nothing is deleted.'],
+      ['How do I plan for more people?', 'A workspace admin opens People in your workspace → Upgrade and picks Team (15 people), Studio (40) or Agency (100), monthly or yearly.'],
+      ['Refunds?', 'Ask within 14 days of a subscription payment and you get it back in full. When a subscription ends the workspace returns to the free plan; nothing is deleted.'],
     ],
   },
 ];
@@ -402,7 +401,7 @@ export function PrivacyPage() {
               <b>Settings:</b> your daily digest choice, your time zone and the address you use PrepWeek at.
             </li>
             <li>
-              <b>Purchases:</b> an AppSumo licence key, or a Paddle customer and subscription reference. Card details stay with Paddle; we never see them.
+              <b>Purchases:</b> a Paddle customer and subscription reference. Card details stay with Paddle; we never see them.
             </li>
           </ul>,
         ],
@@ -410,7 +409,7 @@ export function PrivacyPage() {
           'On your device',
           <p>
             Your browser keeps a copy of the sheets you open so PrepWeek works offline, plus small preferences (theme, last sheet). We set one cookie
-            to keep you signed in, and short-lived ones during Google sign-in and AppSumo activation. No analytics or advertising cookies. Signing out
+            to keep you signed in, and a short-lived one during Google sign-in. No analytics or advertising cookies. Signing out
             removes the copies of your workspace’s sheets from that device.
           </p>,
         ],
@@ -427,7 +426,7 @@ export function PrivacyPage() {
               <b>Google</b>, only if you choose “Continue with Google”.
             </li>
             <li>
-              <b>Paddle</b> (our reseller for subscriptions, who also handles VAT and invoices) and <b>AppSumo</b> handle payments.
+              <b>Paddle</b>, our reseller for subscriptions, handles payments, VAT and invoices.
             </li>
           </ul>,
         ],
@@ -474,17 +473,14 @@ export function TermsPage() {
         [
           'Plans and payments',
           <ul>
-            <li>The free plan covers {FREE_PEOPLE} planned people per workspace. Paid plans and AppSumo tiers cover more; logins are always unlimited.</li>
+            <li>The free plan covers {FREE_PEOPLE} planned people per workspace. Paid plans cover more; logins are always unlimited.</li>
             <li>
               Subscriptions are sold by our online reseller Paddle.com, the merchant of record for these orders. Paddle handles payment, VAT,
               invoices and billing questions; their buyer terms apply to the purchase.
             </li>
             <li>Subscriptions renew until you cancel; cancelling keeps your plan until the end of the period you paid for.</li>
             <li>Changed your mind? Ask within 14 days of a subscription payment and you get it back in full.</li>
-            <li>
-              AppSumo licences are for the lifetime of PrepWeek, with refunds through AppSumo within 60 days. After a refund or a lapsed
-              subscription the workspace goes back to the free plan; nothing is deleted.
-            </li>
+            <li>When a subscription ends, the workspace goes back to the free plan; nothing is deleted.</li>
           </ul>,
         ],
         [

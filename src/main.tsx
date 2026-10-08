@@ -1,3 +1,4 @@
+import { APPSUMO_LIVE } from './lib/plans.ts';
 import { createRoot } from 'react-dom/client';
 import { loadFonts } from './fonts.ts';
 import { loadMe } from './data/account.ts';
@@ -16,8 +17,9 @@ const me = loadMe();
 // /app opens your last sheet, /s/<id> a given one. Each is its own chunk,
 // so the home page doesn't load the planner.
 const path = location.pathname;
-const landing = path === '/' || path === '/welcome';
-const page = ({ '/appsumo': 'AppSumoPage', '/help': 'HelpPage', '/roadmap': 'RoadmapPage', '/privacy': 'PrivacyPage', '/terms': 'TermsPage' } as const)[path.replace(/\/$/, '') as '/help'];
+// The AppSumo page waits until the deal is live (see lib/plans.ts).
+const landing = path === '/' || path === '/welcome' || (!APPSUMO_LIVE && /^\/appsumo\/?$/.test(path));
+const page = ({ ...(APPSUMO_LIVE ? { '/appsumo': 'AppSumoPage' } : {}), '/help': 'HelpPage', '/roadmap': 'RoadmapPage', '/privacy': 'PrivacyPage', '/terms': 'TermsPage' } as const)[path.replace(/\/$/, '') as '/help'];
 if (page) {
   const [pages] = await Promise.all([loadChunk(() => import('./landing/Pages.tsx')), me]);
   const Page = pages[page];

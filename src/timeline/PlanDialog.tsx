@@ -32,7 +32,7 @@ export function PlanDialog({ onClose }: { onClose(): void }) {
           </p>
           <ul className="cal-how">
             <li>
-              <b>Plan for more people:</b> Team covers 15, Studio 40, Agency 100. Or press <i>Activate</i> on AppSumo if you have a code.
+              <b>Plan for more people:</b> Team covers 15, Studio 40, Agency 100.
             </li>
             <li>
               <b>Planning for someone you no longer need?</b> Remove them from the sheet to make room.

@@ -9,6 +9,15 @@
 export const FREE_PEOPLE = 5;
 
 /** AppSumo licence tiers: the people each covers. */
+/**
+ * AppSumo is shown to people (the redeem page, mentions in plans, help and
+ * the legal pages) only once the deal is live. The licensing itself (worker/
+ * appsumo.ts) stays in place. To go live: set this, and bring back the
+ * AppSumo copy in Pages.tsx, PlanDialog.tsx and PlansDialog.tsx from git
+ * (removed in the commit that added this flag).
+ */
+export const APPSUMO_LIVE = false;
+
 export const APPSUMO_TIERS: Record<number, number> = { 1: 15, 2: 40, 3: 100 };
 export const appsumoPeople = (tier: number) => APPSUMO_TIERS[Math.min(3, Math.max(1, Math.round(tier) || 1))]!;
 
