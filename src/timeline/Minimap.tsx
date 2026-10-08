@@ -46,7 +46,7 @@ export function Minimap({ model, vp, today, filter = null, span = TARGET_DAYS }:
   }, [filter]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
-  const state = useRef({ rowsAt: { top: 0, lane: 0, ids: [] as string[] }, hoverY: -1, hoverX: -1, dragging: false, grabDx: 0, raf: 0, rebuild: 0, colors: {} as Record<string, string>, shift: 0, lock: null as null | number, over: 0, glide: null as null | { from: number; to: number; s0: number; s1: number; timer: number } });
+  const state = useRef({ hoverX: -1, dragging: false, grabDx: 0, raf: 0, rebuild: 0, colors: {} as Record<string, string>, shift: 0, lock: null as null | number, over: 0, glide: null as null | { from: number; to: number; s0: number; s1: number; timer: number } });
 
   useEffect(() => {
     const canvas = canvasRef.current!;
@@ -56,7 +56,7 @@ export function Minimap({ model, vp, today, filter = null, span = TARGET_DAYS }:
 
     const readColors = () => {
       const cs = getComputedStyle(wrap);
-      for (const k of ['bg', 'band', 'line', 'text', 'text-strong', 'slider', 'slider-border', 'today', 'hover', 'dim', 'ink'])
+      for (const k of ['bg', 'band', 'weekend', 'line', 'text', 'text-strong', 'slider', 'slider-border', 'today', 'hover', 'dim', 'ink'])
         st.colors[k] = cs.getPropertyValue(`--mm-${k}`).trim();
     };
     readColors();
@@ -147,16 +147,17 @@ export function Minimap({ model, vp, today, filter = null, span = TARGET_DAYS }:
           o.fillText(mi === 0 ? String(y) : monthShort(mi), x + 4, LABEL_H / 2 + 1);
         }
       }
-      // Zoomed in (phones): weeks too, as the date of their Monday.
-      if (g.scale >= 9) {
+      // Weeks: a tick at each Monday; zoomed in (phones), its date too. The
+      // weekends are veiled after the plan is drawn (below).
+      if (g.scale >= 2) {
         o.font = '500 9.5px "Inter Variable", ui-sans-serif, system-ui, sans-serif';
         for (let d = startOfWeek(s0); d <= s1; d += 7) {
           const x = (d - s0) * g.scale;
           const sinceMonth = (d - startOfMonth(d)) * g.scale;
           if (sinceMonth === 0) continue;
           o.fillStyle = c.line!;
-          o.fillRect(Math.round(x), LABEL_H - 3, 1, 3);
-          if (sinceMonth < 30) continue; // the month's own label is there
+          o.fillRect(Math.round(x), LABEL_H - 5, 1, 5);
+          if (g.scale < 9 || sinceMonth < 30) continue; // the month's own label is there
           o.fillStyle = c.text!;
           o.globalAlpha = 0.7;
           o.fillText(String(ymd(d).d), x + 3, LABEL_H / 2 + 1);
@@ -192,7 +193,12 @@ export function Minimap({ model, vp, today, filter = null, span = TARGET_DAYS }:
         }
         o.globalAlpha = 1;
       });
-      st.rowsAt = { top, lane, ids: people.map((r) => r.name) };
+
+      // Weekends veiled over the plan, so each week reads as its own column.
+      if (g.scale >= 2) {
+        o.fillStyle = c.weekend!;
+        for (let d = startOfWeek(s0) + 5; d <= s1; d += 7) o.fillRect((d - s0) * g.scale, LABEL_H, 2 * g.scale, H - LABEL_H);
+      }
 
       // Milestones: a marker in the label row and a thin line down.
       for (const m of model.milestones) {
@@ -304,9 +310,7 @@ export function Minimap({ model, vp, today, filter = null, span = TARGET_DAYS }:
         const day = Math.floor(g.mmStart + st.hoverX / g.scale);
         ctx.fillStyle = c.hover!;
         ctx.fillRect(Math.round(st.hoverX), 0, 1, H);
-        const r = st.rowsAt;
-        const who = st.hoverY >= r.top && r.lane > 0 ? r.ids[Math.floor((st.hoverY - r.top) / r.lane)] : undefined;
-        const label = who ? `${who} · ${formatDay(day)}` : formatDay(day);
+        const label = formatDay(day);
         const tw = ctx.measureText(label).width + 10;
         const lx = Math.min(W - tw, Math.max(0, st.hoverX - tw / 2));
         ctx.fillStyle = c['text-strong']!;
@@ -391,7 +395,6 @@ export function Minimap({ model, vp, today, filter = null, span = TARGET_DAYS }:
     const move = (e: PointerEvent) => {
       const x = localX(e);
       st.hoverX = x;
-      st.hoverY = e.clientY - canvas.getBoundingClientRect().top;
       if (st.dragging) setFromSlider(x - st.grabDx);
       // A hand only over the handle; elsewhere a click glides there.
       canvas.style.cursor = st.dragging ? 'grabbing' : onHandle(x) ? 'grab' : 'default';

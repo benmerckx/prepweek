@@ -57,6 +57,9 @@ export class SheetDurableObject extends WsServerDurableObject {
   // big sheet (a Teamweek import) silently stopped being saved: it lived in
   // memory only and was gone for whoever connected after the object restarted.
   override async createPersister() {
+    // Keepalive: browsers send "ping" every so often, so idle connections
+    // aren't closed along the way; answered without waking the object.
+    this.ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair('ping', 'pong'));
     const sql = this.ctx.storage.sql;
     const store = (this.sheetStore = createMergeableStore());
     // Once loaded, TinyBase saves the whole store straight back: every row

@@ -23,7 +23,7 @@ import { ListItemNode, ListNode, INSERT_ORDERED_LIST_COMMAND, INSERT_UNORDERED_L
 import { AutoLinkNode, LinkNode, TOGGLE_LINK_COMMAND, $isLinkNode } from '@lexical/link';
 import { CodeNode } from '@lexical/code';
 import { $convertFromMarkdownString, $convertToMarkdownString, TRANSFORMERS } from '@lexical/markdown';
-import { $createParagraphNode, $getSelection, $isRangeSelection, FORMAT_TEXT_COMMAND, type EditorState, type LexicalEditor } from 'lexical';
+import { $createParagraphNode, $getSelection, $isRangeSelection, $setSelection, FORMAT_TEXT_COMMAND, type EditorState, type LexicalEditor } from 'lexical';
 import { LexicalTypeaheadMenuPlugin, MenuOption, useBasicTypeaheadTriggerMatch } from '@lexical/react/LexicalTypeaheadMenuPlugin';
 import { $createHeadingNode, $createQuoteNode } from '@lexical/rich-text';
 import { $createCodeNode } from '@lexical/code';
@@ -34,6 +34,10 @@ const URL_MATCHER = createLinkMatcherWithRegExp(/((https?:\/\/(www\.)?)|(www\.))
   t.startsWith('http') ? t : `https://${t}`,
 );
 const EMAIL_MATCHER = createLinkMatcherWithRegExp(/[\w.+-]+@[\w-]+\.[\w.-]+/, (t) => `mailto:${t}`);
+// One array for good: a new one each render makes the plugin register its
+// transforms again, and that update put the focus back in the notes (say,
+// right after you clicked the comment box).
+const MATCHERS = [URL_MATCHER, EMAIL_MATCHER];
 
 const theme = {
   paragraph: 'rn-p',
@@ -205,15 +209,22 @@ function SlashMenu() {
   );
 }
 
-/** Follow outside changes (another person editing) while not focused. */
-function SyncValue({ value, focused }: { value: string; focused: boolean }) {
+/**
+ * Follow outside changes (another person editing) while not focused. `last`
+ * is what the editor holds: our own saves come back as the new value and
+ * must not reload it. Loading leaves no selection, which would pull the
+ * focus back here (say, from the comment box you just clicked).
+ */
+function SyncValue({ value, focused, last }: { value: string; focused: boolean; last: RefObject<string> }) {
   const [editor] = useLexicalComposerContext();
-  const last = useRef(value);
   useEffect(() => {
     if (focused || value === last.current) return;
     last.current = value;
-    editor.update(() => $convertFromMarkdownString(value, TRANSFORMERS, undefined, true));
-  }, [value, focused, editor]);
+    editor.update(() => {
+      $convertFromMarkdownString(value, TRANSFORMERS, undefined, true);
+      $setSelection(null);
+    });
+  }, [value, focused, editor, last]);
   return null;
 }
 
@@ -222,9 +233,13 @@ export default function RichNotes({ value, readOnly, placeholder = 'Notes  ·  t
   const box = useRef<HTMLDivElement>(null);
   const pending = useRef<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const last = useRef(value);
   const flush = () => {
     clearTimeout(timer.current);
-    if (pending.current !== null && pending.current !== value) onSave(pending.current);
+    if (pending.current !== null && pending.current !== value) {
+      last.current = pending.current;
+      onSave(pending.current);
+    }
     pending.current = null;
   };
   // Save what's typed when the panel closes.
@@ -273,12 +288,12 @@ export default function RichNotes({ value, readOnly, placeholder = 'Notes  ·  t
         <HistoryPlugin />
         <ListPlugin />
         <LinkPlugin />
-        <AutoLinkPlugin matchers={[URL_MATCHER, EMAIL_MATCHER]} />
+        <AutoLinkPlugin matchers={MATCHERS} />
         <ClickableLinkPlugin newTab />
         <MarkdownShortcutPlugin transformers={TRANSFORMERS} />
         {!readOnly && <SlashMenu />}
         <OnChangePlugin onChange={onChange} ignoreSelectionChange />
-        <SyncValue value={value} focused={focused} />
+        <SyncValue value={value} focused={focused} last={last} />
       </div>
     </LexicalComposer>
   );

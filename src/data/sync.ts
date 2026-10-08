@@ -118,6 +118,12 @@ export const startSync = async (sheetId: string, served = false) => {
 const SYNC_FRAGMENT = 768 * 1024;
 /** Seconds to wait for a reply (large payloads take a while). */
 const SYNC_TIMEOUT = 30;
+/** Without a connection this long (and the browser online), say "Offline". */
+const OFFLINE_AFTER = 20_000;
+/** TinyBase reports a closed socket as an error ("tinybase:5"): that's a reconnect, not news. */
+const quietErrors = (e: unknown) => {
+  if (!(e instanceof Error && /^tinybase:5\b/.test(e.message))) console.warn('Sync error', e);
+};
 
 /**
  * Connects, and reconnects after every drop, with a fresh synchronizer each
@@ -130,33 +136,45 @@ const connect = (server: string, sheetId: string) =>
   new Promise<void>((resolveFirst) => {
     let delay = 1000;
     let retry: ReturnType<typeof setTimeout> | undefined;
-    // Connections drop now and then (idle sockets get closed, laptops
-    // sleep): reconnecting quietly is not being offline. "Offline" is the
-    // browser saying so, or several attempts in a row failing.
-    let failures = 0;
+    // Connections drop now and then (deploys, laptops sleep): reconnecting
+    // quietly is not being offline. "Offline" is the browser saying so, or
+    // no connection for OFFLINE_AFTER.
+    let downSince = 0;
+    let offlineTimer: ReturnType<typeof setTimeout> | undefined;
     const open = async () => {
       clearTimeout(retry);
       retry = undefined;
       await accessReady(server.replace(/^ws/, 'http').replace(/\/sync\/?$/, ''));
       // A function call, so a reconnect after the share links are reset uses the new key.
       const ws = new WebSocket(withKey(`${server.replace(/\/$/, '')}/${encodeURIComponent(sheetId)}`));
+      // Keepalive: a socket with nothing to say gets closed along the way
+      // (proxies, the edge). The server answers "ping" itself; the "pong"
+      // stops here, before TinyBase's own listener (added after this one).
+      ws.addEventListener('message', (e) => e.data === 'pong' && e.stopImmediatePropagation());
+      const ping = setInterval(() => ws.readyState === WebSocket.OPEN && ws.send('ping'), 30_000);
       let remote: Awaited<ReturnType<typeof createWsSynchronizer>> | undefined;
       ws.addEventListener('close', () => {
+        clearInterval(ping);
         void remote?.destroy();
         remote = undefined;
-        failures++;
-        setStatus(!navigator.onLine || failures >= 3 ? 'offline' : 'connecting');
+        // Reconnecting quietly is not being offline: say so only when the
+        // browser is, or after a while without a connection.
+        if (!downSince) downSince = Date.now();
+        setStatus(navigator.onLine ? 'connecting' : 'offline');
+        clearTimeout(offlineTimer);
+        offlineTimer = setTimeout(() => downSince && setStatus('offline'), Math.max(0, OFFLINE_AFTER - (Date.now() - downSince)));
         resolveFirst();
         if (retry) return;
         retry = setTimeout(open, delay);
         delay = Math.min(delay * 2, 30_000);
       });
       try {
-        remote = await createWsSynchronizer(store, ws, SYNC_TIMEOUT, undefined, undefined, (e) => console.warn('Sync error', e), SYNC_FRAGMENT);
+        remote = await createWsSynchronizer(store, ws, SYNC_TIMEOUT, undefined, undefined, quietErrors, SYNC_FRAGMENT);
         await remote.startSync();
         if (ws.readyState === WebSocket.OPEN) {
           delay = 1000;
-          failures = 0;
+          downSince = 0;
+          clearTimeout(offlineTimer);
           setStatus('online');
         }
       } catch (e) {
