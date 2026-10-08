@@ -12,6 +12,15 @@ export const FREE_PEOPLE = 5;
 export const APPSUMO_TIERS: Record<number, number> = { 1: 15, 2: 40, 3: 100 };
 export const appsumoPeople = (tier: number) => APPSUMO_TIERS[Math.min(3, Math.max(1, Math.round(tier) || 1))]!;
 
+/** Paid plans (Paddle): people covered and prices per month / per year. */
+export const PAID_PLANS = [
+  { id: 'team', name: 'Team', people: 15, month: 29, year: 290 },
+  { id: 'studio', name: 'Studio', people: 40, month: 69, year: 690 },
+  { id: 'agency', name: 'Agency', people: 100, month: 129, year: 1290 },
+] as const;
+export type PaidPlanId = (typeof PAID_PLANS)[number]['id'];
+export const paidPlan = (id: string) => PAID_PLANS.find((p) => p.id === id);
+
 export interface PlanInfo {
   /** "Free", "AppSumo Tier 2", … */
   name: string;
@@ -23,6 +32,8 @@ export interface PlanInfo {
   elsewhere: number;
   /** Limits are on (PLAN_LIMITS="on"); off, plans are shown but nothing is blocked. */
   enforced: boolean;
+  /** A paid plan: which one, and whether it's in good standing. */
+  paid?: { plan: string; status: string; until: number } | null;
 }
 
 const UNNAMED = /^(new person|unnamed|)$/i;

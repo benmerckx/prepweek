@@ -40,6 +40,7 @@ import { Select, type Option } from '../ui/Select.tsx';
 import { ActionMenu } from '../ui/Menu.tsx';
 import { Check, ChevronDown, Close, LinkIcon, Pencil, People as PeopleIcon, Plus, Trash } from '../ui/icons.tsx';
 import { Logo, Wordmark } from '../ui/brand.tsx';
+import { PlansDialog } from './PlansDialog.tsx';
 
 export const useAccount = () => useSyncExternalStore(onMe, getMe);
 const useAccess = () => useSyncExternalStore(onAccess, getAccess);
@@ -614,6 +615,7 @@ export function WorkspaceDialog({ workspaceId, onClose }: { workspaceId: string;
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<'member' | 'admin'>('member');
   const [link, setLink] = useState<{ link: string; sent: boolean; email: string } | null>(null);
+  const [plans, setPlans] = useState(false);
   const reload = () =>
     getPeople(workspaceId)
       .then(setPeople)
@@ -664,12 +666,13 @@ export function WorkspaceDialog({ workspaceId, onClose }: { workspaceId: string;
                 <span className="load-fill" style={{ width: `${Math.min(100, (ws.plan.used / ws.plan.limit) * 100)}%` }} />
               </span>
               {admin && (
-                <a className="btn" href="/appsumo">
-                  Redeem AppSumo licence
-                </a>
+                <button className="btn" onClick={() => setPlans(true)}>
+                  {ws.plan.paid && ['active', 'trialing', 'past_due'].includes(ws.plan.paid.status) ? 'Plan and billing' : 'Upgrade'}
+                </button>
               )}
             </div>
           )}
+          {plans && <PlansDialog workspaceId={workspaceId} onClose={() => setPlans(false)} />}
           {admin && (
             <form
               className="ws-invite"

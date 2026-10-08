@@ -102,11 +102,14 @@ Below 640px wide, the people column shrinks to avatars and first names, the
 editor opens as a bottom sheet, and the less-used actions move into the
 **⋯** menu.
 
-## Plans and AppSumo
+## Plans, billing and AppSumo
 
-Workspaces plan for a number of people (Free: 5); AppSumo licences raise that.
-Limits only apply with `PLAN_LIMITS = "on"`. Setup, the licence lifecycle and
-a launch checklist: [docs/APPSUMO.md](docs/APPSUMO.md).
+Workspaces plan for a number of people (Free: 5); paid plans and AppSumo
+licences raise that. Limits only apply with `PLAN_LIMITS = "on"`.
+
+- Subscriptions run on Paddle: setup in [docs/BILLING.md](docs/BILLING.md).
+- AppSumo setup, the licence lifecycle and a launch checklist:
+  [docs/APPSUMO.md](docs/APPSUMO.md).
 
 ## How it's built
 

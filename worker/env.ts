@@ -1,5 +1,5 @@
-import type { DirectoryDurableObject } from './directory.ts';
-import type { PresenceDurableObject, SheetDurableObject } from './index.ts';
+import type { DirectoryDurableObject } from "./directory.ts";
+import type { PresenceDurableObject, SheetDurableObject } from "./index.ts";
 
 export interface Env {
   /** Optional R2 bucket for attachment bytes. */
@@ -21,6 +21,17 @@ export interface Env {
   APPSUMO_CLIENT_ID?: string;
   APPSUMO_CLIENT_SECRET?: string;
   APPSUMO_API_KEY?: string;
+  /** Paddle Billing (paid plans): API key, the notification destination's
+   *  secret key, the client-side token for Paddle.js, and "production" (anything
+   *  else uses the sandbox). */
+  PADDLE_API_KEY?: string;
+  PADDLE_WEBHOOK_SECRET?: string;
+  PADDLE_CLIENT_TOKEN?: string;
+  PADDLE_ENV?: string;
+  /** Currency for paid plans (default "eur"). */
+  BILLING_CURRENCY?: string;
+  /** Tests only: where Paddle's API is. */
+  PADDLE_BASE?: string;
   /** Tests only: where AppSumo's OAuth and API are (default https://appsumo.com). */
   APPSUMO_BASE?: string;
   /** The public address, for links in emails sent without a request (the digest cron). */

@@ -23,6 +23,7 @@ import { directory, handleApi, handleAuth, sessionUser } from './auth.ts';
 import { sendDigests, sheetDigest } from './digest.ts';
 import { buildCalendar } from './ical.ts';
 import { appsumoApi, appsumoCallback, appsumoWebhook } from './appsumo.ts';
+import { billingApi } from './billing.ts';
 import { personKey } from '../src/lib/plans.ts';
 import type { Env } from './env.ts';
 
@@ -384,6 +385,7 @@ async function handle(request: Request, env: Env): Promise<Response> {
   if (url.pathname === '/auth/appsumo/callback') return appsumoCallback(request, env, url);
   if (url.pathname === '/api/appsumo/webhook') return appsumoWebhook(request, env);
   if (url.pathname.startsWith('/api/appsumo/')) return appsumoApi(request, env, url, url.pathname.split('/').slice(2));
+  if (url.pathname.startsWith('/api/billing/')) return billingApi(request, env, url, url.pathname.split('/').slice(2));
   if (url.pathname.startsWith('/auth/')) return handleAuth(request, env, url);
   if (url.pathname.startsWith('/api/')) return handleApi(request, env, url);
   const ical = /^\/ical\/([^/]+)\/([^/]+)\.ics$/.exec(url.pathname);

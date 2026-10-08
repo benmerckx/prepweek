@@ -33,6 +33,7 @@
 import type { Env } from './env.ts';
 import type { User, WorkspaceRole } from './directory.ts';
 import { buildDigest, localTime } from './digest.ts';
+import { cancelSubscriptions } from './billing.ts';
 import { escapeHtml, renderEmail } from './email.ts';
 
 const COOKIE = 'pw_session';
@@ -364,7 +365,9 @@ export async function handleApi(req: Request, env: Env, url: URL): Promise<Respo
     }
     // Delete my account (see DirectoryDurableObject.deleteAccount).
     if (seg[0] === 'me' && seg.length === 1 && req.method === 'DELETE') {
-      const { sheets } = await dir.deleteAccount(user.id);
+      const { sheets, workspaces } = await dir.deleteAccount(user.id);
+      // Subscriptions of the workspaces that went with the account stop too.
+      await cancelSubscriptions(env, workspaces);
       await dropConnections(env, sheets, true);
       return json({ ok: true }, 200, { 'set-cookie': cookie(url, COOKIE, '', 0) });
     }
@@ -380,6 +383,7 @@ export async function handleApi(req: Request, env: Env, url: URL): Promise<Respo
         return json({ ok: true });
       }
       if (ws && seg.length === 2 && req.method === 'DELETE') {
+        await cancelSubscriptions(env, [ws]);
         await dropConnections(env, await dir.deleteWorkspace(user.id, ws), true);
         return json({ ok: true });
       }

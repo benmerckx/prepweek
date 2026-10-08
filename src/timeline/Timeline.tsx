@@ -5,6 +5,8 @@ import { Scale } from './scale.ts';
 import { LinkLayer } from './Links.tsx';
 import { addPerson } from '../data/plan.ts';
 import { PlanDialog } from './PlanDialog.tsx';
+import { loadMe } from '../data/account.ts';
+import { reloadAccess } from '../data/access.ts';
 import { COMPACT_QUERY, HEADER_H, SIDEBAR_W, SIDEBAR_W_COMPACT, Viewport, ZOOM_MAX, ZOOM_MIN } from './viewport.ts';
 import { DragController, type DragKind } from './drag.ts';
 import { Header } from './Header.tsx';
@@ -93,6 +95,20 @@ export function Timeline({ model }: { model: TimelineModel }) {
   const readOnly = access?.role === 'view';
   const [sharing, setSharing] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
+  // Back from Paddle checkout: the plan arrives by webhook a moment later.
+  const [toast, setToast] = useState('');
+  useEffect(() => {
+    const url = new URL(location.href);
+    const billing = url.searchParams.get('billing');
+    if (!billing) return;
+    url.searchParams.delete('billing');
+    history.replaceState(history.state, '', url);
+    if (billing !== 'done') return;
+    setToast('Thanks! Your new plan is active.');
+    for (const ms of [500, 3000, 8000]) setTimeout(() => void loadMe().then(() => reloadAccess()), ms);
+    const t = setTimeout(() => setToast(''), 6000);
+    return () => clearTimeout(t);
+  }, []);
   // The plan has no room for another person.
   const [planFull, setPlanFull] = useState(false);
   useEffect(() => {
@@ -1060,6 +1076,11 @@ export function Timeline({ model }: { model: TimelineModel }) {
       {sharing && <ShareDialog onClose={() => setSharing(false)} />}
       {calendarOpen && <CalendarDialog onClose={() => setCalendarOpen(false)} />}
       {planFull && <PlanDialog onClose={() => setPlanFull(false)} />}
+      {toast && (
+        <div className="app-toast" role="status">
+          {toast}
+        </div>
+      )}
       {palette && (
         <CommandPalette
           model={model}

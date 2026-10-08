@@ -6740,3 +6740,76 @@ a.menu-item {
   text-decoration: underline;
   text-underline-offset: 2px;
 }
+/* Plans (PlansDialog.tsx) */
+.plans-modal {
+  width: min(640px, calc(100vw - 32px));
+}
+.plans-interval {
+  justify-self: start;
+}
+.plans {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.plan-card {
+  display: grid;
+  gap: 4px;
+  padding: 16px 14px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
+}
+.plan-card.current {
+  border-color: var(--accent);
+  box-shadow: var(--ring);
+}
+.plan-card b {
+  font-size: 15px;
+}
+.plan-people {
+  color: var(--text-dim);
+  font-size: 13px;
+}
+.plan-price {
+  margin: 6px 0 10px;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.plan-price small {
+  margin-left: 2px;
+  color: var(--text-faint);
+  font-size: 13px;
+  font-weight: 500;
+}
+.plan-current {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 32px;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+}
+@media (max-width: 560px) {
+  .plans {
+    grid-template-columns: 1fr;
+  }
+}
+.app-toast {
+  position: fixed;
+  bottom: 110px;
+  left: 50%;
+  z-index: 120;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: var(--text);
+  color: var(--bg);
+  font-size: 14px;
+  font-weight: 600;
+  transform: translateX(-50%);
+  box-shadow: var(--shadow);
+  animation: pop-in 160ms cubic-bezier(0.2, 0.7, 0.3, 1);
+}
