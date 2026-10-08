@@ -166,6 +166,12 @@ export class SheetDurableObject extends WsServerDurableObject {
     await this.ctx.storage.deleteAll();
   }
 
+  /** The whole sheet as plain tables (data export). */
+  async exportTables(): Promise<string> {
+    // As JSON: TinyBase's objects have no prototype, which RPC can't send.
+    return JSON.stringify({ tables: this.sheetStore?.getTables() ?? {}, values: this.sheetStore?.getValues() ?? {} });
+  }
+
   /** One person's part of the daily digest (see digest.ts). */
   async digest(email: string, day: number, since: number) {
     return this.sheetStore ? sheetDigest(this.sheetStore, email, day, since) : null;

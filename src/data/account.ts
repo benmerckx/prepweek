@@ -143,6 +143,22 @@ export const signOut = async () => {
   await loadMe();
 };
 
+/**
+ * Delete the account (see the worker). Like signing out, the workspace
+ * sheets' copies on this device go too.
+ */
+export const deleteAccount = async () => {
+  const sheets = me?.workspaces.flatMap((w) => w.sheets.map((s) => s.id)) ?? [];
+  await api('DELETE', '/api/me');
+  rememberSignedIn(false);
+  for (const id of sheets) {
+    markClaimed(id, true);
+    forgetLocalCopy(id);
+  }
+  forgetLastSheet();
+  await loadMe();
+};
+
 // --- Workspaces & sheets ----------------------------------------------------------
 
 export interface People {

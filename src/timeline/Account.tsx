@@ -22,6 +22,7 @@ import {
   rememberMySheet,
   removeMember,
   setDigest,
+  deleteAccount,
   renameSheet,
   renameWorkspace,
   revokeInvite,
@@ -430,8 +431,28 @@ export function AccountButton({ onSignIn, onWorkspace }: { onSignIn(): void; onW
           </button>
         )}
         <div className="menu-sep" />
+        <a className="menu-item" href="/api/me/export" download>
+          Export my data
+        </a>
         <button className="menu-item" onClick={() => void signOut().then(() => location.assign('/'))}>
           Log out
+        </button>
+        <button
+          className="menu-item danger-item"
+          onClick={() => {
+            // Workspaces only this person is in go with the account.
+            const alone = me.workspaces.filter((w) => w.role === 'admin');
+            const msg = [
+              `Delete the account ${u.email}?`,
+              '',
+              'Workspaces where you are the only member are deleted with all their sheets. In shared workspaces you are removed; the plan stays for the others.',
+              alone.length ? `\nWorkspaces you admin: ${alone.map((w) => w.name).join(', ')}.` : '',
+              '\nExport your data first if you want to keep a copy. This cannot be undone.',
+            ].join('\n');
+            if (confirm(msg)) void deleteAccount().then(() => location.assign('/'), (e) => alert(e instanceof Error ? e.message : String(e)));
+          }}
+        >
+          Delete account…
         </button>
       </div>
     </details>
@@ -529,7 +550,18 @@ function SignInForm({ next, compact, email: initialEmail = '' }: { next: string;
         <p className="editor-error">This server has no sign-in set up yet: add Google or email (Mandrill) keys to the worker, see the README.</p>
       )}
       {(cfg.email || cfg.google) && (
-        <p className="signin-foot">New here? {cfg.email ? 'The same link creates your account.' : 'Signing in creates your account.'} No password needed.</p>
+        <p className="signin-foot">
+          New here? {cfg.email ? 'The same link creates your account.' : 'Signing in creates your account.'} No password needed. By continuing you
+          agree to the{' '}
+          <a href="/terms" target="_blank">
+            terms
+          </a>{' '}
+          and{' '}
+          <a href="/privacy" target="_blank">
+            privacy policy
+          </a>
+          .
+        </p>
       )}
     </div>
   );

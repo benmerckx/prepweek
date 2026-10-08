@@ -131,6 +131,15 @@ const Arrow = () => (
     <path d="M3 8h10M9 4l4 4-4 4" />
   </svg>
 );
+/** Twelve stars in a ring, as on the European flag. */
+const EuStars = () => (
+  <svg className="lp-eu" width="14" height="14" viewBox="0 0 16 16" aria-hidden>
+    {Array.from({ length: 12 }, (_, i) => {
+      const a = (i / 12) * Math.PI * 2;
+      return <circle key={i} cx={8 + 6 * Math.sin(a)} cy={8 - 6 * Math.cos(a)} r="1.15" />;
+    })}
+  </svg>
+);
 const Tick = () => (
   <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
     <path d="m3.5 8.5 3 3 6-7" />
@@ -462,6 +471,9 @@ function Hero({ v }: { v: Visitor }) {
           </span>
           <span>
             <Tick /> Live for the whole team
+          </span>
+          <span>
+            <EuStars /> Built in Europe
           </span>
         </p>
       </div>
@@ -1113,11 +1125,13 @@ export function Landing() {
             <Logo size={20} />
             <Wordmark size={20} title="PrepWeek" />
           </span>
-          <span className="lp-dim">Made for teams who plan in weeks.</span>
+          <span className="lp-dim">Built in Europe, for teams who plan in weeks.</span>
           <span className="lp-foot-links">
             <a href="/s/demo">Demo</a>
             <a href="/help">Help</a>
             <a href="/roadmap">Roadmap</a>
+            <a href="/privacy">Privacy</a>
+            <a href="/terms">Terms</a>
             {v.accounts && v.kind !== 'signedIn' && (
               <button className="lp-link" onClick={signIn}>
                 Log in

@@ -340,6 +340,34 @@ export async function handleApi(req: Request, env: Env, url: URL): Promise<Respo
           : page('Nothing for today', 'Your digest would be empty today, so it wouldn’t be sent.', url.origin);
       }
     }
+    // Export my data: the account, and every sheet of every workspace it's in.
+    if (seg[0] === 'me' && seg[1] === 'export' && req.method === 'GET') {
+      const acc = await dir.accountExport(user.id);
+      const workspaces = await Promise.all(
+        acc.workspaces.map(async (w) => ({
+          id: w.id,
+          name: w.name,
+          role: w.role,
+          sheets: await Promise.all(
+            w.sheets.map(async (s) => ({ id: s.id, name: s.name, ...(JSON.parse(await env.SHEETS.get(env.SHEETS.idFromName(`sync/${s.id}`)).exportTables()) as { tables: unknown; values: unknown }) })),
+          ),
+        })),
+      );
+      const day = new Date().toISOString().slice(0, 10);
+      return new Response(JSON.stringify({ exported: new Date().toISOString(), account: acc.user, digest: acc.digest, workspaces }, null, 2), {
+        headers: {
+          'content-type': 'application/json; charset=utf-8',
+          'content-disposition': `attachment; filename="prepweek-export-${day}.json"`,
+          'cache-control': 'no-store',
+        },
+      });
+    }
+    // Delete my account (see DirectoryDurableObject.deleteAccount).
+    if (seg[0] === 'me' && seg.length === 1 && req.method === 'DELETE') {
+      const { sheets } = await dir.deleteAccount(user.id);
+      await dropConnections(env, sheets, true);
+      return json({ ok: true }, 200, { 'set-cookie': cookie(url, COOKIE, '', 0) });
+    }
     if (seg[0] === 'me' && req.method === 'PATCH') {
       await dir.rename(user.id, body.name ?? '');
       return json({ ok: true });

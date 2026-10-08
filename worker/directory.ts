@@ -206,6 +206,49 @@ export class DirectoryDurableObject extends DurableObject<Env> {
     this.sql.exec('DELETE FROM sessions WHERE hash = ?', await sha256(token));
   }
 
+  /**
+   * Delete an account. Workspaces with nobody else in them go, with their
+   * sheets (returned, to wipe). In shared ones the person just leaves; if
+   * they were the last admin, the longest-standing member becomes one.
+   * Their AppSumo licences come loose, so they can be applied again.
+   */
+  async deleteAccount(userId: string): Promise<{ sheets: string[]; workspaces: string[] }> {
+    const sheets: string[] = [];
+    const gone: string[] = [];
+    const email = this.one<{ email: string }>('SELECT email FROM users WHERE id = ?', userId)?.email ?? '';
+    for (const m of this.all<{ workspace_id: string; role: WorkspaceRole }>('SELECT workspace_id, role FROM members WHERE user_id = ?', userId)) {
+      const others = this.all<{ user_id: string; role: WorkspaceRole }>(
+        'SELECT user_id, role FROM members WHERE workspace_id = ? AND user_id != ? ORDER BY joined',
+        m.workspace_id,
+        userId,
+      );
+      if (!others.length) {
+        sheets.push(...this.all<{ id: string }>('SELECT id FROM sheets WHERE workspace_id = ? AND deleted = 0', m.workspace_id).map((s) => s.id));
+        this.sql.exec('UPDATE sheets SET deleted = 1 WHERE workspace_id = ?', m.workspace_id);
+        this.sql.exec('DELETE FROM invites WHERE workspace_id = ?', m.workspace_id);
+        this.sql.exec('DELETE FROM workspaces WHERE id = ?', m.workspace_id);
+        gone.push(m.workspace_id);
+      } else if (m.role === 'admin' && !others.some((o) => o.role === 'admin')) {
+        this.sql.exec("UPDATE members SET role = 'admin' WHERE workspace_id = ? AND user_id = ?", m.workspace_id, others[0]!.user_id);
+      }
+    }
+    this.sql.exec('DELETE FROM members WHERE user_id = ?', userId);
+    this.sql.exec('DELETE FROM sessions WHERE user_id = ?', userId);
+    this.sql.exec('DELETE FROM digests WHERE user_id = ?', userId);
+    this.sql.exec('DELETE FROM invites WHERE invited_by = ?', userId);
+    if (email) this.sql.exec('DELETE FROM logins WHERE email = ?', email);
+    for (const w of gone) this.sql.exec("UPDATE licenses SET workspace_id = '', user_id = '' WHERE workspace_id = ?", w);
+    this.sql.exec("UPDATE licenses SET user_id = '' WHERE user_id = ?", userId);
+    this.sql.exec('DELETE FROM users WHERE id = ?', userId);
+    return { sheets, workspaces: gone };
+  }
+
+  /** Everything about one person, for "Export my data". */
+  async accountExport(userId: string) {
+    const user = this.one<User & { created: number }>('SELECT id, email, name, avatar, created FROM users WHERE id = ?', userId);
+    return { user, workspaces: await this.workspaces(userId), digest: this.one('SELECT tz, off, last_day FROM digests WHERE user_id = ?', userId) ?? null };
+  }
+
   async rename(userId: string, name: string) {
     if (name.trim()) this.sql.exec('UPDATE users SET name = ? WHERE id = ?', name.trim().slice(0, 80), userId);
   }

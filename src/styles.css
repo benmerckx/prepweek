@@ -6728,3 +6728,15 @@ a.menu-item {
   color: var(--text);
   background: var(--hover);
 }
+.menu-item.danger-item {
+  color: var(--danger);
+}
+a.menu-item {
+  color: var(--text);
+  text-decoration: none;
+}
+.signin-foot a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
