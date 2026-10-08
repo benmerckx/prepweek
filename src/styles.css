@@ -1373,6 +1373,11 @@ svg {
 [data-zooming] .person,
 [data-scrubbing] .task,
 [data-scrubbing] .row,
+/* Your own row, pinned on top: set off from everyone else. */
+.person.pinned,
+.row.pinned {
+  border-bottom: 2px solid var(--border-strong);
+}
 [data-scrubbing] .person {
   transition: none !important;
 }

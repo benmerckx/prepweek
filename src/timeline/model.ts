@@ -108,6 +108,8 @@ export interface RowLayout {
   /** Header only: people in the team, and whether they're hidden. */
   count?: number;
   collapsed?: boolean;
+  /** Your own row, shown first whatever the order (see setPinned). */
+  pinned?: boolean;
   userId: string;
   name: string;
   color: string;
@@ -230,6 +232,17 @@ export class TimelineModel {
     for (let j = i; j < this.rows.length; j++) if (this.rows[j]!.kind === 'person') return this.rows[j];
     for (let j = i - 1; j >= 0; j--) if (this.rows[j]!.kind === 'person') return this.rows[j];
     return undefined;
+  }
+
+  /** Your own row: first for you (only on this device; the shared order stays). */
+  private pinned: string | null = null;
+  setPinned(id: string | null) {
+    if (id === this.pinned) return;
+    if (this.pinned) this.dirtyUsers.add(this.pinned);
+    if (id) this.dirtyUsers.add(id);
+    this.pinned = id;
+    this.usersDirty = true;
+    this.flush();
   }
 
   /** Focus mode: only these people are shown (null = everyone). */
@@ -742,6 +755,9 @@ export class TimelineModel {
         .filter(([id]) => !this.focus || this.focus.has(id))
         .sort((a, b) => a[1].order - b[1].order || a[1].name.localeCompare(b[1].name));
       const old = new Map(this.rows.map((r) => [r.userId, r]));
+      // Your own row goes first, outside any team.
+      const mine = this.pinned ? users.find(([id]) => id === this.pinned) : undefined;
+      if (mine) users.splice(users.indexOf(mine), 1);
       const person = ([id, u]: readonly [string, UserRow]): RowLayout => {
         const prev = old.get(id);
         if (prev && !this.dirtyUsers.has(id)) {
@@ -755,7 +771,7 @@ export class TimelineModel {
       };
       // Group by team once anyone has one (not while focusing on people).
       const grouped = !this.focus && users.some(([, u]) => u.team);
-      this.personCount = users.length;
+      this.personCount = users.length + (mine ? 1 : 0);
       if (!grouped) {
         this.teams = [];
         this.rows = users.map(person);
@@ -784,6 +800,10 @@ export class TimelineModel {
           if (!collapsed) for (const m of members) this.rows.push(person(m));
         }
       }
+      if (mine) {
+        const r = person(mine);
+        this.rows.unshift(r.pinned ? r : { ...r, pinned: true });
+      }
       this.dirtyUsers.clear();
       changed = true;
     } else if (this.dirtyUsers.size) {
@@ -791,7 +811,8 @@ export class TimelineModel {
         const i = this.rowIndex.get(id);
         // Gone, or the index is stale (person removed in this transaction).
         if (i === undefined || !this.store.hasRow('users', id) || this.rows[i]?.userId !== id) continue;
-        this.rows[i] = this.layoutRow(id, this.store.getRow('users', id) as UserRow);
+        const r = this.layoutRow(id, this.store.getRow('users', id) as UserRow);
+        this.rows[i] = this.rows[i]!.pinned ? { ...r, pinned: true } : r;
       }
       this.dirtyUsers.clear();
       changed = true;

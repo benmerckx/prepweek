@@ -1,3 +1,4 @@
+import { getMe as getIdentity, onMeChange } from '../data/identity.ts';
 import { archiveSummary, ensureArchive, loadArchiveSummary } from '../data/archive.ts';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal, flushSync } from 'react-dom';
@@ -261,6 +262,12 @@ export function Timeline({ model }: { model: TimelineModel }) {
   const [filterState, setFilterState] = useState<FilterState>(NO_FILTER);
   const manageProjects = useCallback(() => navigate({ section: 'projects' }), []);
   const route = useRoute();
+  // Your own row first (for you; everyone keeps the shared order).
+  useEffect(() => {
+    const pin = () => model.setPinned(getIdentity().personId || null);
+    pin();
+    return onMeChange(pin);
+  }, [model]);
   const onPage = route.section !== 'plan';
   // The projects and clients pages count archived work too.
   useEffect(() => {

@@ -138,7 +138,7 @@ export const RowView = memo(function RowView({ row, top, scale, dims, d0, d1, se
     );
   }
   return (
-    <div className="row" style={{ transform: `translateY(${top}px)`, height: row.height }}>
+    <div className={'row' + (row.pinned ? ' pinned' : '')} style={{ transform: `translateY(${top}px)`, height: row.height }}>
       {tiles}
     </div>
   );

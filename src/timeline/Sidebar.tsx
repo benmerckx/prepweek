@@ -59,6 +59,8 @@ export const Sidebar = memo(function Sidebar({ model, rows, tops, r0, r1, focuse
     let team: string | undefined;
     for (let j = gap - 1; j >= 0; j--) {
       const r = rows[j]!;
+      // Your own row is pinned on top, not part of the shared order.
+      if (r.pinned) continue;
       if (r.kind === 'team') {
         team = r.team;
         break;
@@ -68,6 +70,7 @@ export const Sidebar = memo(function Sidebar({ model, rows, tops, r0, r1, focuse
     }
     for (let j = gap; j < rows.length; j++) {
       const r = rows[j]!;
+      if (r.pinned) continue;
       if (r.kind === 'team') break;
       if (r.userId !== id) {
         before = r.userId;
@@ -96,7 +99,8 @@ export const Sidebar = memo(function Sidebar({ model, rows, tops, r0, r1, focuse
     const id = el.dataset.user!;
     const box = wrap.current!.getBoundingClientRect();
     const i = latest.current.rows.findIndex((r) => r.userId === id);
-    if (i < 0) return;
+    // Your own row stays on top: nothing to drag.
+    if (i < 0 || latest.current.rows[i]!.pinned) return;
     const grab = e.clientY - box.top - latest.current.tops[i]!;
     const touch = e.pointerType !== 'mouse';
     const x0 = e.clientX;
@@ -365,7 +369,7 @@ const SidebarRow = memo(function SidebarRow({ row, top, lifted, focused, today, 
   const first = row.name.split(/\s+/)[0];
   return (
     <div
-      className={'person' + (focused ? ' in-focus' : '') + (lifted ? ' lifted' : '')}
+      className={'person' + (focused ? ' in-focus' : '') + (lifted ? ' lifted' : '') + (row.pinned ? ' pinned' : '')}
       data-user={row.userId}
       style={{ transform: `translateY(${top}px)`, height: row.height }}
     >
