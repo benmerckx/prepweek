@@ -40,3 +40,19 @@ describe('several people on one task', () => {
     expect(store.getRowIds('tasks').filter((t) => store.getCell('tasks', t, 'group') === id)).toEqual([]);
   });
 });
+
+describe('lean rows', () => {
+  test('default values are left out, but still clear a value', () => {
+    const id = createTask({ ...base, repeat: '', tags: '', done: false });
+    expect(Object.keys(store.getRow('tasks', id)).sort()).toEqual(['color', 'end', 'lane', 'notes', 'start', 'title', 'userId']);
+    updateTask(id, { done: true, tags: 'Design' });
+    expect(store.getCell('tasks', id, 'done')).toBe(true);
+    // Back to the default: written over the value, so it clears.
+    updateTask(id, { done: false, tags: '' });
+    expect(store.getCell('tasks', id, 'done')).toBe(false);
+    expect(store.getCell('tasks', id, 'tags')).toBe('');
+    // Never set: no cell appears.
+    updateTask(id, { repeat: '' });
+    expect(store.hasCell('tasks', id, 'repeat')).toBe(false);
+  });
+});

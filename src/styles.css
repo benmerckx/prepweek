@@ -42,6 +42,8 @@
   --grid-day: rgba(50, 35, 75, 0.05);
   --grid-week: rgba(50, 35, 75, 0.11);
   --weekend: rgba(50, 35, 75, 0.075);
+  /* Today's column: clearly lit. */
+  --today-col: rgba(194, 60, 99, 0.08);
   --row-line: #eeecf2;
 
   /* Blocks: tint of the task color on the canvas, ink in the same hue. */
@@ -101,7 +103,8 @@
 
     --grid-day: rgba(220, 228, 255, 0.04);
     --grid-week: rgba(220, 228, 255, 0.09);
-    --weekend: rgba(8, 10, 16, 0.24);
+    --weekend: rgba(225, 232, 255, 0.04);
+    --today-col: rgba(225, 232, 255, 0.1);
     --row-line: #30333c;
 
     --block-l: 0.83;
@@ -118,7 +121,7 @@
 
     --mm-bg: #2e3139;
     --mm-band: rgba(220, 228, 255, 0.025);
-    --mm-weekend: rgba(30, 32, 38, 0.6);
+    --mm-weekend: rgba(72, 76, 88, 0.5);
     --mm-line: rgba(220, 228, 255, 0.16);
     --mm-text: #8a909c;
     --mm-text-strong: #e8eaf0;
@@ -154,7 +157,8 @@
 
   --grid-day: rgba(220, 228, 255, 0.04);
   --grid-week: rgba(220, 228, 255, 0.09);
-  --weekend: rgba(8, 10, 16, 0.24);
+  --weekend: rgba(225, 232, 255, 0.04);
+  --today-col: rgba(225, 232, 255, 0.1);
   --row-line: #30333c;
 
   --block-l: 0.83;
@@ -171,7 +175,7 @@
 
   --mm-bg: #2e3139;
   --mm-band: rgba(220, 228, 255, 0.025);
-  --mm-weekend: rgba(30, 32, 38, 0.6);
+  --mm-weekend: rgba(72, 76, 88, 0.5);
   --mm-line: rgba(220, 228, 255, 0.16);
   --mm-text: #8a909c;
   --mm-text-strong: #e8eaf0;
@@ -1141,8 +1145,7 @@ svg {
   position: absolute;
   top: 0;
   left: 0;
-  border-left: 2px solid var(--today);
-  background: color-mix(in srgb, var(--today) 5%, transparent);
+  background: var(--today-col);
   pointer-events: none;
 }
 .row {

@@ -108,8 +108,12 @@ export const loadAccess = async (serverHttp: string | null) => {
   // until the server says otherwise (and still locked when it can't be
   // reached), rather than open from the local copy.
   if (isClaimed(sheet) && !wasSignedIn()) apply({ role: 'none', private: false, signedIn: false });
-  // A sheet started here is getting its keys: ask with them, not alongside.
-  if (adopting) await adopting;
+  // The first check is under way (it may be getting a new sheet's keys):
+  // its answer will do.
+  if (first && !checked) {
+    await first;
+    if (checked) return;
+  }
   try {
     // A sheet started here without a key yet asks for its keys (`own`).
     const own = !key && startedHere() ? '?own=1' : '';
@@ -121,25 +125,27 @@ export const loadAccess = async (serverHttp: string | null) => {
       } catch {}
       if (key) res = await fetch(withKey(`${server}/share/${encodeURIComponent(sheet)}`), { cache: 'no-store' });
     }
-    if (res.ok) apply((await res.json()) as ShareInfo);
+    if (res.ok) {
+      checked = true;
+      apply((await res.json()) as ShareInfo);
+    }
   } catch {
     // Offline: keep working with what this device has.
   }
 };
 
-let adopting: Promise<void> | null = null;
+let first: Promise<void> | null = null;
+/** The server has answered an access check for this sheet. */
+let checked = false;
 /**
- * Before the first sync connection: a sheet started here may not have its
- * key yet (it's made on the first access check), and without it the server
- * turns the connection away. Waits for that check, but not for long.
+ * Before the first sync connection: what may we do here? A sheet started
+ * here gets its key on its first check, and a sheet that isn't ours to open
+ * shouldn't be connected to at all. Waits for that check, but not for long.
  */
 export const accessReady = (serverHttp: string) => {
-  if (key || !startedHere()) return Promise.resolve();
-  if (!adopting) {
-    const p = loadAccess(serverHttp);
-    adopting = p.finally(() => (adopting = null));
-  }
-  return Promise.race([adopting, new Promise<void>((r) => setTimeout(r, 5000))]);
+  if (checked) return Promise.resolve();
+  first ??= loadAccess(serverHttp);
+  return Promise.race([first, new Promise<void>((r) => setTimeout(r, 5000))]);
 };
 
 /** Turn private links on, reset them, or make the sheet open again. */

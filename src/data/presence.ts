@@ -7,7 +7,7 @@ import ReconnectingWebSocket from 'reconnecting-websocket';
 import { PALETTE, getUser, newId } from './store.ts';
 import { displayName, getMe, onMeChange } from './identity.ts';
 import { getServerHttp, getSheet } from './sync.ts';
-import { withKey } from './access.ts';
+import { accessReady, getAccess, onAccess, withKey } from './access.ts';
 
 export interface Cursor {
   /** Fractional day under the pointer. */
@@ -130,7 +130,17 @@ export const startPresence = () => {
   }
   const http = getServerHttp();
   if (http) {
-    socket = new ReconnectingWebSocket(() => withKey(`${http.replace(/^http/, 'ws')}/presence/${encodeURIComponent(getSheet())}`));
+    // Opened once the access check allows it, closed while it doesn't (a
+    // locked sheet isn't knocked on over and over).
+    const ws = (socket = new ReconnectingWebSocket(() => withKey(`${http.replace(/^http/, 'ws')}/presence/${encodeURIComponent(getSheet())}`), [], { startClosed: true }));
+    const follow = () => {
+      if (getAccess()?.role === 'none') ws.close();
+      else if (ws.readyState === ws.CLOSED) ws.reconnect();
+    };
+    void accessReady(http).then(() => {
+      follow();
+      onAccess(follow);
+    });
     socket.addEventListener('message', (e) => receive(e.data, true));
     socket.addEventListener('open', () => {
       send({ t: 'hello', id: self.id }, true);

@@ -3,7 +3,7 @@ import { createBroadcastChannelSynchronizer } from 'tinybase/synchronizers/synch
 import { createWsSynchronizer } from 'tinybase/synchronizers/synchronizer-ws-client';
 import { store } from './store.ts';
 import { seed } from './seed.ts';
-import { accessReady, withKey } from './access.ts';
+import { accessReady, getAccess, onAccess, withKey } from './access.ts';
 
 export type SyncStatus = 'local' | 'connecting' | 'online' | 'offline';
 
@@ -122,7 +122,9 @@ const SYNC_TIMEOUT = 30;
 const OFFLINE_AFTER = 20_000;
 /** TinyBase reports a closed socket as an error ("tinybase:5"): that's a reconnect, not news. */
 const quietErrors = (e: unknown) => {
-  if (!(e instanceof Error && /^tinybase:5\b/.test(e.message))) console.warn('Sync error', e);
+  // A socket's own error event says nothing more (the close that follows is handled).
+  if (e instanceof Event || (e instanceof Error && /^tinybase:5\b/.test(e.message))) return;
+  console.warn('Sync error', e);
 };
 
 /**
@@ -139,12 +141,27 @@ const connect = (server: string, sheetId: string) =>
     // Connections drop now and then (deploys, laptops sleep): reconnecting
     // quietly is not being offline. "Offline" is the browser saying so, or
     // no connection for OFFLINE_AFTER.
+    let waiting: (() => void) | null = null;
+    // Not ours to open (the lock screen says so): don't knock until that
+    // changes (signing in, a link, joining the workspace).
+    const locked = () => {
+      if (getAccess()?.role !== 'none') return false;
+      setStatus('local');
+      waiting ??= onAccess(() => {
+        if (getAccess()?.role === 'none') return;
+        waiting?.();
+        waiting = null;
+        void open();
+      });
+      return true;
+    };
     let downSince = 0;
     let offlineTimer: ReturnType<typeof setTimeout> | undefined;
     const open = async () => {
       clearTimeout(retry);
       retry = undefined;
       await accessReady(server.replace(/^ws/, 'http').replace(/\/sync\/?$/, ''));
+      if (locked()) return resolveFirst();
       // A function call, so a reconnect after the share links are reset uses the new key.
       const ws = new WebSocket(withKey(`${server.replace(/\/$/, '')}/${encodeURIComponent(sheetId)}`));
       // Keepalive: a socket with nothing to say gets closed along the way
@@ -164,7 +181,7 @@ const connect = (server: string, sheetId: string) =>
         clearTimeout(offlineTimer);
         offlineTimer = setTimeout(() => downSince && setStatus('offline'), Math.max(0, OFFLINE_AFTER - (Date.now() - downSince)));
         resolveFirst();
-        if (retry) return;
+        if (retry || waiting || locked()) return;
         retry = setTimeout(open, delay);
         delay = Math.min(delay * 2, 30_000);
       });
@@ -179,7 +196,7 @@ const connect = (server: string, sheetId: string) =>
         }
       } catch (e) {
         // e.g. refused because the sheet is private and our link isn't valid.
-        console.warn('Sync connection failed', e);
+        quietErrors(e);
         ws.close();
       }
       resolveFirst();

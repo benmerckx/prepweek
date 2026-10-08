@@ -129,10 +129,10 @@ export const sheetDigest = (
               ? "Last day"
               : `Until ${dayLabel(r.end)}`
             : "Today");
-        today.push({ ...item, detail, sort: t.time });
+        today.push({ ...item, detail, sort: t.time ?? "" });
       } else if (r.start === tomorrow) {
         const detail = `${dayLabel(r.start)}${r.end > r.start ? ` – ${dayLabel(r.end)}` : ""}${t.time ? `, ${t.time}` : ""}`;
-        next.push({ ...item, detail, sort: t.time });
+        next.push({ ...item, detail, sort: t.time ?? "" });
       }
     }
   }

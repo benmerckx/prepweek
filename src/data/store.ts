@@ -81,6 +81,8 @@ store.setTablesSchema({
     avatar: { type: 'string', default: '' },
     hours: { type: 'number', default: 0 },
   },
+  // Optional cells have no default: TinyBase would store it in every row, and
+  // the server keeps a sheet's every cell in memory (a big import ran it out).
   tasks: {
     userId: { type: 'string', default: '' },
     start: { type: 'number', default: 0 },
@@ -89,17 +91,17 @@ store.setTablesSchema({
     color: { type: 'string', default: PALETTE[0] },
     lane: { type: 'number', default: -1 },
     notes: { type: 'string', default: '' },
-    projectId: { type: 'string', default: '' },
-    tags: { type: 'string', default: '' },
-    repeat: { type: 'string', default: '' },
-    pattern: { type: 'string', default: '' },
-    done: { type: 'boolean', default: false },
-    time: { type: 'string', default: '' },
-    repeatUntil: { type: 'number', default: 0 },
-    skip: { type: 'string', default: '' },
-    group: { type: 'string', default: '' },
-    kind: { type: 'string', default: '' },
-    estimate: { type: 'number', default: 0 },
+    projectId: { type: 'string' },
+    tags: { type: 'string' },
+    repeat: { type: 'string' },
+    pattern: { type: 'string' },
+    done: { type: 'boolean' },
+    time: { type: 'string' },
+    repeatUntil: { type: 'number' },
+    skip: { type: 'string' },
+    group: { type: 'string' },
+    kind: { type: 'string' },
+    estimate: { type: 'number' },
   },
   // Projects group tasks across people; a client groups projects.
   // `client` is the client's name as text (from before clients were their
@@ -241,6 +243,13 @@ export const newId = (): string => {
 };
 
 const NOT_RECURRING = { repeat: '', repeatUntil: 0, skip: '' };
+
+/** Optional task cells at their default value: absent and default read the same. */
+const TASK_DEFAULTS: Record<string, unknown> = { projectId: '', tags: '', repeat: '', pattern: '', done: false, time: '', repeatUntil: 0, skip: '', group: '', kind: '', estimate: 0 };
+/** A default value is only written over a value; it never adds a cell. */
+const adds = (id: string, k: string, v: unknown) => !(k in TASK_DEFAULTS && TASK_DEFAULTS[k] === v && !store.hasCell('tasks', id, k));
+/** A task row without the default cells it doesn't need. */
+const lean = (id: string, row: Record<string, unknown>) => Object.fromEntries(Object.entries(row).filter(([k, v]) => v !== undefined && adds(id, k, v))) as Row;
 
 /**
  * A task by id. For an occurrence of a recurring task (`id~n`) this is the
@@ -565,7 +574,7 @@ export const updateTask = (id: string, patch: Partial<TaskRow>, label = 'Edit ta
       const skip = parseSkip(store.getCell('tasks', base, 'skip') as string);
       skip.add(n);
       store.setCell('tasks', base, 'skip', [...skip].sort((a, b) => a - b).join(','));
-      store.setRow('tasks', nid, { ...occ, ...patch, ...placed, ...NOT_RECURRING } as Row);
+      store.setRow('tasks', nid, lean(nid, { ...occ, ...patch, ...placed, ...NOT_RECURRING }));
     });
     return nid;
   }
@@ -581,8 +590,8 @@ export const updateTask = (id: string, patch: Partial<TaskRow>, label = 'Edit ta
   }
   const moved = [...moves.keys()].filter((t) => t !== id && !others.includes(t));
   commit(label, [id, ...others, ...moved].map((t) => ['tasks', t] as [TableId, string]), () => {
-    for (const [k, v] of Object.entries(patch)) store.setCell('tasks', id, k, v as string | number);
-    for (const t of others) for (const [k, v] of shared) store.setCell('tasks', t, k, v as string | number);
+    for (const [k, v] of Object.entries(patch)) if (adds(id, k, v)) store.setCell('tasks', id, k, v as string | number);
+    for (const t of others) for (const [k, v] of shared) if (adds(t, k, v)) store.setCell('tasks', t, k, v as string | number);
     for (const t of moved) {
       store.setCell('tasks', t, 'start', moves.get(t)!.start);
       store.setCell('tasks', t, 'end', moves.get(t)!.end);
@@ -699,7 +708,7 @@ export const deleteCheck = (id: string) => commit('Delete checklist item', [['ch
 
 /** A new task stands alone (a duplicate doesn't join the original's people). */
 export const createTask = (task: TaskRow, id = newId()): string => {
-  commit('Create task', [['tasks', id]], () => store.setRow('tasks', id, { ...task, group: '' } as Row));
+  commit('Create task', [['tasks', id]], () => store.setRow('tasks', id, lean(id, { ...task, group: '' })));
   return id;
 };
 
@@ -722,7 +731,7 @@ export const setAssignees = (id: string, userIds: string[]): string => {
   const label = added.length && !drop.length ? 'Add person' : drop.length && !added.length ? 'Remove person' : 'Change people';
   commit(label, [...members, ...added.map(([, t]) => t)].map((t) => ['tasks', t] as [TableId, string]), () => {
     for (const t of drop) store.delRow('tasks', t);
-    for (const [u, t] of added) store.setRow('tasks', t, { ...row, userId: u, lane: -1, group: lead } as Row);
+    for (const [u, t] of added) store.setRow('tasks', t, lean(t, { ...row, userId: u, lane: -1, group: lead }));
     for (const t of kept) store.setCell('tasks', t, 'group', lead);
   });
   return kept.includes(base) ? id : kept[0]!;
@@ -1103,7 +1112,7 @@ export const applyImport = async (
         // Adding again: keep what was done to the task here (its lane,
         // pattern, skipped occurrences). Replacing: the file wins.
         const set = !replace && store.hasRow('tasks', t.id) ? store.setPartialRow : store.setRow;
-        set('tasks', t.id, {
+        set('tasks', t.id, lean(t.id, {
           userId: ids.get(t.personKey)!,
           start: t.start,
           end: t.end,
@@ -1120,7 +1129,7 @@ export const applyImport = async (
           group: t.group ?? '',
           kind: t.kind ?? '',
           estimate: t.estimate ?? 0,
-        });
+        }));
       }
     }),
     ...chunks(links).map((part) => () => {

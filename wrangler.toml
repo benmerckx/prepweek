@@ -36,7 +36,7 @@ class_name = "DirectoryDurableObject"
 [vars]
 # Plans: "on" limits how many people a workspace plans for (Free 5, AppSumo
 # tiers 15/40/100). Off, plans show but nothing is blocked. Turn on at launch.
-PLAN_LIMITS = "off"
+PLAN_LIMITS = "on"
 # AppSumo licensing (Partner Portal): the OAuth client id. Secrets:
 #   wrangler secret put APPSUMO_CLIENT_SECRET
 #   wrangler secret put APPSUMO_API_KEY
