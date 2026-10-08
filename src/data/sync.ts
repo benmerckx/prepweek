@@ -3,7 +3,7 @@ import { createBroadcastChannelSynchronizer } from 'tinybase/synchronizers/synch
 import { createWsSynchronizer } from 'tinybase/synchronizers/synchronizer-ws-client';
 import { store } from './store.ts';
 import { seed } from './seed.ts';
-import { withKey } from './access.ts';
+import { accessReady, withKey } from './access.ts';
 
 export type SyncStatus = 'local' | 'connecting' | 'online' | 'offline';
 
@@ -137,6 +137,7 @@ const connect = (server: string, sheetId: string) =>
     const open = async () => {
       clearTimeout(retry);
       retry = undefined;
+      await accessReady(server.replace(/^ws/, 'http').replace(/\/sync\/?$/, ''));
       // A function call, so a reconnect after the share links are reset uses the new key.
       const ws = new WebSocket(withKey(`${server.replace(/\/$/, '')}/${encodeURIComponent(sheetId)}`));
       let remote: Awaited<ReturnType<typeof createWsSynchronizer>> | undefined;

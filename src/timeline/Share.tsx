@@ -78,15 +78,15 @@ export function ShareDialog({ onClose }: { onClose(): void }) {
                   <LinkIcon />
                 </span>
                 <div>
-                  <b>Anyone with the address can edit</b>
-                  <span>Fine for a demo. Turn on private links to choose who can edit and who can only look.</span>
+                  <b>Only people in {access?.workspace?.name || 'the workspace'}</b>
+                  <span>They open it after logging in. Turn on links to share it with people outside the workspace.</span>
                 </div>
               </div>
-              <CopyRow label="Sheet address" hint="Opens and edits this sheet" url={shareLink()} />
+              <CopyRow label="Sheet address" hint="For people in the workspace" url={shareLink()} />
               {editor && (
                 <button className="btn primary big" disabled={busy} onClick={() => act('enable')}>
                   <Lock />
-                  Turn on private links
+                  Turn on links
                 </button>
               )}
             </>
@@ -97,8 +97,8 @@ export function ShareDialog({ onClose }: { onClose(): void }) {
                   <Lock />
                 </span>
                 <div>
-                  <b>Private: only people with a link</b>
-                  <span>The address alone no longer opens this sheet.</span>
+                  <b>{access?.workspace ? 'The workspace, and people with a link' : 'Only people with a link'}</b>
+                  <span>The address alone doesn’t open this sheet.{access?.workspace ? '' : ' Log in to save it to a workspace.'}</span>
                 </div>
               </div>
               <CopyRow label="Can edit" hint="Plan, move and comment" url={shareLink(access?.edit)} />
@@ -111,13 +111,16 @@ export function ShareDialog({ onClose }: { onClose(): void }) {
                 >
                   Reset links
                 </button>
-                <button
-                  className="btn danger ghost"
-                  disabled={busy}
-                  onClick={() => act('disable', 'Make the sheet open to anyone with its address again?')}
-                >
-                  Turn off private links
-                </button>
+                {/* Outside a workspace the links are the only lock. */}
+                {access?.workspace && (
+                  <button
+                    className="btn danger ghost"
+                    disabled={busy}
+                    onClick={() => act('disable', 'Turn the links off? Only people in the workspace can open the sheet then.')}
+                  >
+                    Turn off links
+                  </button>
+                )}
               </div>
             </>
           ) : (

@@ -7,7 +7,7 @@
 
 import { setReadOnly } from './store.ts';
 import type { PlanInfo } from '../lib/plans.ts';
-import { isClaimed, markClaimed, wasSignedIn } from './claimed.ts';
+import { forgetLocalCopy, isClaimed, markClaimed, wasSignedIn } from './claimed.ts';
 
 export type Role = 'edit' | 'view' | 'none';
 export interface ShareInfo {
@@ -77,8 +77,22 @@ export const onAccess = (fn: () => void) => {
 /** Synced through a server (sharing is possible at all). */
 export const hasServer = () => !!server;
 
+/** Started on this device without an account (see mySheets in account.ts). */
+const startedHere = () => {
+  try {
+    const mine = JSON.parse(localStorage.getItem('prepweek:mySheets') ?? '[]');
+    return Array.isArray(mine) && mine.includes(sheet);
+  } catch {
+    return false;
+  }
+};
+
 const apply = (next: ShareInfo) => {
   info = next;
+  // The keys of a sheet this device started (its first visit): keep them.
+  if (!key && next.role === 'edit' && next.edit) setKey(next.edit);
+  // Not ours to see: don't keep a copy of it on this device either.
+  if (next.role === 'none' && !next.deleted && !startedHere()) forgetLocalCopy(sheet);
   // Remember whether this sheet belongs to a workspace (see claimed.ts).
   if (next.workspace) markClaimed(sheet, true);
   else if (next.workspace === null && next.role !== 'none') markClaimed(sheet, false);
@@ -94,12 +108,38 @@ export const loadAccess = async (serverHttp: string | null) => {
   // until the server says otherwise (and still locked when it can't be
   // reached), rather than open from the local copy.
   if (isClaimed(sheet) && !wasSignedIn()) apply({ role: 'none', private: false, signedIn: false });
+  // A sheet started here is getting its keys: ask with them, not alongside.
+  if (adopting) await adopting;
   try {
-    const res = await fetch(withKey(`${server}/share/${encodeURIComponent(sheet)}`), { cache: 'no-store' });
+    // A sheet started here without a key yet asks for its keys (`own`).
+    const own = !key && startedHere() ? '?own=1' : '';
+    let res = await fetch(withKey(`${server}/share/${encodeURIComponent(sheet)}${own}`), { cache: 'no-store' });
+    // Another tab here got the keys first: it saved them, ask again with them.
+    if (own && res.ok && ((await res.clone().json()) as ShareInfo).role === 'none') {
+      try {
+        key = localStorage.getItem(storageKey()) ?? '';
+      } catch {}
+      if (key) res = await fetch(withKey(`${server}/share/${encodeURIComponent(sheet)}`), { cache: 'no-store' });
+    }
     if (res.ok) apply((await res.json()) as ShareInfo);
   } catch {
     // Offline: keep working with what this device has.
   }
+};
+
+let adopting: Promise<void> | null = null;
+/**
+ * Before the first sync connection: a sheet started here may not have its
+ * key yet (it's made on the first access check), and without it the server
+ * turns the connection away. Waits for that check, but not for long.
+ */
+export const accessReady = (serverHttp: string) => {
+  if (key || !startedHere()) return Promise.resolve();
+  if (!adopting) {
+    const p = loadAccess(serverHttp);
+    adopting = p.finally(() => (adopting = null));
+  }
+  return Promise.race([adopting, new Promise<void>((r) => setTimeout(r, 5000))]);
 };
 
 /** Turn private links on, reset them, or make the sheet open again. */

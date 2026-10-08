@@ -196,6 +196,20 @@ export class SheetDurableObject extends WsServerDurableObject {
     return (await this.ctx.storage.get<Share>('share')) ?? null;
   }
 
+  /**
+   * A sheet started without an account gets its keys from the device that
+   * started it, on its first visit; anyone else then needs a link. Null when
+   * it already has keys (someone else got there first).
+   */
+  async adopt(): Promise<Share | null> {
+    if (await this.ctx.storage.get<Share>('share')) return null;
+    const share = { edit: newToken(), view: newToken() };
+    await this.ctx.storage.put<Share>('share', share);
+    // Anyone connected without a key (from before sheets were private) is out.
+    this.kick('Sharing links changed');
+    return share;
+  }
+
   /** The worker has already checked the caller may edit. */
   async setSharing(action: 'enable' | 'rotate' | 'disable'): Promise<Share | null> {
     if (action === 'disable') {
@@ -387,10 +401,11 @@ const json = (data: unknown, status = 200) =>
 /**
  * The caller's role on a sheet. A sheet in a workspace is open to its
  * members; anyone else needs a private link. A sheet not (yet) in a
- * workspace, e.g. one started without an account, is open to whoever has
- * its unguessable address unless private links are on.
+ * workspace, one started without an account, needs a link too: its keys go
+ * to the device that started it (`adopt`, asked for with `own` on its first
+ * visit), so its address alone opens nothing.
  */
-const sheetAccess = async (request: Request, env: Env, sheet: string, key: string, needKeys: boolean) => {
+const sheetAccess = async (request: Request, env: Env, sheet: string, key: string, needKeys: boolean, own = false) => {
   const user = await sessionUser(request, env);
   const info = await directory(env).sheet(sheet, user?.id ?? null, env.PLAN_LIMITS === 'on');
   // Asking the sheet's object wakes it, and starting loads every row of the
@@ -400,7 +415,11 @@ const sheetAccess = async (request: Request, env: Env, sheet: string, key: strin
   let role: Role;
   if (info.deleted) role = 'none';
   else if (info.workspace) role = info.role ? 'edit' : byKey === 'open' ? 'none' : byKey;
-  else role = byKey === 'open' ? 'edit' : byKey;
+  else if (byKey !== 'open') role = byKey;
+  else if (own && (await sheetStub(env, sheet).adopt())) {
+    await env.PRESENCE.get(env.PRESENCE.idFromName(sheet)).kick();
+    return { role: 'edit' as Role, user, info, isPrivate: true };
+  } else role = 'none';
   return { role, user, info, isPrivate: byKey !== 'open' };
 };
 
@@ -448,7 +467,9 @@ async function handle(request: Request, env: Env): Promise<Response> {
   const sheet = decodeURIComponent(route[2]!);
   const key = url.searchParams.get('k') ?? '';
   const stub = sheetStub(env, sheet);
-  const { role, user, info, isPrivate } = await sheetAccess(request, env, sheet, key, kind === 'share');
+  // Only the access check (GET /share) may adopt a new sheet.
+  const own = kind === 'share' && request.method === 'GET' && url.searchParams.get('own') === '1';
+  const { role, user, info, isPrivate } = await sheetAccess(request, env, sheet, key, kind === 'share', own);
 
   if (kind === 'share') {
     if (request.method === 'GET') {
@@ -463,6 +484,8 @@ async function handle(request: Request, env: Env): Promise<Response> {
       if (role !== 'edit') return forbidden();
       const { action } = (await request.json().catch(() => ({}))) as { action?: string };
       if (action !== 'enable' && action !== 'rotate' && action !== 'disable') return json({ error: 'Unknown action' }, 400);
+      // Without a workspace, the links are the only lock: they can't go.
+      if (action === 'disable' && !info.workspace) return json({ error: 'Save this plan to a workspace first' }, 400);
       const keys = await stub.setSharing(action);
       if (action !== 'enable') await env.PRESENCE.get(env.PRESENCE.idFromName(sheet)).kick();
       return json({ role, private: !!keys, ...keys, name: info.name, workspace: info.workspace, signedIn: !!user });

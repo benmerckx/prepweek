@@ -244,7 +244,7 @@ const HELP: { title: string; items: [string, ReactNode][] }[] = [
     title: 'Teams and sharing',
     items: [
       ['How do I invite my team?', 'Open your avatar menu → People in your workspace, and invite by email. Members see and edit the workspace’s sheets.'],
-      ['Can I share a view-only link?', 'Yes: ⋯ → Share… → turn on private links, then copy the view link. Reset links any time to cut off old ones.'],
+      ['Can I share a view-only link?', 'Yes: ⋯ → Share… → turn on links, then copy the view link. Reset links any time to cut off old ones.'],
       ['What’s the daily digest?', 'An email on workday mornings with what’s on your plate and what others changed on your work. Switch it off in your avatar menu, or with the link in any digest.'],
     ],
   },

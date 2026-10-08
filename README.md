@@ -248,12 +248,19 @@ screen instead of emailing it.
 
 ### Sharing
 
-A sheet starts open: anyone with its address can edit, which suits a demo.
-**Share → Turn on private links** mints two secret keys, stored in the
-sheet's Durable Object: an edit link and a view-only link (`/s/<sheet>?k=…`).
-From then on the worker checks the key on every sync, presence and file
-request, and the sheet shows a lock screen without one. The key is
-remembered per sheet and removed from the address bar.
+A sheet in a workspace opens for the workspace's members (after logging
+in) and nobody else. **Share → Turn on links** mints two secret keys, stored
+in the sheet's Durable Object: an edit link and a view-only link
+(`/s/<sheet>?k=…`) for people outside the workspace. The worker checks the
+key on every sync, presence and file request, and the sheet shows a lock
+screen without one. The key is remembered per sheet and removed from the
+address bar.
+
+A sheet started without an account gets its keys straight away: the device
+that started it asks for them on its first visit (`/share/<sheet>?own=1`,
+only honoured while the sheet has none) and keeps the edit key. Its address
+alone opens nothing; share it with the links. Saving it to a workspace turns
+the links off, so from then on its members are who can open it.
 
 View-only is enforced by the server, not just the UI: the sheet's object
 only forwards read requests from a view-only socket (TinyBase's

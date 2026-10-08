@@ -445,7 +445,14 @@ export async function handleApi(req: Request, env: Env, url: URL): Promise<Respo
           const byKey = await env.SHEETS.get(env.SHEETS.idFromName(`sync/${id}`)).keyRole(body.key ?? '');
           if (byKey !== 'open' && byKey !== 'edit') return fail('Only editors can save this sheet to a workspace', 403);
         }
-        return json({ id: await dir.addSheet(user.id, body.workspaceId ?? '', body.name ?? '', id) });
+        const added = await dir.addSheet(user.id, body.workspaceId ?? '', body.name ?? '', id);
+        // In a workspace, its members are who may open it: the links from
+        // before stop working, and everyone without access is dropped.
+        if (id) {
+          await env.SHEETS.get(env.SHEETS.idFromName(`sync/${id}`)).setSharing('disable');
+          await dropConnections(env, [id]);
+        }
+        return json({ id: added });
       }
       if (seg[1] && req.method === 'PATCH') {
         await dir.updateSheet(user.id, seg[1], { name: body.name, workspaceId: body.workspaceId });
