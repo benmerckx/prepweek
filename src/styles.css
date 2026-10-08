@@ -1784,6 +1784,14 @@ svg {
   color: var(--text-faint);
   font-size: 11.5px;
 }
+.import-limit {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--accent) 10%, transparent);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
 .import-error {
   margin: 0;
   color: var(--danger);

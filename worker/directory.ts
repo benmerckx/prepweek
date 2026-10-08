@@ -978,6 +978,29 @@ export class DirectoryDurableObject extends DurableObject<Env> {
     };
   }
 
+  /**
+   * For a sheet's object, checking people added on it: the limit, and who is
+   * planned on the workspace's other sheets (they don't count twice).
+   */
+  async peopleRoom(sheetId: string) {
+    const ws = this.one<{ workspace_id: string }>(
+      "SELECT workspace_id FROM sheets WHERE id = ? AND deleted = 0",
+      sheetId,
+    )?.workspace_id;
+    if (!ws) return { limit: FREE_PEOPLE, elsewhere: [] as string[] };
+    const elsewhere = new Set<string>();
+    for (const r of this.all<{ people: string }>(
+      "SELECT p.people FROM sheet_people p JOIN sheets s ON s.id = p.sheet_id WHERE s.workspace_id = ? AND s.deleted = 0 AND p.sheet_id != ?",
+      ws,
+      sheetId,
+    ))
+      for (const k of JSON.parse(r.people) as string[]) elsewhere.add(k);
+    return {
+      limit: this.plan(ws, sheetId, true).limit,
+      elsewhere: [...elsewhere],
+    };
+  }
+
   async workspacePlan(userId: string, workspaceId: string, enforced: boolean) {
     this.requireRole(userId, workspaceId, "member");
     return this.plan(workspaceId, "", enforced);
