@@ -51,18 +51,21 @@ export const TaskBlock = memo(function TaskBlock({ task, scale, dims, selected, 
             {task.off ? <Away size={12} /> : task.done && <Check size={12} />}
             {task.title || (task.off ? 'Time off' : 'Untitled')}
           </span>
-          {(tall ? width > 60 : width > 120) && (
+          {(tall ? width > 30 : width > 100) && (
             <span className="task-sub">
               <span className="task-meta">
+                {/* Narrow blocks still say how long (or when); wider ones
+                    add the project, then its client. */}
                 {[
                   task.time && formatTime(task.time),
-                  task.project && task.project !== task.title && width > (tall ? 110 : 190) ? task.project : '',
+                  task.project && task.project !== task.title && width > (tall ? 100 : 180) ? task.project : '',
+                  task.client && task.project && width > (tall ? 190 : 280) ? task.client : '',
                   task.time && days === 1 ? '' : `${days}d`,
                 ]
                   .filter(Boolean)
                   .join(' · ')}
               </span>
-              {width > 90 && (task.files > 0 || task.notes || task.repeat || task.comments > 0 || task.people > 1 || task.checks > 0) && (
+              {width > 64 && (task.files > 0 || task.notes || task.repeat || task.comments > 0 || task.people > 1 || task.checks > 0) && (
                 <span className="task-badges">
                   {task.checks > 0 && (
                     <span title={`Checklist: ${task.checked} of ${task.checks} done`}>

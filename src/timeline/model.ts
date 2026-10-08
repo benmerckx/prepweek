@@ -46,6 +46,8 @@ export interface TaskView {
   projectId: string;
   /** Project name ('' when none), shown on the block. */
   project: string;
+  /** Its client's name ('' when none). */
+  client: string;
   tags: string[];
   /** Recurrence rule of the series this belongs to ('' = one-off). */
   repeat: string;
@@ -569,6 +571,7 @@ export class TimelineModel {
       comments: this.commentCount.get(r.group || id) ?? 0,
       projectId: r.projectId ?? '',
       project: (r.projectId && this.projectById.get(r.projectId)?.name) || '',
+      client: (r.projectId && this.projectById.get(r.projectId)?.client) || '',
       tags: parseTags(r.tags),
       repeat: isRule(r.repeat) ? r.repeat : '',
       series: id,
@@ -636,6 +639,7 @@ export class TimelineModel {
         comments: base?.comments ?? 0,
         projectId: base?.projectId ?? '',
         project: base?.project ?? '',
+        client: base?.client ?? '',
         tags: base?.tags ?? [],
         repeat: base?.repeat ?? '',
         series: base?.series ?? p.id,

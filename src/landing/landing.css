@@ -719,7 +719,7 @@ html:has(.lp) {
   top: 25px;
   left: 10px;
   line-height: 15px;
-  color: #fff;
+  color: var(--ink, #fff);
   font-size: 11px;
   font-weight: 500;
   opacity: 0.82;

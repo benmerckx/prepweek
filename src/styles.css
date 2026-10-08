@@ -45,6 +45,7 @@
   --row-line: #eeecf2;
 
   /* Blocks: tint of the task color on the canvas, ink in the same hue. */
+  --block-l: 0.87;
   --block-tint: 17%;
   --block-tint-hover: 24%;
   --block-tint-strong: 30%;
@@ -102,7 +103,8 @@
     --weekend: rgba(235, 228, 252, 0.035);
     --row-line: #211f26;
 
-    --block-tint: 26%;
+    --block-l: 0.8;
+  --block-tint: 26%;
     --block-tint-hover: 33%;
     --block-tint-strong: 40%;
     --block-ink-base: #ffffff;
@@ -153,6 +155,7 @@
   --weekend: rgba(235, 228, 252, 0.035);
   --row-line: #211f26;
 
+  --block-l: 0.8;
   --block-tint: 26%;
   --block-tint-hover: 33%;
   --block-tint-strong: 40%;
@@ -1244,16 +1247,18 @@ svg {
    ========================================================================== */
 
 .task {
-  /* To do: the block's own color, a touch deeper so white text reads. */
-  --fill: color-mix(in oklab, var(--c) 84%, #000);
+  /* A light tint of the block's color with ink of the same hue: easy to
+     read at any size (see the oklch version below). */
+  --fill: color-mix(in oklab, var(--c) 38%, #fff);
+  --ink: color-mix(in oklab, var(--c) 45%, #000);
   position: absolute;
   top: 0;
   left: 0;
   border-radius: var(--radius-sm);
   background: var(--fill);
-  color: #fff;
-  /* Matte: flat color, a hairline edge at the bottom, like paper. */
-  box-shadow: inset 0 -1px 0 rgb(0 0 0 / 0.12);
+  color: var(--ink);
+  /* Flat color, a hairline edge in its own hue. */
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--ink) 14%, transparent);
   cursor: grab;
   user-select: none;
   -webkit-user-select: none;
@@ -4506,9 +4511,9 @@ a.menu-item {
 }
 @supports (color: oklch(from red l c h)) {
   [data-pattern] {
-    /* Tone on tone: a little lighter than the fill, like a print. */
-    --pc: oklch(from var(--fill, var(--c)) calc(l + 0.07) c h);
-    --pat-op: 0.75;
+    /* Tone on tone: a little deeper than the fill, like a print. */
+    --pc: oklch(from var(--fill, var(--c)) calc(l - 0.09) calc(c * 1.3) h);
+    --pat-op: 0.55;
   }
 }
 .task.untitled[data-pattern],
@@ -4652,10 +4657,11 @@ a.menu-item {
 @supports (color: oklch(from red l c h)) {
   .task,
   .pattern-swatch {
-    /* Every hue at about the same depth and a matte saturation: light ones
-       (ochre, olive) darken enough for white text, loud ones (a vivid color
-       from an import) calm down to sit with the rest. */
-    --fill: oklch(from var(--c) clamp(0.5, l, 0.63) min(c, 0.155) h);
+    /* Every hue as a clear pastel at one lightness, with dark ink of the
+       same hue on top: like a highlighter on paper. Loud colors (a vivid
+       one from an import) come out the same depth as the rest. */
+    --fill: oklch(from var(--c) var(--block-l) min(calc(c * 0.7), 0.115) h);
+    --ink: oklch(from var(--c) 0.34 min(c, 0.13) h);
   }
 }
 .task.done {
