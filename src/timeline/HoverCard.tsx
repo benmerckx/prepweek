@@ -44,6 +44,8 @@ export function HoverCard({ model, bodyRef, editing }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   /** Where the cursor is (viewport px). */
   const at = useRef({ x: 0, y: 0 });
+  /** Card below the cursor (else above): settled per block, see onMove. */
+  const below = useRef(true);
 
   // Moved on every pointer move without rendering: just the card's position.
   const place = () => {
@@ -52,11 +54,8 @@ export function HoverCard({ model, bodyRef, editing }: Props) {
     const { x, y } = at.current;
     // Always to the right of the cursor, stopping at the screen's edge.
     el.style.left = `${Math.round(Math.max(MARGIN, Math.min(x + OFFSET_X, innerWidth - el.offsetWidth - MARGIN)))}px`;
-    // Below the cursor in the top half of the screen, above it in the bottom
-    // half: decided by where the cursor is, so it never jumps once shown.
-    const below = y < innerHeight / 2;
-    el.style.top = below ? `${Math.round(y + OFFSET_Y)}px` : 'auto';
-    el.style.bottom = below ? 'auto' : `${Math.round(innerHeight - y + OFFSET_Y / 2)}px`;
+    el.style.top = below.current ? `${Math.round(y + OFFSET_Y)}px` : 'auto';
+    el.style.bottom = below.current ? 'auto' : `${Math.round(innerHeight - y + OFFSET_Y / 2)}px`;
     el.style.visibility = 'visible';
   };
 
@@ -83,13 +82,23 @@ export function HoverCard({ model, bodyRef, editing }: Props) {
         clearTimeout(linger);
         // Off a block, the card stays a moment: crossing the gap to the next
         // one swaps it rather than closing and opening it again.
-        if (el) setHover(el.dataset.task!);
-        else linger = window.setTimeout(() => setHover(null), LINGER);
+        if (el) {
+          // Below for a block in the top half of the screen, above for one
+          // in the bottom half; it stays put while you move over the block.
+          const r = el.getBoundingClientRect();
+          below.current = r.top + r.height / 2 < innerHeight / 2;
+          setHover(el.dataset.task!);
+        } else linger = window.setTimeout(() => setHover(null), LINGER);
       }
       place();
     };
+    // Scrolled: the block moved, so the next move decides the side again.
+    const onScroll = () => {
+      over = null;
+    };
     body.addEventListener('pointermove', onMove);
     body.addEventListener('pointerleave', hide);
+    window.addEventListener('scroll', onScroll, true);
     window.addEventListener('pointerdown', hide, true);
     window.addEventListener('wheel', hide, { capture: true, passive: true });
     window.addEventListener('keydown', hide, true);
@@ -98,6 +107,7 @@ export function HoverCard({ model, bodyRef, editing }: Props) {
       clearTimeout(linger);
       body.removeEventListener('pointermove', onMove);
       body.removeEventListener('pointerleave', hide);
+      window.removeEventListener('scroll', onScroll, true);
       window.removeEventListener('pointerdown', hide, true);
       window.removeEventListener('wheel', hide, true);
       window.removeEventListener('keydown', hide, true);
