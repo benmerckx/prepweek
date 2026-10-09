@@ -19,6 +19,8 @@ const longDay = (d: number) => dateFromDay(d).toLocaleDateString(undefined, { we
 const OFFSET_X = 14;
 const OFFSET_Y = 18;
 const MARGIN = 8;
+/** How long the card stays after the cursor leaves a block (ms). */
+const LINGER = 180;
 
 /** Markdown notes as a line of plain text. */
 const plain = (md: string) =>
@@ -62,7 +64,9 @@ export function HoverCard({ model, bodyRef, editing }: Props) {
     const body = bodyRef.current;
     if (!body || !matchMedia('(hover: hover) and (pointer: fine)').matches) return;
     let over: HTMLElement | null = null;
+    let linger = 0;
     const hide = () => {
+      clearTimeout(linger);
       over = null;
       setHover(null);
     };
@@ -76,7 +80,11 @@ export function HoverCard({ model, bodyRef, editing }: Props) {
       const el = (e.target as HTMLElement).closest<HTMLElement>('[data-task]');
       if (el !== over) {
         over = el;
-        setHover(el ? el.dataset.task! : null);
+        clearTimeout(linger);
+        // Off a block, the card stays a moment: crossing the gap to the next
+        // one swaps it rather than closing and opening it again.
+        if (el) setHover(el.dataset.task!);
+        else linger = window.setTimeout(() => setHover(null), LINGER);
       }
       place();
     };
@@ -87,6 +95,7 @@ export function HoverCard({ model, bodyRef, editing }: Props) {
     window.addEventListener('keydown', hide, true);
     window.addEventListener('blur', hide);
     return () => {
+      clearTimeout(linger);
       body.removeEventListener('pointermove', onMove);
       body.removeEventListener('pointerleave', hide);
       window.removeEventListener('pointerdown', hide, true);
