@@ -1082,8 +1082,8 @@ function Pricing({ v }: { v: Visitor }) {
     <section className="lp-section lp-pricing" id="pricing">
       <div className="lp-wrap">
         <Reveal className="lp-heading">
-          <h2>Priced by the people you plan.</h2>
-          <p>Free for up to {FREE_PEOPLE} people. Planning for more? Pick the plan that fits your team; everything else is included.</p>
+          <h2>Free for small teams. Simple as you grow.</h2>
+          <p>Plan up to {FREE_PEOPLE} people for free. Planning more? Pick a plan by team size; every feature is included.</p>
         </Reveal>
         <Reveal className="lp-price-toggle" delay={60}>
           <span role="radiogroup" aria-label="Billing">
