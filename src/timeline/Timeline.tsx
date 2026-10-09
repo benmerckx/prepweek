@@ -94,17 +94,22 @@ const isTyping = (t: EventTarget | null) =>
 
 /** Steps the scrollable range grows by (a multiple of the render tile, CHUNK). */
 const RANGE_STEP = 7 * CHUNK;
-const RANGE_MAX = 3 * RANGE_STEP;
-const rangeAround = (day: number) => {
-  const origin = startOfWeek(Math.floor(day) - RANGE_STEP);
-  return { origin, days: 2 * RANGE_STEP };
+/**
+ * How much the range grows at a time: half a year, or three screens when
+ * zoomed out so far that half a year is about one (otherwise both edges are
+ * always near, and growing one side and trimming the other never settles).
+ */
+const rangeStep = (visibleDays: number) => Math.max(RANGE_STEP, Math.ceil((3 * visibleDays) / CHUNK) * CHUNK);
+const rangeAround = (day: number, step = RANGE_STEP) => {
+  const origin = startOfWeek(Math.floor(day) - step);
+  return { origin, days: 2 * step };
 };
-/** Half a year more on one side; the other side goes past a year and a half. */
-const grow = (r: { origin: number; days: number }, dir: -1 | 1) => {
+/** A step more on one side; the other side goes past three steps. */
+const grow = (r: { origin: number; days: number }, dir: -1 | 1, step: number) => {
   let { origin, days } = r;
-  if (dir < 0) origin -= RANGE_STEP;
-  days += RANGE_STEP;
-  const over = days - RANGE_MAX;
+  if (dir < 0) origin -= step;
+  days += step;
+  const over = days - 3 * step;
   if (over > 0) {
     days -= over;
     if (dir > 0) origin += over;
@@ -181,7 +186,7 @@ export function Timeline({ model }: { model: TimelineModel }) {
   const scale = useMemo(() => new Scale(range.origin, colW, hideWeekends), [range.origin, colW, hideWeekends]);
   vp.scale = scale;
   vp.rangeDays = range.days;
-  vp.onOutOfRange = (day) => flushSync(() => setRange(rangeAround(day)));
+  vp.onOutOfRange = (day) => flushSync(() => setRange(rangeAround(day, rangeStep(vp.visibleDays))));
   // The range starting elsewhere moves everything: keep the view in place.
   const prevOrigin = useRef(range.origin);
   useLayoutEffect(() => {
@@ -195,8 +200,9 @@ export function Timeline({ model }: { model: TimelineModel }) {
     const atEdge = () => {
       const left = s.scrollLeft;
       const margin = vp.viewWidth;
-      if (left < margin) setRange((r) => grow(r, -1));
-      else if (left > vp.maxScrollLeft() - margin) setRange((r) => grow(r, 1));
+      const step = rangeStep(vp.visibleDays);
+      if (left < margin) setRange((r) => grow(r, -1, step));
+      else if (left > vp.maxScrollLeft() - margin) setRange((r) => grow(r, 1, step));
     };
     // Where scrollend isn't supported, a pause in scrolling stands in for it.
     if ('onscrollend' in window) {
