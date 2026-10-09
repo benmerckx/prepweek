@@ -1,8 +1,8 @@
 // Hovering a block with a mouse shows its details in a card that follows the
-// cursor, below and to the right of it (flipped near the screen's edges):
-// when, who, the project, a peek at the notes and what's on its thread.
-// Read-only and out of the way: it never takes the pointer, and it goes as
-// soon as you press, drag or scroll.
+// cursor, below and to the right of it (held in at the screen's right edge,
+// above the cursor near the bottom): when, who, the project, a peek at the
+// notes and what's on its thread. Read-only and out of the way: it never
+// takes the pointer, and it goes as soon as you press, drag or scroll.
 
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
@@ -50,8 +50,8 @@ export function HoverCard({ model, bodyRef, editing }: Props) {
     const { x, y } = at.current;
     const w = el.offsetWidth;
     const h = el.offsetHeight;
-    let left = x + OFFSET_X;
-    if (left + w > innerWidth - MARGIN) left = Math.max(MARGIN, x - OFFSET_X - w);
+    // Always to the right of the cursor, stopping at the screen's edge.
+    const left = Math.max(MARGIN, Math.min(x + OFFSET_X, innerWidth - w - MARGIN));
     let top = y + OFFSET_Y;
     if (top + h > innerHeight - MARGIN) top = Math.max(MARGIN, y - OFFSET_Y / 2 - h);
     el.style.transform = `translate(${Math.round(left)}px, ${Math.round(top)}px)`;
