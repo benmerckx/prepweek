@@ -93,6 +93,9 @@ const isTyping = (t: EventTarget | null) =>
   (t.isContentEditable || t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || !!t.closest('.ui-pop'));
 
 /** Steps the scrollable range grows by (a multiple of the render tile, CHUNK). */
+/** Opening a plan: placed without motion until quiet this long once synced, at most SETTLE_MAX (ms). */
+const SETTLE_QUIET = 800;
+const SETTLE_MAX = 8000;
 const RANGE_STEP = 7 * CHUNK;
 /**
  * How much the range grows at a time: half a year, or three screens when
@@ -413,9 +416,45 @@ export function Timeline({ model }: { model: TimelineModel }) {
     refreshWindow();
   }, [model.version, refreshWindow]);
 
+  const appRef = useRef<HTMLDivElement>(null);
+
+  // --- Settling: no motion while the plan first comes in. ---
+  // Opening a plan, the local copy, the server's version, your account (your
+  // row moves to the top) and the archive land one after the other, and each
+  // moves rows and blocks. They'd ease there from where they were; until it
+  // has all landed (quiet for a moment once synced) or you do something,
+  // they're simply placed.
+  const settled = useRef(false);
+  useLayoutEffect(() => {
+    const app = appRef.current;
+    if (!app || settled.current) return;
+    const done = () => {
+      settled.current = true;
+      delete app.dataset.settling;
+      window.removeEventListener('pointerdown', done, true);
+      window.removeEventListener('keydown', done, true);
+    };
+    app.dataset.settling = '';
+    window.addEventListener('pointerdown', done, true);
+    window.addEventListener('keydown', done, true);
+    const cap = setTimeout(done, SETTLE_MAX);
+    return () => {
+      clearTimeout(cap);
+      window.removeEventListener('pointerdown', done, true);
+      window.removeEventListener('keydown', done, true);
+    };
+  }, []);
+  useEffect(() => {
+    if (settled.current || !synced) return;
+    const t = setTimeout(() => {
+      settled.current = true;
+      if (appRef.current) delete appRef.current.dataset.settling;
+    }, SETTLE_QUIET);
+    return () => clearTimeout(t);
+  }, [model.version, synced, account]);
+
   // --- Zoom, anchored at a point so the day under the cursor stays put. ---
   const anchor = useRef<{ day: number; px: number } | null>(null);
-  const appRef = useRef<HTMLDivElement>(null);
   const zoomEnd = useRef<ReturnType<typeof setTimeout>>(undefined);
   const zoomTo = useCallback(
     (next: number, clientX?: number) => {

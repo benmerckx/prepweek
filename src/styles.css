@@ -1393,6 +1393,9 @@ svg {
 [data-zooming] .task,
 [data-zooming] .row,
 [data-zooming] .person,
+[data-settling] .task,
+[data-settling] .row,
+[data-settling] .person,
 [data-scrubbing] .task,
 [data-scrubbing] .row,
 [data-scrubbing] .person {
