@@ -40,7 +40,7 @@
 
   /* Timeline grid */
   --grid-day: rgba(50, 35, 75, 0.05);
-  --grid-week: rgba(50, 35, 75, 0.11);
+  --grid-week: rgba(50, 35, 75, 0.2);
   --weekend: rgba(50, 35, 75, 0.075);
   /* Today's column: clearly lit. */
   --today-col: rgba(194, 60, 99, 0.08);
@@ -102,7 +102,7 @@
     --danger: #ef7a6b;
 
     --grid-day: rgba(220, 228, 255, 0.04);
-    --grid-week: rgba(220, 228, 255, 0.09);
+    --grid-week: rgba(220, 228, 255, 0.2);
     --weekend: rgba(225, 232, 255, 0.04);
     --today-col: rgba(225, 232, 255, 0.1);
     --row-line: #30333c;
@@ -156,7 +156,7 @@
   --danger: #ef7a6b;
 
   --grid-day: rgba(220, 228, 255, 0.04);
-  --grid-week: rgba(220, 228, 255, 0.09);
+  --grid-week: rgba(220, 228, 255, 0.2);
   --weekend: rgba(225, 232, 255, 0.04);
   --today-col: rgba(225, 232, 255, 0.1);
   --row-line: #30333c;
@@ -971,10 +971,32 @@ svg {
   font-weight: 650;
   text-align: center;
 }
+.hd-day.wk {
+  border-left: 1px solid var(--grid-week);
+}
+.hd-today {
+  position: absolute;
+  top: 0;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 1;
+}
+.hd-today span {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--today);
+  color: #fff;
+  font-size: 9.5px;
+  font-weight: 700;
+  line-height: 14px;
+}
 .hd-week {
   justify-content: flex-start;
   padding-left: 7px;
-  border-left: 1px solid var(--border);
+  border-left: 1px solid var(--grid-week);
   color: var(--text-dim);
   font-size: 11.5px;
   font-weight: 500;
@@ -1276,7 +1298,7 @@ svg {
   color: var(--ink);
   /* Flat color, a hairline edge in its own hue. */
   box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--ink) 14%, transparent);
-  cursor: grab;
+  cursor: pointer;
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
@@ -6883,4 +6905,130 @@ a.menu-item {
   transform: translateX(-50%);
   box-shadow: var(--shadow);
   animation: pop-in 160ms cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+
+/* Block hover card (see HoverCard.tsx) */
+.hovercard {
+  position: fixed;
+  z-index: 60;
+  width: max-content;
+  min-width: 220px;
+  max-width: 340px;
+  padding: 14px 16px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--raised);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  font-size: 12.5px;
+  pointer-events: none;
+  animation: hc-in 120ms ease-out;
+}
+@keyframes hc-in {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+}
+.hc-bar {
+  width: 28px;
+  height: 4px;
+  margin-bottom: 10px;
+  border-radius: 2px;
+  background: var(--c);
+}
+.hc-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.hc-title svg {
+  flex: none;
+  color: var(--text-dim);
+}
+.hc-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 10px;
+}
+.hc-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: color-mix(in oklab, var(--text) 7%, transparent);
+  white-space: nowrap;
+}
+.hc-faint {
+  color: var(--text-faint);
+}
+.hc-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--c);
+}
+.hc-notes {
+  display: -webkit-box;
+  margin: 10px 0 0;
+  overflow: hidden;
+  color: var(--text-dim);
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+.hc-people {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+}
+.hc-who {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.hc-person {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+.hc-person .avatar {
+  width: 24px;
+  height: 24px;
+  overflow: hidden;
+  font-size: 10px;
+  cursor: default;
+}
+.hc-person .avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.hc-name {
+  overflow: hidden;
+  color: var(--text-dim);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hc-badges {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+.hc-badges span {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
 }

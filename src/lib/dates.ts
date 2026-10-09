@@ -22,6 +22,24 @@ export const isoWeekday = (day: Day): number => (((day + 3) % 7) + 7) % 7;
 
 export const isWeekend = (day: Day): boolean => isoWeekday(day) >= 5;
 
+let lead: number | undefined;
+/**
+ * How many days before Monday a week starts in the user's calendar: 0 where
+ * weeks start on Monday, 1 on Sunday, 2 on Saturday.
+ */
+export const weekLead = (): number => {
+  if (lead !== undefined) return lead;
+  lead = 0;
+  try {
+    if (typeof navigator !== 'undefined' && navigator.language) {
+      const l = new Intl.Locale(navigator.language) as Intl.Locale & { getWeekInfo?: () => { firstDay: number }; weekInfo?: { firstDay: number } };
+      const first = (l.getWeekInfo?.() ?? l.weekInfo)?.firstDay ?? 1;
+      lead = first === 1 ? 0 : 8 - first;
+    }
+  } catch {}
+  return lead;
+};
+
 /** Monday on or before `day`. */
 export const startOfWeek = (day: Day): Day => day - isoWeekday(day);
 

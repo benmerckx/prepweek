@@ -27,6 +27,7 @@ import { isSynced, onSyncStatus } from '../data/sync.ts';
 import { SignInDialog, WorkspaceDialog, useAccount, useAutoSave } from './Account.tsx';
 import { Minimap } from './Minimap.tsx';
 import { Editor } from './Editor.tsx';
+import { HoverCard } from './HoverCard.tsx';
 import { Toolbar } from './Toolbar.tsx';
 import { labelPinner } from './pin.ts';
 import { ImportDialog } from '../import/ImportDialog.tsx';
@@ -154,6 +155,7 @@ export function Timeline({ model }: { model: TimelineModel }) {
   const todayDay = useMemo(getToday, []);
   const vp = useMemo(() => new Viewport(), []);
   const scrollerRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
   const compact = useSyncExternalStore(subscribeCompact, isCompact);
   const sidebarW = compact ? SIDEBAR_W_COMPACT : SIDEBAR_W;
   vp.sidebarW = sidebarW;
@@ -1084,6 +1086,7 @@ export function Timeline({ model }: { model: TimelineModel }) {
             )}
           </div>
           <div
+            ref={bodyRef}
             className="body"
             onPointerDown={onBodyPointerDown}
             onPointerMove={onBodyPointerMove}
@@ -1104,6 +1107,7 @@ export function Timeline({ model }: { model: TimelineModel }) {
             )}
             <PresenceLayer model={model} scale={scale} version={model.version} />
             {editor}
+            <HoverCard model={model} bodyRef={bodyRef} editing={editing} />
           </div>
         </div>
       </div>

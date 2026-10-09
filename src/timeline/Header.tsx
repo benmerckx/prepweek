@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { CHUNK } from './model.ts';
 import type { Scale } from './scale.ts';
-import { addMonths, isoWeek, isWeekend, monthLong, monthShort, startOfMonth, ymd, weekdayShort, startOfWeek } from '../lib/dates.ts';
+import { addMonths, isoWeek, isWeekend, monthLong, monthShort, startOfMonth, ymd, weekdayShort } from '../lib/dates.ts';
 
 interface Props {
   d0: number;
@@ -31,7 +31,14 @@ export const Header = memo(function Header({ d0, d1, scale, today }: Props) {
 
   return (
     <>
-      <div className="hd-months">{months}</div>
+      <div className="hd-months">
+        {months}
+        {today >= d0 && today <= d1 && !scale.isHidden(today) && (
+          <div className="hd-today" style={{ left: scale.x(today), width: Math.max(scale.colW, 2) }}>
+            <span>Today</span>
+          </div>
+        )}
+      </div>
       <div className="hd-days">{tiles}</div>
     </>
   );
@@ -44,7 +51,7 @@ const DayTile = memo(function DayTile({ c0, scale, today }: { c0: number; scale:
   if (colW >= 22) {
     for (let d = c0; d < c1; d++) {
       if (scale.isHidden(d)) continue;
-      const cls = 'hd-day' + (isWeekend(d) ? ' weekend' : '') + (d === today ? ' today' : '');
+      const cls = 'hd-day' + (isWeekend(d) ? ' weekend' : '') + (d === today ? ' today' : '') + (scale.weekOf(d) === d ? ' wk' : '');
       cells.push(
         <div key={d} className={cls + (colW >= 30 ? ' stack' : '')} style={{ left: scale.x(d), width: colW }}>
           {colW >= 30 && <span className="hd-wd">{weekdayShort(d)}</span>}
@@ -53,11 +60,14 @@ const DayTile = memo(function DayTile({ c0, scale, today }: { c0: number; scale:
       );
     }
   } else {
-    for (let d = startOfWeek(c0); d < c1; d += 7) {
+    // Each tile draws the weeks that start in it; the label is the ISO week
+    // of the week's Monday.
+    for (let d = scale.weekOf(c0 - 1) + 7; d < c1; d += 7) {
       const w = scale.perWeek * colW;
+      const n = isoWeek(d + scale.lead);
       cells.push(
         <div key={d} className={'hd-week' + (today >= d && today < d + 7 ? ' today' : '')} style={{ left: scale.x(d), width: w }}>
-          {w >= 30 ? (w >= 60 ? `Week ${isoWeek(d)}` : `W${isoWeek(d)}`) : ''}
+          {w >= 30 ? (w >= 60 ? `Week ${n}` : `W${n}`) : ''}
         </div>,
       );
     }

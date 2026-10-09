@@ -4,7 +4,7 @@ import type { TaskFilter } from './Rows.tsx';
 import type { Viewport } from './viewport.ts';
 import { getPeers, onPeers } from '../data/presence.ts';
 import { onThemeChange } from '../lib/theme.ts';
-import { addMonths, formatDay, monthShort, startOfMonth, startOfWeek, ymd } from '../lib/dates.ts';
+import { addMonths, formatDay, monthShort, startOfMonth, startOfWeek, weekLead, ymd } from '../lib/dates.ts';
 
 // A VS Code–style scrubber for the time axis. The canvas shows ~6 months at
 // a time (about a month on phones, or the whole range if it fits); like VS Code's minimap it scrolls
@@ -157,11 +157,12 @@ export function Minimap({ model, vp, today, filter = null, span = TARGET_DAYS }:
           o.fillText(monthShort(mi), x + 4, LABEL_H / 2 + 1);
         }
       }
-      // Weeks: a tick at each Monday; zoomed in (phones), its date too. The
-      // weekends are veiled after the plan is drawn (below).
+      // Weeks: a tick where each starts (Monday, or the user's first day of
+      // the week); zoomed in (phones), its date too. The weekends are veiled
+      // after the plan is drawn (below).
       if (g.scale >= 2) {
         o.font = '500 9.5px "Inter Variable", ui-sans-serif, system-ui, sans-serif';
-        for (let d = startOfWeek(s0); d <= s1; d += 7) {
+        for (let d = startOfWeek(s0 + weekLead()) - weekLead(); d <= s1; d += 7) {
           const x = (d - s0) * g.scale;
           const sinceMonth = (d - startOfMonth(d)) * g.scale;
           if (sinceMonth === 0) continue;

@@ -36,7 +36,7 @@ export const TaskBlock = memo(function TaskBlock({ task, scale, dims, selected, 
       className={cls}
       data-task={task.id}
       data-pattern={(!task.off && task.pattern) || undefined}
-      title={[task.title || (task.off ? 'Time off' : 'Untitled'), task.project, formatRange(task.start, task.end), task.estimate ? `${formatDuration(task.estimate)} estimated` : '', task.tags.map((t) => `#${t}`).join(' ')].filter(Boolean).join(' · ')}
+      aria-label={[task.title || (task.off ? 'Time off' : 'Untitled'), task.project, formatRange(task.start, task.end), task.estimate ? `${formatDuration(task.estimate)} estimated` : ''].filter(Boolean).join(', ')}
       style={{
         transform: `translate(${left}px, ${dims.pad + task.lane * dims.laneH}px)`,
         width,
@@ -188,7 +188,8 @@ interface GridProps {
 /** Day/weekend grid as CSS gradients over the rendered window only. */
 export const GridBackground = memo(function GridBackground({ d0, d1, scale, height, today }: GridProps) {
   // d0 is always a Monday, so the weekend stripe sits at columns 5–6, and
-  // with weekends hidden a week is simply five columns.
+  // with weekends hidden a week is simply five columns. The week line sits
+  // where the user's week starts (Sunday or Saturday in some calendars).
   const colW = scale.colW;
   const week = scale.perWeek * colW;
   const dayLines = colW >= 12;
@@ -206,6 +207,7 @@ export const GridBackground = memo(function GridBackground({ d0, d1, scale, heig
             scale.hideWeekends ? 'none' : `linear-gradient(to right, transparent ${5 * colW}px, var(--weekend) ${5 * colW}px)`,
           ].join(','),
           backgroundSize: `${week}px 100%, ${colW}px 100%, ${week}px 100%`,
+          backgroundPosition: `${-scale.lead * colW}px 0, 0 0, 0 0`,
         }}
       />
       {today >= d0 && today <= d1 && !scale.isHidden(today) && (

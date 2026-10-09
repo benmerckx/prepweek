@@ -268,7 +268,7 @@ const TeamHeader = memo(function TeamHeader({ row, top, onToggle }: { row: RowLa
   );
 });
 
-const initials = (name: string) =>
+export const initials = (name: string) =>
   name
     .split(/\s+/)
     .map((p) => p[0] ?? '')

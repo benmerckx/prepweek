@@ -7,6 +7,8 @@
 //
 // `origin` is always a Monday, which keeps the week arithmetic simple.
 
+import { startOfWeek, weekLead } from '../lib/dates.ts';
+
 export class Scale {
   readonly perWeek: number;
 
@@ -47,6 +49,20 @@ export class Scale {
     if (!this.hideWeekends) return this.origin + c;
     const weeks = Math.floor(c / 5);
     return this.origin + weeks * 7 + (c - weeks * 5);
+  }
+
+  /**
+   * Days before Monday the week starts (the user's calendar: Sunday or
+   * Saturday in some places). With weekends hidden, weeks run Monday–Friday.
+   */
+  get lead(): number {
+    return this.hideWeekends ? 0 : weekLead();
+  }
+
+  /** First day of the (user's) week holding `day`. */
+  weekOf(day: number): number {
+    const l = this.lead;
+    return startOfWeek(day + l) - l;
   }
 
   isHidden(day: number): boolean {
