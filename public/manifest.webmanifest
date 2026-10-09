@@ -1,6 +1,6 @@
 {
-  "name": "PrepWeek",
-  "short_name": "PrepWeek",
+  "name": "Prepweek",
+  "short_name": "Prepweek",
   "description": "Plan who works on what, week by week.",
   "start_url": "/app",
   "scope": "/",

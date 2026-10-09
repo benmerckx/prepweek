@@ -39,7 +39,7 @@ export const renderEmail = ({ origin, preheader, heading, paragraphs, button, fo
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;">
         <tr>
           <td style="padding:0 4px 18px;font-family:${FONT};font-size:17px;font-weight:700;color:#221f28;letter-spacing:-0.01em;">
-            <img src="${origin}/icons/email-logo.png" width="149" height="24" alt="PrepWeek" style="display:block;width:149px;height:24px;border:0;outline:none;text-decoration:none;font-family:${FONT};font-size:17px;font-weight:700;color:#221f28;">
+            <img src="${origin}/icons/email-logo.png" width="149" height="24" alt="Prepweek" style="display:block;width:149px;height:24px;border:0;outline:none;text-decoration:none;font-family:${FONT};font-size:17px;font-weight:700;color:#221f28;">
           </td>
         </tr>
         <tr>
@@ -122,7 +122,7 @@ export const renderDigest = ({ origin, preheader, heading, intro, sections, offH
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;">
         <tr>
           <td style="padding:0 4px 18px;">
-            <img src="${origin}/icons/email-logo.png" width="149" height="24" alt="PrepWeek" style="display:block;width:149px;height:24px;border:0;outline:none;text-decoration:none;font-family:${FONT};font-size:17px;font-weight:700;color:#221f28;">
+            <img src="${origin}/icons/email-logo.png" width="149" height="24" alt="Prepweek" style="display:block;width:149px;height:24px;border:0;outline:none;text-decoration:none;font-family:${FONT};font-size:17px;font-weight:700;color:#221f28;">
           </td>
         </tr>
         <tr>
@@ -142,7 +142,7 @@ export const renderDigest = ({ origin, preheader, heading, intro, sections, offH
             <table role="presentation" cellpadding="0" cellspacing="0" style="margin:26px 0 0;">
               <tr>
                 <td style="border-radius:9px;background:${ACCENT};">
-                  <a href="${sections[0]?.href ?? origin}" style="display:inline-block;padding:12px 22px;font-family:${FONT};font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:9px;">Open PrepWeek</a>
+                  <a href="${sections[0]?.href ?? origin}" style="display:inline-block;padding:12px 22px;font-family:${FONT};font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:9px;">Open Prepweek</a>
                 </td>
               </tr>
             </table>

@@ -197,7 +197,7 @@ export interface PlannedTask {
   repeatUntil: Day;
   /** Shared by several people: the id of the first one's block ('' = not shared). */
   group?: string;
-  /** 'off' for time off (from PrepWeek's own export). */
+  /** 'off' for time off (from Prepweek's own export). */
   kind?: string;
   /** Estimated minutes (0 = none). */
   estimate?: number;

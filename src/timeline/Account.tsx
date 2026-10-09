@@ -163,17 +163,17 @@ export function SheetSwitcher({ onSignIn, onWorkspace }: { onSignIn(): void; onW
   };
 
   // Window title: the sheet's name. An installed app's window already shows
-  // "PrepWeek - …" in front of it; a browser tab gets it appended.
+  // "Prepweek - …" in front of it; a browser tab gets it appended.
   const titleName = me ? me.workspaces.flatMap((w) => w.sheets).find((x) => x.id === current)?.name || access?.name || '' : '';
   useEffect(() => {
     const standalone = matchMedia('(display-mode: standalone), (display-mode: window-controls-overlay)').matches;
-    document.title = !titleName ? 'PrepWeek' : standalone ? titleName : `${titleName} – PrepWeek`;
+    document.title = !titleName ? 'Prepweek' : standalone ? titleName : `${titleName} – Prepweek`;
   }, [titleName]);
 
   // No accounts here (dev server, offline): just the brand.
   if (!me) {
     return (
-      <a className="brand" href="/" title="PrepWeek home" aria-label="PrepWeek home">
+      <a className="brand" href="/" title="Prepweek home" aria-label="Prepweek home">
         <Logo />
         <Wordmark className="brand-name" />
       </a>
@@ -201,7 +201,7 @@ export function SheetSwitcher({ onSignIn, onWorkspace }: { onSignIn(): void; onW
 
   return (
     <div className="brand switcher">
-      <a className="brand-home" href="/" title="PrepWeek home" aria-label="PrepWeek home">
+      <a className="brand-home" href="/" title="Prepweek home" aria-label="Prepweek home">
         <Logo />
       </a>
       <details className="tb-dd sheet-dd" ref={ref} onToggle={(e) => {
@@ -417,7 +417,7 @@ export function AccountButton({ onSignIn, onWorkspace }: { onSignIn(): void; onW
           </button>
         )}
         <a className="menu-item" href="/">
-          PrepWeek home
+          Prepweek home
         </a>
         {me.digest && (
           <button
@@ -829,7 +829,7 @@ export function InviteScreen({ token }: { token: string }) {
             <h1>Invite unavailable</h1>
             <p>{error}</p>
             <a className="btn" href="/app">
-              Open PrepWeek
+              Open Prepweek
             </a>
           </>
         ) : !info ? (

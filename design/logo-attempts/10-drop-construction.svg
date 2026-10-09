@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="512" height="512">
-  <title>PrepWeek</title>
+  <title>Prepweek</title>
   <rect x="0" y="0" width="64" height="64" fill="#ffffff"/>
   <path d="M0 0V64M0 0H64" stroke="#151821" stroke-opacity=".06" stroke-width=".15" fill="none"/>
   <path d="M4 0V64M0 4H64" stroke="#151821" stroke-opacity=".06" stroke-width=".15" fill="none"/>

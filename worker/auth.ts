@@ -125,7 +125,7 @@ export const sendEmail = async (env: Env, to: string, subject: string, html: str
       key: env.MANDRILL_API_KEY,
       message: {
         from_email: from ? from[2] : env.EMAIL_FROM?.trim(),
-        from_name: from?.[1] || 'PrepWeek',
+        from_name: from?.[1] || 'Prepweek',
         to: [{ email: to, type: 'to' }],
         subject,
         html,
@@ -172,13 +172,13 @@ export async function handleAuth(req: Request, env: Env, url: URL): Promise<Resp
         await sendEmail(
           env,
           email,
-          'Your PrepWeek sign-in link',
+          'Your Prepweek sign-in link',
           renderEmail({
             origin: url.origin,
-            preheader: 'Your link to sign in to PrepWeek. It works once, for 20 minutes.',
-            heading: 'Sign in to PrepWeek',
+            preheader: 'Your link to sign in to Prepweek. It works once, for 20 minutes.',
+            heading: 'Sign in to Prepweek',
             paragraphs: ['Click the button below to sign in. New here? The same link creates your account, no password needed.'],
-            button: { href: link, label: 'Sign in to PrepWeek' },
+            button: { href: link, label: 'Sign in to Prepweek' },
             footer: `This link works once, for 20 minutes, and was requested for ${escapeHtml(email)}.<br>If that wasn’t you, you can safely ignore this email.`,
           }),
         );
@@ -199,13 +199,13 @@ export async function handleAuth(req: Request, env: Env, url: URL): Promise<Resp
     // shows a button; signing in takes the POST it sends.
     const token = escapeHtml(url.searchParams.get('token') ?? '');
     return new Response(
-      `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Sign in to PrepWeek</title>
+      `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Sign in to Prepweek</title>
 <style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f5f3f7;font:16px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#221f28}
 main{background:#fffeff;border-radius:16px;padding:36px 32px;border:1px solid #e4e1e9;text-align:center;max-width:340px;margin:16px}
 img{display:block;margin:0 auto 22px}h1{font-size:20px;margin:0 0 6px}p{margin:0 0 22px;color:#66616f}
 button{font:inherit;font-weight:600;color:#fbfafc;background:#26222d;border:0;border-radius:10px;padding:12px 28px;cursor:pointer}button:hover{background:#3a3443}
 @media (prefers-color-scheme:dark){body{background:#292c34;color:#e8eaf0}main{background:#2e3139;border-color:#3a3e48}p{color:#aeb3bf}button,a{background:#e8eaf0;color:#1f2128}}</style></head>
-<body><main><img src="/icons/icon-192.png" width="56" height="56" alt=""><h1>Sign in to PrepWeek</h1><p>Continue to finish signing in.</p>
+<body><main><img src="/icons/icon-192.png" width="56" height="56" alt=""><h1>Sign in to Prepweek</h1><p>Continue to finish signing in.</p>
 <form method="post" action="/auth/verify"><input type="hidden" name="token" value="${token}"><button autofocus>Continue</button></form></main></body></html>`,
       { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'referrer-policy': 'same-origin' } },
     );
@@ -276,7 +276,7 @@ button{font:inherit;font-weight:600;color:#fbfafc;background:#26222d;border:0;bo
 }
 
 /** A small page for links opened from an email. */
-export const page = (heading: string, text: string, origin: string, action = `<a href="${origin}/app">Open PrepWeek</a>`) =>
+export const page = (heading: string, text: string, origin: string, action = `<a href="${origin}/app">Open Prepweek</a>`) =>
   new Response(
     `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${heading}</title>
 <style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f5f3f7;color:#221f28;font:15px/1.55 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif}
@@ -307,7 +307,7 @@ export async function handleApi(req: Request, env: Env, url: URL): Promise<Respo
     if (req.method === 'GET')
       return page(
         'Turn off the daily digest?',
-        'You’ll stop getting the morning email with your day and what changed. You can turn it back on from your account menu in PrepWeek.',
+        'You’ll stop getting the morning email with your day and what changed. You can turn it back on from your account menu in Prepweek.',
         url.origin,
         `<form method="post" action="/api/digest/off?t=${encodeURIComponent(t)}"><button>Turn off</button></form>`,
       );
@@ -316,7 +316,7 @@ export async function handleApi(req: Request, env: Env, url: URL): Promise<Respo
       return page(
         email === null ? 'This link has expired' : 'Daily digest turned off',
         email === null
-          ? 'We couldn’t find your digest settings. You can turn the digest off from your account menu in PrepWeek.'
+          ? 'We couldn’t find your digest settings. You can turn the digest off from your account menu in Prepweek.'
           : `You won’t get the daily digest${email ? ` at ${escapeHtml(email)}` : ''} any more. Changed your mind? Turn it back on from your account menu.`,
         url.origin,
       );
@@ -426,13 +426,13 @@ export async function handleApi(req: Request, env: Env, url: URL): Promise<Respo
             await sendEmail(
               env,
               email,
-              `${user.name} invited you to ${info?.workspace ?? 'a workspace'} on PrepWeek`,
+              `${user.name} invited you to ${info?.workspace ?? 'a workspace'} on Prepweek`,
               renderEmail({
                 origin: url.origin,
-                preheader: `Join ${ws} on PrepWeek and plan together.`,
+                preheader: `Join ${ws} on Prepweek and plan together.`,
                 heading: `${escapeHtml(user.name)} invited you to ${escapeHtml(ws)}`,
                 paragraphs: [
-                  `${escapeHtml(user.name)} uses PrepWeek to plan who works on what, week by week, and would like you to join <b>${escapeHtml(ws)}</b>.`,
+                  `${escapeHtml(user.name)} uses Prepweek to plan who works on what, week by week, and would like you to join <b>${escapeHtml(ws)}</b>.`,
                   `You’ll join as ${role === 'admin' ? 'an admin' : 'a member'}. Sign in with this email address (${escapeHtml(email)}) to accept.`,
                 ],
                 button: { href: link, label: `Join ${escapeHtml(ws)}` },

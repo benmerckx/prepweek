@@ -64,7 +64,7 @@ function Ctas({ v }: { v: Visitor }) {
         </button>
       ) : (
         <a className="lp-btn primary big" href="/app">
-          Open PrepWeek
+          Open Prepweek
           <Arrow />
         </a>
       )}
@@ -301,7 +301,7 @@ function Scrubber({ handle = true, only }: { handle?: boolean; only?: string }) 
 
 function HeroApp() {
   return (
-    <div className="lp-app" role="img" aria-label="PrepWeek's timeline: five people with their work planned across two weeks, while two teammates move and stretch blocks live.">
+    <div className="lp-app" role="img" aria-label="Prepweek's timeline: five people with their work planned across two weeks, while two teammates move and stretch blocks live.">
       <div className="lp-app-bar">
         <span className="lp-app-brand">
           <Logo size={20} />
@@ -456,7 +456,7 @@ function Hero({ v }: { v: Visitor }) {
           <span className="lp-accent">week by week.</span>
         </h1>
         <p className="lp-lede lp-in" style={{ ['--d' as string]: '120ms' }}>
-          PrepWeek puts everyone’s work on one timeline. Drag a block onto someone, stretch it over the days it takes, and your whole
+          Prepweek puts everyone’s work on one timeline. Drag a block onto someone, stretch it over the days it takes, and your whole
           team sees it the moment you let go.
         </p>
         <div className="lp-in" style={{ ['--d' as string]: '180ms' }}>
@@ -764,7 +764,7 @@ function Phone() {
     return () => io.disconnect();
   }, []);
   return (
-    <div ref={ref} className="lp-phone" role="img" aria-label="PrepWeek on a phone: a block is moved with a long press, then tapping another opens its details in a sheet from the bottom.">
+    <div ref={ref} className="lp-phone" role="img" aria-label="Prepweek on a phone: a block is moved with a long press, then tapping another opens its details in a sheet from the bottom.">
       <div className="lp-phone-screen">
         <div className="lp-phone-status">
           <b>9:41</b>
@@ -998,7 +998,7 @@ function Import() {
 
 // --- The honest bit ----------------------------------------------------------------------
 
-/** What Teamweek / Toggl Plan users asked for, and what PrepWeek does about it. */
+/** What Teamweek / Toggl Plan users asked for, and what Prepweek does about it. */
 const ASKED: { ask: string; answer: string; color: string }[] = [
   { ask: 'Can one task have two people on it?', answer: 'Put anyone on a task. A block in each row, edits in sync, one conversation.', color: C.blue },
   { ask: 'Who has room next week?', answer: 'Estimates, working hours and time off per person, so “booked” means hours. Holidays never count as busy.', color: C.slate },
@@ -1026,7 +1026,7 @@ function Honest() {
         <Reveal className="lp-asked">
           <div className="lp-asked-head" aria-hidden>
             <span>You kept asking</span>
-            <span>So PrepWeek does it</span>
+            <span>So Prepweek does it</span>
           </div>
           <ul>
             {ASKED.map((a) => (
@@ -1043,7 +1043,7 @@ function Honest() {
           </ul>
         </Reveal>
         <p className="lp-honest-note">
-          Teamweek and Toggl are trademarks of Toggl. PrepWeek isn’t affiliated with them. We’re fans who wanted a bit more.
+          Teamweek and Toggl are trademarks of Toggl. Prepweek isn’t affiliated with them. We’re fans who wanted a bit more.
         </p>
       </div>
     </section>
@@ -1117,7 +1117,7 @@ function Pricing({ v }: { v: Visitor }) {
                   </button>
                 ) : (
                   <a className="lp-btn primary" href="/app">
-                    Open PrepWeek
+                    Open Prepweek
                   </a>
                 )
               ) : (
@@ -1152,7 +1152,7 @@ export function Landing() {
   if (signingIn && v.kind === 'signedIn') location.replace('/app');
   const signIn = () => (v.kind === 'signedIn' ? location.assign('/app') : setSigningIn(true));
   useEffect(() => {
-    document.title = 'PrepWeek: who’s doing what, week by week';
+    document.title = 'Prepweek: who’s doing what, week by week';
     const on = () => setScrolled(scrollY > 8);
     on();
     addEventListener('scroll', on, { passive: true });
@@ -1163,7 +1163,7 @@ export function Landing() {
     <div className="lp">
       <nav className={'lp-nav' + (scrolled ? ' scrolled' : '')}>
         <div className="lp-wrap lp-nav-inner">
-          <a className="lp-brand" href="/" aria-label="PrepWeek home">
+          <a className="lp-brand" href="/" aria-label="Prepweek home">
             <Logo size={24} />
             <Wordmark className="lp-brand-name" size={24} />
           </a>
@@ -1187,7 +1187,7 @@ export function Landing() {
             ) : (
               <a className="lp-btn primary" href="/app" title={v.kind === 'signedIn' ? `Signed in as ${v.name}` : undefined}>
                 {v.avatar ? <img className="lp-nav-face" src={v.avatar} alt="" referrerPolicy="no-referrer" /> : null}
-                Open PrepWeek
+                Open Prepweek
                 <Arrow />
               </a>
             )}
@@ -1231,7 +1231,7 @@ export function Landing() {
         <div className="lp-wrap lp-foot-inner">
           <span className="lp-brand small">
             <Logo size={20} />
-            <Wordmark size={20} title="PrepWeek" />
+            <Wordmark size={20} title="Prepweek" />
           </span>
           <span className="lp-dim">Built in Europe, for teams who plan in weeks.</span>
           <span className="lp-foot-links">
@@ -1245,7 +1245,7 @@ export function Landing() {
                 Log in
               </button>
             )}
-            <span className="lp-dim">© {new Date().getFullYear()} PrepWeek</span>
+            <span className="lp-dim">© {new Date().getFullYear()} Prepweek</span>
           </span>
         </div>
       </footer>

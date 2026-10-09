@@ -815,7 +815,7 @@ export function Timeline({ model }: { model: TimelineModel }) {
   const goToday = useCallback(() => vp.scrollToDay(todayDay - 2, 0, true), [vp, todayDay]);
   const page = useCallback((dir: -1 | 1) => vp.scroller?.scrollBy({ left: dir * vp.viewWidth * 0.8, behavior: 'smooth' }), [vp]);
   const openImport = useCallback(() => setImporting({ file: null }), []);
-  const exportCsv = useCallback(() => void import('../import/export.ts').then((m) => m.downloadPlanCsv(document.title.replace(/ – PrepWeek$/, ''))), []);
+  const exportCsv = useCallback(() => void import('../import/export.ts').then((m) => m.downloadPlanCsv(document.title.replace(/ – Prepweek$/, ''))), []);
 
   // --- Command palette (⌘K) ---
   const [palette, setPalette] = useState(false);
@@ -1280,7 +1280,7 @@ function EmptySheet({ left, onAdd, onImport, onSignIn }: { left: number; onAdd()
       </div>
       {onSignIn && (
         <p className="empty-card-login">
-          Already planning with PrepWeek?{' '}
+          Already planning with Prepweek?{' '}
           <button className="link-btn" onClick={onSignIn}>
             Log in
           </button>{' '}

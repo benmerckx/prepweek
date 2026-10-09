@@ -14,14 +14,14 @@ export const SUPPORT_EMAIL = 'support@prepweek.com';
 
 function Shell({ title, children }: { title: string; children: ReactNode }) {
   useEffect(() => {
-    document.title = `${title} · PrepWeek`;
+    document.title = `${title} · Prepweek`;
   }, [title]);
   const signedIn = !!getMe()?.user;
   return (
     <div className="lp lp-page">
       <nav className="lp-nav scrolled">
         <div className="lp-wrap lp-nav-inner">
-          <a className="lp-brand" href="/" aria-label="PrepWeek home">
+          <a className="lp-brand" href="/" aria-label="Prepweek home">
             <Logo size={24} />
             <Wordmark className="lp-brand-name" size={24} />
           </a>
@@ -32,7 +32,7 @@ function Shell({ title, children }: { title: string; children: ReactNode }) {
           </span>
           <span className="lp-nav-actions">
             <a className="lp-btn primary" href="/app">
-              {signedIn ? 'Open PrepWeek' : 'Start planning'}
+              {signedIn ? 'Open Prepweek' : 'Start planning'}
             </a>
           </span>
         </div>
@@ -113,17 +113,17 @@ export function AppSumoPage() {
           <b>{done.name}</b> is on {done.plan.name} now: plan for up to {done.plan.limit} people, with as many logins as you like.
         </p>
         <a className="lp-btn primary big" href="/app">
-          Open PrepWeek
+          Open Prepweek
         </a>
       </>
     );
   else if (!lic)
     body = (
       <>
-        <h2>Bought PrepWeek on AppSumo?</h2>
+        <h2>Bought Prepweek on AppSumo?</h2>
         <ol className="lp-redeem-steps">
           <li>
-            Open <b>My products</b> on AppSumo and find PrepWeek.
+            Open <b>My products</b> on AppSumo and find Prepweek.
           </li>
           <li>
             Press <b>Activate</b>. AppSumo sends you back here with your licence.
@@ -177,7 +177,7 @@ export function AppSumoPage() {
             ))}
           </div>
         ) : (
-          <p>You aren’t an admin of a workspace yet. Open PrepWeek once to get yours, then come back here.</p>
+          <p>You aren’t an admin of a workspace yet. Open Prepweek once to get yours, then come back here.</p>
         )}
         {error && <p className="lp-redeem-error">{error}</p>}
         <button className="lp-btn primary big" disabled={busy || !pick} onClick={() => void redeem()}>
@@ -224,7 +224,7 @@ const HELP: { title: string; items: [string, ReactNode][] }[] = [
     items: [
       ['How do I plan something?', 'Add people with “+ Add person”, then drag across someone’s row to make a block over those days. Click a block to name it and set a project, color, time or notes.'],
       ['Do I need an account?', 'No. Start planning right away; the plan is saved in your browser and has its own address. Sign up to keep it in a workspace, invite your team and use it on all your devices.'],
-      ['How do I move from Teamweek or Toggl Plan?', 'Export your tasks as CSV from Teamweek / Toggl Plan (⋯ menu, Export tasks), then in PrepWeek open ⋯ → Import from Teamweek and drop the file. People are matched by email; importing again updates instead of duplicating.'],
+      ['How do I move from Teamweek or Toggl Plan?', 'Export your tasks as CSV from Teamweek / Toggl Plan (⋯ menu, Export tasks), then in Prepweek open ⋯ → Import from Teamweek and drop the file. People are matched by email; importing again updates instead of duplicating.'],
     ],
   },
   {
@@ -277,7 +277,7 @@ export function HelpPage() {
         <span className="lp-eyebrow">Help</span>
         <h1>Questions, answered</h1>
         <p className="lp-doc-lede">
-          Can’t find it here? Write to <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>; a person who builds PrepWeek answers.
+          Can’t find it here? Write to <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>; a person who builds Prepweek answers.
         </p>
         {HELP.map((g) => (
           <div key={g.title} className="lp-faq">
@@ -326,7 +326,7 @@ const ROADMAP: { title: string; note: string; items: [string, string][] }[] = [
       ['Slack notifications', 'Mentions and changes to your work in Slack.'],
       ['Reports', 'Planned days and hours per person, project and client.'],
       ['Two-way calendar sync', 'Meetings from your calendar show up as busy time.'],
-      ['API and webhooks', 'Connect PrepWeek to your own tools.'],
+      ['API and webhooks', 'Connect Prepweek to your own tools.'],
     ],
   },
 ];
@@ -336,7 +336,7 @@ export function RoadmapPage() {
     <Shell title="Roadmap">
       <section className="lp-doc">
         <span className="lp-eyebrow">Roadmap</span>
-        <h1>What’s next for PrepWeek</h1>
+        <h1>What’s next for Prepweek</h1>
         <p className="lp-doc-lede">
           Built in the open, in the order people ask for things. Want something? Tell us at <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.
         </p>
@@ -387,7 +387,7 @@ export function PrivacyPage() {
   return (
     <Doc
       title="Privacy"
-      lede="PrepWeek stores what it needs to run your plan, nothing more. No ads, no trackers, no selling data. Here is exactly what we keep, where, and how to take it out."
+      lede="Prepweek stores what it needs to run your plan, nothing more. No ads, no trackers, no selling data. Here is exactly what we keep, where, and how to take it out."
       sections={[
         [
           'What we store',
@@ -402,7 +402,7 @@ export function PrivacyPage() {
               <b>Workspaces:</b> who is in which workspace and with what role, and pending invites (the invited email address).
             </li>
             <li>
-              <b>Settings:</b> your daily digest choice, your time zone and the address you use PrepWeek at.
+              <b>Settings:</b> your daily digest choice, your time zone and the address you use Prepweek at.
             </li>
             <li>
               <b>Purchases:</b> a Paddle customer and subscription reference. Card details stay with Paddle; we never see them.
@@ -412,7 +412,7 @@ export function PrivacyPage() {
         [
           'On your device',
           <p>
-            Your browser keeps a copy of the sheets you open so PrepWeek works offline, plus small preferences (theme, last sheet). We set one cookie
+            Your browser keeps a copy of the sheets you open so Prepweek works offline, plus small preferences (theme, last sheet). We set one cookie
             to keep you signed in, and a short-lived one during Google sign-in. No analytics or advertising cookies. Signing out
             removes the copies of your workspace’s sheets from that device.
           </p>,
@@ -421,7 +421,7 @@ export function PrivacyPage() {
           'Who helps us run it',
           <ul>
             <li>
-              <b>Cloudflare</b> hosts PrepWeek and stores your data.
+              <b>Cloudflare</b> hosts Prepweek and stores your data.
             </li>
             <li>
               <b>Mailchimp Transactional (Mandrill)</b> sends sign-in links, invites and the daily digest. We don’t track opens or clicks.
@@ -445,7 +445,7 @@ export function PrivacyPage() {
         [
           'Questions',
           <p>
-            Write to <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>. PrepWeek isn’t meant for children under 16.
+            Write to <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>. Prepweek isn’t meant for children under 16.
           </p>,
         ],
       ]}
@@ -457,20 +457,20 @@ export function TermsPage() {
   return (
     <Doc
       title="Terms"
-      lede="The short version: use PrepWeek to plan your team’s work, keep it legal, and your plans stay yours."
+      lede="The short version: use Prepweek to plan your team’s work, keep it legal, and your plans stay yours."
       sections={[
         ['Your account', <p>You’re responsible for what happens in your account and workspaces. Keep your email account safe: it’s how you sign in.</p>],
         [
           'Your content',
           <p>
-            Your plans, comments and files belong to you. You give us permission to store and process them only to run PrepWeek for you and the
+            Your plans, comments and files belong to you. You give us permission to store and process them only to run Prepweek for you and the
             people you share with. You can export or delete them any time.
           </p>,
         ],
         [
           'Fair use',
           <p>
-            Don’t use PrepWeek for anything illegal, to send spam, to upload malware, or to break or overload the service. We may suspend accounts that
+            Don’t use Prepweek for anything illegal, to send spam, to upload malware, or to break or overload the service. We may suspend accounts that
             do.
           </p>,
         ],
@@ -490,7 +490,7 @@ export function TermsPage() {
         [
           'The service',
           <p>
-            We work hard to keep PrepWeek running and your data safe, but it’s provided as is: we can’t promise it will never be down or wrong, and
+            We work hard to keep Prepweek running and your data safe, but it’s provided as is: we can’t promise it will never be down or wrong, and
             we’re not liable for indirect losses. Keep exports of anything you can’t afford to lose.
           </p>,
         ],

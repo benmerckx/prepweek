@@ -55,10 +55,10 @@ export const buildCalendar = (store: MergeableStore, who: string, name: string, 
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//PrepWeek//Plan//EN',
+    'PRODID:-//Prepweek//Plan//EN',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
-    `X-WR-CALNAME:${text(personName ? `${personName} · ${name || 'PrepWeek'}` : name || 'PrepWeek')}`,
+    `X-WR-CALNAME:${text(personName ? `${personName} · ${name || 'Prepweek'}` : name || 'Prepweek')}`,
     'X-PUBLISHED-TTL:PT1H',
     'REFRESH-INTERVAL;VALUE=DURATION:PT1H',
   ];

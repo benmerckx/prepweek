@@ -1,6 +1,6 @@
 # Logo attempts
 
-Eight directions for a more colorful PrepWeek logo, drawn from the app's own
+Eight directions for a more colorful Prepweek logo, drawn from the app's own
 block palette (`PALETTE` in `src/data/store.ts`) and the brand indigo. Nothing
 here ships: `public/icons` and the `Logo` component are unchanged.
 

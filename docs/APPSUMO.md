@@ -1,6 +1,6 @@
 # AppSumo launch
 
-Everything needed to sell PrepWeek on the AppSumo Marketplace: how the code
+Everything needed to sell Prepweek on the AppSumo Marketplace: how the code
 works, what to set in AppSumo's Partner Portal and Cloudflare, a launch
 checklist, and draft copy for the listing.
 
@@ -102,12 +102,12 @@ in `X-Appsumo-Signature`, with the timestamp in `X-Appsumo-Timestamp`.
 
 ## Listing copy (draft)
 
-**Name:** PrepWeek
+**Name:** Prepweek
 
 **One-liner:** See who's doing what, week by week: the team planner Teamweek
 fans kept asking for.
 
-**Short description:** PrepWeek puts everyone's work on one timeline. Drag a
+**Short description:** Prepweek puts everyone's work on one timeline. Drag a
 block onto someone, stretch it over the days it takes, and your whole team
 sees it the moment you let go. Bring your Teamweek / Toggl Plan history over
 in one go.
@@ -115,7 +115,7 @@ in one go.
 **Who it's for:** agencies, studios and small teams who plan people across
 projects week by week; anyone moving off Teamweek or Toggl Plan.
 
-**Why PrepWeek:**
+**Why Prepweek:**
 
 - A timeline you read at a glance: people down the side, weeks across the
   top, colored blocks for the work.
@@ -154,7 +154,7 @@ run (for example SSO or third-party integrations with their own fees).
 ## Support replies (drafts)
 
 **Couldn't redeem:** “Sorry about that! Open My products on AppSumo, press
-Activate on PrepWeek, and sign in with the email you want to use. If it still
+Activate on Prepweek, and sign in with the email you want to use. If it still
 says something's wrong, reply with the email and the first four characters of
 your licence and I'll apply it by hand.”
 

@@ -1,6 +1,6 @@
 // Export the plan as CSV, in the columns Teamweek / Toggl Plan exports use
-// (so the file opens in a spreadsheet and imports back into PrepWeek or
-// elsewhere), plus PrepWeek's own: type, color and notes. Estimates are in
+// (so the file opens in a spreadsheet and imports back into Prepweek or
+// elsewhere), plus Prepweek's own: type, color and notes. Estimates are in
 // minutes, as Teamweek writes them.
 
 import { getUser, parseTags, store, type TaskRow } from '../data/store.ts';

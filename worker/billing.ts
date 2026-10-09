@@ -50,7 +50,7 @@ const priceFor = async (env: Env, planId: string, interval: 'month' | 'year') =>
   if (!product) {
     product = (
       await paddle<{ id: string }>(env, 'POST', 'products', {
-        name: `PrepWeek ${p.name}`,
+        name: `Prepweek ${p.name}`,
         tax_category: 'standard',
         custom_data: { plan: p.id },
       })
@@ -60,7 +60,7 @@ const priceFor = async (env: Env, planId: string, interval: 'month' | 'year') =>
   const price = await paddle<{ id: string }>(env, 'POST', 'prices', {
     product_id: product,
     name: interval === 'year' ? 'Yearly' : 'Monthly',
-    description: `PrepWeek ${p.name}, ${p.people} people, billed ${interval === 'year' ? 'yearly' : 'monthly'}`,
+    description: `Prepweek ${p.name}, ${p.people} people, billed ${interval === 'year' ? 'yearly' : 'monthly'}`,
     unit_price: { amount: String(amount), currency_code: currency },
     billing_cycle: { interval, frequency: 1 },
     custom_data: { plan: p.id, interval },

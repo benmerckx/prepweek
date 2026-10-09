@@ -1523,7 +1523,7 @@ html:has(.lp) {
   font-style: normal;
 }
 
-/* --- Mobile section: a phone running PrepWeek --- */
+/* --- Mobile section: a phone running Prepweek --- */
 .lp-mobile-stage {
   position: relative;
   display: grid;
@@ -2706,7 +2706,7 @@ html:has(.lp) {
   }
 }
 
-/* --- The honest bit: what people asked for, and what PrepWeek does --- */
+/* --- The honest bit: what people asked for, and what Prepweek does --- */
 .lp-asked {
   max-width: 940px;
   margin: 0 auto;
