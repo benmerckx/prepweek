@@ -712,6 +712,29 @@ export const createTask = (task: TaskRow, id = newId()): string => {
 };
 
 /**
+ * A copy of a task (or of one occurrence of a series) as a new one-off,
+ * with its checklist (unticked) but not its comments or files. By default
+ * it goes right after the original in the same row; `at` places it.
+ */
+export const duplicateTask = (id: string, at?: Partial<Pick<TaskRow, 'userId' | 'start' | 'end' | 'lane'>>): string | null => {
+  const t = getTask(id);
+  if (!t) return null;
+  const span = t.end - t.start + 1;
+  const copy = newId();
+  const checks = checksOf(t.group || splitOccurrence(id).base);
+  const checkIds = checks.map(() => newId());
+  commit(
+    'Duplicate task',
+    [['tasks', copy], ...checkIds.map((c) => ['checks', c] as [TableId, string])],
+    () => {
+      store.setRow('tasks', copy, lean(copy, { ...t, ...NOT_RECURRING, group: '', done: false, start: t.start + span, end: t.end + span, lane: -1, ...at }));
+      checks.forEach((c, i) => store.setRow('checks', checkIds[i]!, { taskId: copy, text: c.text, done: false, order: c.order }));
+    },
+  );
+  return copy;
+};
+
+/**
  * Who a task is assigned to: a row per person, linked as one task. Returns
  * the id to keep showing (the given one, unless its person was removed).
  */

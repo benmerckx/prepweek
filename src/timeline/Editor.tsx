@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { Attachments, attachFiles } from './Attachments.tsx';
-import { deleteTask, getTask, isReadOnly, linksOf, updateTask } from '../data/store.ts';
+import { deleteTask, duplicateTask, getTask, isReadOnly, linksOf, updateTask } from '../data/store.ts';
 import { restoreArchived } from '../data/archive.ts';
 import { RULES, RULE_LABELS, type Rule } from '../lib/recur.ts';
 import { formatDay } from '../lib/dates.ts';
@@ -11,7 +11,7 @@ import { Discussion } from './Discussion.tsx';
 import { DateField, EstimateField, LookField, PeopleField, TimeField } from './TaskFields.tsx';
 import { Checklist, KindField, LinksField } from './Planning.tsx';
 import { DatePicker, Select, isPopoverOpen, type Option } from '../ui/Select.tsx';
-import { Away, Calendar, Check, Clock, Close, Folder, Hourglass, People as PeopleIcon, Plus, Repeat, Swatch, Tag, Trash, Waits } from '../ui/icons.tsx';
+import { Away, Calendar, Check, Clock, Close, Duplicate, Folder, Hourglass, People as PeopleIcon, Plus, Repeat, Swatch, Tag, Trash, Waits } from '../ui/icons.tsx';
 import { loadChunk } from '../lib/chunks.ts';
 
 // Lexical loads on first use, not on page load.
@@ -333,6 +333,20 @@ export function Editor({ task, model, sheet, side, readOnly, onClose, onRetarget
       {error && <p className="editor-error">{error}</p>}
       {!task.archived && <Discussion taskId={task.thread} collapsed={sheet && !task.comments} />}
       <div className="editor-actions">
+        {!readOnly && !task.archived && (
+          <button
+            className="btn ghost"
+            title="Duplicate: a copy right after this one (⌘D, or drag with ⌥)"
+            onClick={() => {
+              saveTitle();
+              const id = duplicateTask(task.id);
+              if (id) onRetarget(id);
+            }}
+          >
+            <Duplicate />
+            Duplicate
+          </button>
+        )}
         {!readOnly && (
           <button
             className="btn danger"

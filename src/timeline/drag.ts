@@ -1,6 +1,6 @@
 import type { TimelineModel } from './model.ts';
 import { HEADER_H, type Viewport } from './viewport.ts';
-import { createTask, getUser, isReadOnly, PALETTE, updateTask } from '../data/store.ts';
+import { createTask, duplicateTask, getUser, isReadOnly, PALETTE, updateTask } from '../data/store.ts';
 
 // Pointer-driven move / resize / create, written from scratch on Pointer
 // Events. Design points that make it feel solid:
@@ -302,18 +302,8 @@ export class DragController {
       const orig = this.model.findTask(s.taskId);
       const changed = !orig || orig.userId !== p.userId || orig.start !== p.start || orig.end !== p.end || lane !== (s.lane0 ?? -1);
       if (s.duplicate && orig) {
-        const id = createTask({
-          userId: p.userId,
-          start: p.start,
-          end: p.end,
-          title: orig.title,
-          color: orig.color,
-          lane,
-          notes: orig.notes,
-          projectId: orig.projectId,
-          tags: orig.tags.join(','),
-          pattern: orig.pattern,
-        });
+        const id = duplicateTask(s.taskId, { userId: p.userId, start: p.start, end: p.end, lane });
+        if (!id) return this.end();
         this.model.rememberLane(id, lane);
         this.end();
         this.cb.onSelect(id);

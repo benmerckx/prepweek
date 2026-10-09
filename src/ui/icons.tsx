@@ -92,6 +92,12 @@ export const Calendar = ({ size = 16 }: { size?: number }) => (
     <path d="M2.5 6.5h11M5.5 1.75v2.5M10.5 1.75v2.5" />
   </Svg>
 );
+export const Duplicate = ({ size = 16 }: { size?: number }) => (
+  <Svg size={size}>
+    <rect x="5.25" y="5.25" width="8.5" height="8.5" rx="1.75" />
+    <path d="M10.75 5.25V3.75a1.5 1.5 0 0 0-1.5-1.5h-5.5a1.5 1.5 0 0 0-1.5 1.5v5.5a1.5 1.5 0 0 0 1.5 1.5h1.5" />
+  </Svg>
+);
 export const Trash = ({ size = 16 }: { size?: number }) => (
   <Svg size={size}>
     <path d="M2.75 4.25h10.5M6.25 4.25V2.75h3.5v1.5M4 4.25l.6 8.5c.05.8.7 1.5 1.5 1.5h3.8c.8 0 1.45-.7 1.5-1.5l.6-8.5" />

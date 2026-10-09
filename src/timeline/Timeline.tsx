@@ -34,7 +34,7 @@ import { ImportDialog } from '../import/ImportDialog.tsx';
 import { MilestoneBand, MilestoneEditor, MilestoneLines, type MsDrag } from './Milestones.tsx';
 import { Flag, Minus, Plus } from '../ui/icons.tsx';
 import { useBackToClose } from '../lib/useBackToClose.ts';
-import { createMilestone, createTask, createUser, deleteTask, discardNewTask, getTask, getUser, MILESTONE_COLORS, PALETTE, redo, store, undo, updateTask, type ViewConfig } from '../data/store.ts';
+import { createMilestone, createTask, createUser, deleteTask, duplicateTask, discardNewTask, getTask, getUser, MILESTONE_COLORS, PALETTE, redo, store, undo, updateTask, type ViewConfig } from '../data/store.ts';
 import { startOfWeek, today as getToday } from '../lib/dates.ts';
 
 interface Win {
@@ -767,8 +767,8 @@ export function Timeline({ model }: { model: TimelineModel }) {
         setEditing(null);
       } else if (mod && e.key.toLowerCase() === 'd') {
         e.preventDefault();
-        const span = t.end - t.start + 1;
-        setSelected(createTask({ ...t, start: t.start + span, end: t.end + span, lane: -1, repeat: '', repeatUntil: 0, skip: '' }));
+        const id = duplicateTask(sel);
+        if (id) setSelected(id);
       } else if (e.key === 'Enter') {
         e.preventDefault();
         setEditing(sel);
@@ -846,8 +846,18 @@ export function Timeline({ model }: { model: TimelineModel }) {
         { label: 'Undo', keys: '⌘Z', run: undo },
         { label: 'Redo', keys: '⇧⌘Z', run: redo },
       );
+    if (!readOnly && selected)
+      c.unshift({
+        label: 'Duplicate task',
+        keys: '⌘D',
+        keywords: 'copy clone',
+        run: () => {
+          const id = duplicateTask(selected);
+          if (id) setSelected(id);
+        },
+      });
     return c;
-  }, [goToday, zoomTo, hideWeekends, toggleWeekends, dense, toggleDense, model, openActivity, openShare, readOnly, manageProjects, openImport, exportCsv, openCalendar]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [goToday, zoomTo, hideWeekends, toggleWeekends, dense, toggleDense, model, openActivity, openShare, readOnly, manageProjects, openImport, exportCsv, openCalendar, selected]); // eslint-disable-line react-hooks/exhaustive-deps
   const paletteFocus = useCallback((id: string) => focusPerson(id), [focusPerson]);
   const paletteProject = useCallback((id: string) => setFilterState({ projects: [id], tags: [] }), []);
 
