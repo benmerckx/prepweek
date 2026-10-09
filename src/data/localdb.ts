@@ -57,6 +57,14 @@ const open = (name: string) =>
     r.onerror = () => reject(r.error);
   });
 
+/**
+ * Opening waits behind a pending delete of the same database, and a delete
+ * waits for every tab holding it to let go: a tab that never does would
+ * leave this one on the boot screen for good. Past this, the sheet opens
+ * without its local copy (from the server) instead.
+ */
+const OPEN_TIMEOUT = 4000;
+
 const idle = (fn: () => void) =>
   'requestIdleCallback' in window ? requestIdleCallback(fn, { timeout: 5000 }) : setTimeout(fn, 1500);
 
@@ -69,8 +77,29 @@ export interface LocalDb {
   compactSoon(): void;
 }
 
+/** No local copy this time: the sheet lives in memory (and on the server). */
+const inMemory = (store: MergeableStore): LocalDb => ({
+  empty: store.getRowCount('users') === 0 && store.getRowCount('tasks') === 0,
+  flush: async () => {},
+  compactSoon: () => {},
+});
+
 export const startLocalDb = async (store: MergeableStore, name: string, legacyName?: string): Promise<LocalDb> => {
-  const db = await open(name);
+  const opening = open(name);
+  const db = await Promise.race([opening, new Promise<null>((r) => setTimeout(() => r(null), OPEN_TIMEOUT))]);
+  if (!db) {
+    console.warn('This sheet’s copy on this device is busy (another tab is letting go of it); opening it without');
+    // If it does open later, don't hold it: that would block the next delete.
+    void opening.then((late) => late.close()).catch(() => {});
+    return inMemory(store);
+  }
+  // Another tab wants it gone (signing out, losing access) or upgraded: let
+  // go, so that tab isn't stuck waiting. This tab keeps going in memory.
+  let closed = false;
+  db.onversionchange = () => {
+    closed = true;
+    db.close();
+  };
 
   // --- Load: snapshot, then replay the log on top. ---
   let logCount = 0;
@@ -115,6 +144,7 @@ export const startLocalDb = async (store: MergeableStore, name: string, legacyNa
   const flush = async () => {
     clearTimeout(timer);
     timer = undefined;
+    if (closed) queue = [];
     if (!queue.length) return;
     const batch = queue;
     queue = [];
@@ -135,6 +165,7 @@ export const startLocalDb = async (store: MergeableStore, name: string, legacyNa
   const compact = async () => {
     compactScheduled = false;
     await flush();
+    if (closed) return;
     // Snapshot and log truncation in one transaction: either both or neither.
     const content = store.getMergeableContent();
     const tx = db.transaction([SNAPSHOT, LOG], 'readwrite');
