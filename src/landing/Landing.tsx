@@ -740,8 +740,26 @@ const PHONE_ROWS: { name: string; color: string; blocks: { col: number; span: nu
 ];
 
 function Phone() {
+  // Each part of the loop (the drag, the tap, the sheet, the dim behind it)
+  // is its own CSS animation, and each starts when the browser first draws
+  // that part, so they drift apart (the dim came in before the sheet). On
+  // coming into view they all start over together.
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !el.getAnimations) return;
+    const io = new IntersectionObserver(([e]) => {
+      if (!e?.isIntersecting) return;
+      requestAnimationFrame(() => {
+        const t = document.timeline.currentTime;
+        for (const a of el.getAnimations({ subtree: true })) a.startTime = t;
+      });
+    });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
   return (
-    <div className="lp-phone" role="img" aria-label="PrepWeek on a phone: a block is moved with a long press, then tapping another opens its details in a sheet from the bottom.">
+    <div ref={ref} className="lp-phone" role="img" aria-label="PrepWeek on a phone: a block is moved with a long press, then tapping another opens its details in a sheet from the bottom.">
       <div className="lp-phone-screen">
         <div className="lp-phone-status">
           <b>9:41</b>
