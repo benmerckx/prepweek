@@ -6,6 +6,7 @@ import { getMe } from '../data/account.ts';
 import { APPSUMO_TIERS, FREE_PEOPLE, type PlanInfo } from '../lib/plans.ts';
 import { loadChunk } from '../lib/chunks.ts';
 import { Logo, Wordmark } from '../ui/brand.tsx';
+import { DailyWeek } from './Playground.tsx';
 
 const SignInDialog = lazy(() => loadChunk(() => import('../timeline/Account.tsx')).then((m) => ({ default: m.SignInDialog })));
 
@@ -43,6 +44,7 @@ function Shell({ title, children }: { title: string; children: ReactNode }) {
           <span className="lp-dim">Questions? {<a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>}</span>
           <span className="lp-foot-links">
             <a href="/help">Help</a>
+            <a href="/daily">Daily puzzle</a>
             <a href="/roadmap">Roadmap</a>
             <a href="/privacy">Privacy</a>
             <a href="/terms">Terms</a>
@@ -503,5 +505,57 @@ export function TermsPage() {
         ],
       ]}
     />
+  );
+}
+
+// --- The daily week -------------------------------------------------------------------------
+
+export function DailyPage() {
+  const signedIn = !!getMe()?.user;
+  return (
+    <Shell title="The daily week">
+      <section className="lp-doc lp-daily">
+        <p className="lp-daily-eyebrow">A planning puzzle, new every day</p>
+        <h1>The daily week</h1>
+        <p className="lp-daily-lede">
+          A small team, five days, a pile of work and a few rules. Fit it all in. There’s exactly one way that works: easy on Monday,
+          properly tricky by Friday.
+        </p>
+        <DailyWeek page />
+        <div className="lp-daily-rules">
+          <h2>How it works</h2>
+          <ul>
+            <li>
+              <b>Every block goes on the board.</b> Together they fill every free day exactly; striped days are someone’s day off.
+            </li>
+            <li>
+              <b>Letters on a block</b> say who can do it: <i>A</i> for Ava, <i>N</i> for Noah, <i>M</i> for Mila, <i>L</i> for Lucas.
+            </li>
+            <li>
+              <b>Rules on the side</b> say when: a block on a given day, one that can only start once another is done, or two that share a day.
+              Each one ticks green when it holds and turns red when it’s broken.
+            </li>
+            <li>
+              <b>Drag</b> a block onto a day, or tap it and then tap a day. Drag it off the board to take it back.
+            </li>
+          </ul>
+        </div>
+      </section>
+      <section className="lp-daily-cta">
+        <h2>Plans like this, for your real week.</h2>
+        <p>
+          Prepweek puts your team’s work on one timeline: drag a block onto someone, stretch it over the days it takes, and everyone sees it
+          the moment you let go. Free for up to {FREE_PEOPLE} people.
+        </p>
+        <div className="lp-daily-ctas">
+          <a className="lp-btn primary big" href="/app">
+            {signedIn ? 'Open Prepweek' : 'Start planning'}
+          </a>
+          <a className="lp-btn ghost big" href="/">
+            Explore Prepweek
+          </a>
+        </div>
+      </section>
+    </Shell>
   );
 }

@@ -19,7 +19,7 @@ const me = loadMe();
 const path = location.pathname;
 // The AppSumo page waits until the deal is live (see lib/plans.ts).
 const landing = path === '/' || path === '/welcome' || (!APPSUMO_LIVE && /^\/appsumo\/?$/.test(path));
-const page = ({ ...(APPSUMO_LIVE ? { '/appsumo': 'AppSumoPage' } : {}), '/help': 'HelpPage', '/roadmap': 'RoadmapPage', '/privacy': 'PrivacyPage', '/terms': 'TermsPage' } as const)[path.replace(/\/$/, '') as '/help'];
+const page = ({ ...(APPSUMO_LIVE ? { '/appsumo': 'AppSumoPage' } : {}), '/help': 'HelpPage', '/daily': 'DailyPage', '/roadmap': 'RoadmapPage', '/privacy': 'PrivacyPage', '/terms': 'TermsPage' } as const)[path.replace(/\/$/, '') as '/help'];
 if (page) {
   const [pages] = await Promise.all([loadChunk(() => import('./landing/Pages.tsx')), me]);
   const Page = pages[page];

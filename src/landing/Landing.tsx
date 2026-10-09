@@ -1237,6 +1237,7 @@ export function Landing() {
           <span className="lp-foot-links">
             <a href="/s/demo">Demo</a>
             <a href="/help">Help</a>
+            <a href="/daily">Daily puzzle</a>
             <a href="/roadmap">Roadmap</a>
             <a href="/privacy">Privacy</a>
             <a href="/terms">Terms</a>

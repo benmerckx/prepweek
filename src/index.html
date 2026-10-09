@@ -24,7 +24,7 @@
         m.content = t === 'dark' ? '#292c34' : '#fbfafc';
       });
       // The home page (see main.tsx) skips the "opening your sheet" screen.
-      if (/^\/(welcome|appsumo|help|roadmap|privacy|terms)?\/?$/.test(location.pathname)) document.documentElement.dataset.landing = '';
+      if (/^\/(welcome|appsumo|help|daily|roadmap|privacy|terms)?\/?$/.test(location.pathname)) document.documentElement.dataset.landing = '';
     </script>
     <!-- Boot screen: inline so it paints before the bundle and data load. -->
     <style>
