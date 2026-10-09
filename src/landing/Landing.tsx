@@ -1016,7 +1016,7 @@ function Honest() {
     <section className="lp-section lp-honest" id="why">
       <div className="lp-wrap">
         <Reveal className="lp-heading">
-          <h2>Inspired by Teamweek, and proud of it.</h2>
+          <h2>Inspired by Teamweek.</h2>
           <p>
             Teamweek got planning right: people down the side, weeks across the top, work you can grab and drag. Then it became Toggl Plan,
             the wish list kept growing, and now Toggl is moving Plan users to a newer, broader product. So we kept everything people loved and
