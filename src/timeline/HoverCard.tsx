@@ -48,13 +48,13 @@ export function HoverCard({ model, bodyRef, editing }: Props) {
     const el = ref.current;
     if (!el) return;
     const { x, y } = at.current;
-    const w = el.offsetWidth;
-    const h = el.offsetHeight;
     // Always to the right of the cursor, stopping at the screen's edge.
-    const left = Math.max(MARGIN, Math.min(x + OFFSET_X, innerWidth - w - MARGIN));
-    let top = y + OFFSET_Y;
-    if (top + h > innerHeight - MARGIN) top = Math.max(MARGIN, y - OFFSET_Y / 2 - h);
-    el.style.transform = `translate(${Math.round(left)}px, ${Math.round(top)}px)`;
+    el.style.left = `${Math.round(Math.max(MARGIN, Math.min(x + OFFSET_X, innerWidth - el.offsetWidth - MARGIN)))}px`;
+    // Below the cursor in the top half of the screen, above it in the bottom
+    // half: decided by where the cursor is, so it never jumps once shown.
+    const below = y < innerHeight / 2;
+    el.style.top = below ? `${Math.round(y + OFFSET_Y)}px` : 'auto';
+    el.style.bottom = below ? 'auto' : `${Math.round(innerHeight - y + OFFSET_Y / 2)}px`;
     el.style.visibility = 'visible';
   };
 
