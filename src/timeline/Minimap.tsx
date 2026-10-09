@@ -176,40 +176,45 @@ export function Minimap({ model, vp, today, filter = null, span = TARGET_DAYS }:
         }
       }
 
-      // A miniature of the plan: a thin strip per person, in the same
-      // order as the rows, each block in its own color. You see whose time
-      // is taken where at a glance, and the strip looks like the timeline
-      // it scrubs. Time off is drawn faint, done work dimmed; with a search
-      // or filter on, the rest fades and what matches stands out.
-      const people = model.rows.filter((r) => r.kind === 'person');
-      const top = LABEL_H + 4;
-      const bottom = H - 3;
-      const lane = people.length ? (bottom - top) / people.length : 0;
-      const bar = lane >= 4 ? lane - 1.5 : lane >= 2 ? lane - 0.5 : lane;
-      const f = filterRef.current;
-      people.forEach((row, i) => {
-        const y = top + i * lane;
-        // A faint track per person, so empty stretches read as free time.
-        if (lane >= 3) {
-          o.fillStyle = c.band!;
-          o.fillRect(0, y, cw, bar);
-        }
-        for (const t of visibleTasks(row, s0, s1)) {
-          const x = (t.start - s0) * g.scale;
-          const w = Math.max(1, (t.end - t.start + 1) * g.scale - (g.scale > 4 ? 1 : 0));
-          const match = !f || f(t);
-          o.fillStyle = t.off ? c.text! : t.color;
-          o.globalAlpha = !match ? 0.12 : t.off ? 0.25 : t.done ? 0.35 : 0.72;
-          o.fillRect(x, y, w, bar);
-        }
-        o.globalAlpha = 1;
-      });
-
-      // Weekends veiled over the plan, so each week reads as its own column.
+      // Weekends behind the plan, so each week reads as its own column
+      // without cutting through the blocks.
       if (g.scale >= 2) {
         o.fillStyle = c.weekend!;
         for (let d = startOfWeek(s0) + 5; d <= s1; d += 7) o.fillRect((d - s0) * g.scale, LABEL_H, 2 * g.scale, H - LABEL_H);
       }
+
+      // A miniature of the plan: a thin strip per person, in the same
+      // order as the rows, each block in its own color as a small rounded
+      // bar (like the blocks themselves). You see whose time is taken where
+      // at a glance, and the strip looks like the timeline it scrubs. Time
+      // off is drawn faint, done work dimmed; with a search or filter on,
+      // the rest fades and what matches stands out.
+      const people = model.rows.filter((r) => r.kind === 'person');
+      const top = LABEL_H + 4;
+      const bottom = H - 3;
+      const lane = people.length ? (bottom - top) / people.length : 0;
+      // Room between the rows while there's room for it.
+      const bar = lane >= 5 ? lane - 2 : lane >= 3 ? lane - 1 : lane;
+      const round = 'roundRect' in o && bar >= 2.5;
+      const f = filterRef.current;
+      people.forEach((row, i) => {
+        const y = top + i * lane;
+        for (const t of visibleTasks(row, s0, s1)) {
+          const x = (t.start - s0) * g.scale;
+          const span = (t.end - t.start + 1) * g.scale;
+          // A hair between blocks that follow each other.
+          const w = Math.max(1, span - (span > 4 ? 1 : 0));
+          const match = !f || f(t);
+          o.fillStyle = t.off ? c.text! : t.color;
+          o.globalAlpha = !match ? 0.12 : t.off ? 0.25 : t.done ? 0.35 : 0.75;
+          if (round && w >= 3) {
+            o.beginPath();
+            o.roundRect(x, y, w, bar, Math.min(1.5, w / 2, bar / 2));
+            o.fill();
+          } else o.fillRect(x, y, w, bar);
+        }
+        o.globalAlpha = 1;
+      });
 
       // Milestones: a marker in the label row and a thin line down.
       for (const m of model.milestones) {

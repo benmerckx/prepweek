@@ -64,7 +64,7 @@
   /* Minimap (read by canvas code) */
   --mm-bg: #f5f3f7;
   --mm-band: rgba(50, 35, 75, 0.03);
-  --mm-weekend: rgba(245, 243, 247, 0.62);
+  --mm-weekend: rgba(50, 35, 75, 0.05);
   --mm-line: rgba(50, 35, 75, 0.16);
   --mm-text: #8e8998;
   --mm-text-strong: #221f28;
@@ -121,7 +121,7 @@
 
     --mm-bg: #2e3139;
     --mm-band: rgba(220, 228, 255, 0.025);
-    --mm-weekend: rgba(72, 76, 88, 0.5);
+    --mm-weekend: rgba(72, 76, 88, 0.4);
     --mm-line: rgba(220, 228, 255, 0.16);
     --mm-text: #8a909c;
     --mm-text-strong: #e8eaf0;
@@ -175,7 +175,7 @@
 
   --mm-bg: #2e3139;
   --mm-band: rgba(220, 228, 255, 0.025);
-  --mm-weekend: rgba(72, 76, 88, 0.5);
+  --mm-weekend: rgba(72, 76, 88, 0.4);
   --mm-line: rgba(220, 228, 255, 0.16);
   --mm-text: #8a909c;
   --mm-text-strong: #e8eaf0;
