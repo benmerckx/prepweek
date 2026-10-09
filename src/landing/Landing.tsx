@@ -9,6 +9,7 @@ import { getMe, lastSheet, mySheets, newSheetId, rememberMySheet } from '../data
 import { Logo, Wordmark } from '../ui/brand.tsx';
 import { loadChunk } from '../lib/chunks.ts';
 import { Playground } from './Playground.tsx';
+import { FREE_PEOPLE, PAID_PLANS } from '../lib/plans.ts';
 
 // After a deploy the old chunk is gone: reload into a page that reopens sign-in.
 const SignInDialog = lazy(() => loadChunk(() => import('../timeline/Account.tsx'), '/?signin').then((m) => ({ default: m.SignInDialog })));
@@ -131,12 +132,13 @@ const Arrow = () => (
     <path d="M3 8h10M9 4l4 4-4 4" />
   </svg>
 );
-/** Twelve stars in a ring, as on the European flag. */
+/** The European flag: twelve stars in a ring on blue. */
 const EuStars = () => (
-  <svg className="lp-eu" width="14" height="14" viewBox="0 0 16 16" aria-hidden>
+  <svg className="lp-eu" width="18" height="13" viewBox="0 0 18 13" aria-hidden>
+    <rect width="18" height="13" rx="2.5" fill="#1f45b8" />
     {Array.from({ length: 12 }, (_, i) => {
       const a = (i / 12) * Math.PI * 2;
-      return <circle key={i} cx={8 + 6 * Math.sin(a)} cy={8 - 6 * Math.cos(a)} r="1.15" />;
+      return <circle key={i} cx={9 + 4.2 * Math.sin(a)} cy={6.5 - 4.2 * Math.cos(a)} r="0.75" fill="#ffd23f" />;
     })}
   </svg>
 );
@@ -289,7 +291,9 @@ function Scrubber({ handle = true, only }: { handle?: boolean; only?: string }) 
           />
         ))}
       </div>
-      <span className="lp-scrub-today" />
+      <span className="lp-scrub-today">
+        <em>Today</em>
+      </span>
       {handle && <span className="lp-scrub-handle" />}
     </div>
   );
@@ -326,6 +330,12 @@ function HeroApp() {
           <span className="lp-count">5</span>
         </div>
         <div className="lp-app-head">
+          <em className="lp-app-month">
+            October <i>2026</i>
+          </em>
+          <em className="lp-app-todaypill" style={{ gridColumn: TODAY + 1 }}>
+            Today
+          </em>
           {DAYS.map((d, i) => (
             <span key={d} className={(i === TODAY ? 'today' : '') + (i === 5 ? ' week' : '')}>
               <small>{d.slice(0, 2)}</small>
@@ -378,13 +388,8 @@ function HeroApp() {
             </div>
           </div>
         ))}
-        <span className="lp-app-todayline" style={{ ['--col' as string]: TODAY }} />
       </div>
       <div className="lp-app-foot">
-        <span className="lp-app-range">
-          <b>5–16 Oct 2026</b>
-          <small>Drag the strip to scrub through time</small>
-        </span>
         <Scrubber />
       </div>
     </div>
@@ -443,7 +448,7 @@ function Hero({ v }: { v: Visitor }) {
       <div className="lp-wrap lp-hero-copy">
         <a className="lp-pill lp-in" href="#import" style={{ ['--d' as string]: '0ms' }}>
           <span className="lp-pill-dot" />
-          Coming from Teamweek? Bring your plan over in one go
+          Coming from Teamweek?<span className="lp-pill-more">Bring your plan over in one go</span>
           <Arrow />
         </a>
         <h1 className="lp-in" style={{ ['--d' as string]: '60ms' }}>
@@ -472,7 +477,7 @@ function Hero({ v }: { v: Visitor }) {
           <span>
             <Tick /> Live for the whole team
           </span>
-          <span>
+          <span className="lp-note-eu">
             <EuStars /> Built in Europe
           </span>
         </p>
@@ -1056,6 +1061,89 @@ const FINAL_WEEK: { title: string; meta: string; color: string; pattern?: string
 
 // --- Page ----------------------------------------------------------------------------------------------
 
+// --- Pricing ------------------------------------------------------------------------------------
+
+/** What a plan covers, the same on every one of them. */
+const EVERY_PLAN = ['Every feature, on every plan', 'Unlimited logins and viewers', 'Unlimited plans and history', 'Import and export any time'];
+
+function Pricing({ v }: { v: Visitor }) {
+  const [yearly, setYearly] = useState(true);
+  const plans = [
+    { id: 'free', name: 'Free', people: FREE_PEOPLE, price: 0, note: 'For a small team, for as long as you like' },
+    ...PAID_PLANS.map((p) => ({
+      id: p.id,
+      name: p.name,
+      people: p.people,
+      price: yearly ? Math.round(p.year / 12) : p.month,
+      note: yearly ? `€${p.year} billed yearly` : 'Billed monthly',
+    })),
+  ];
+  return (
+    <section className="lp-section lp-pricing" id="pricing">
+      <div className="lp-wrap">
+        <Reveal className="lp-heading">
+          <h2>Priced by the people you plan.</h2>
+          <p>Free for up to {FREE_PEOPLE} people. Planning for more? Pick the plan that fits your team; everything else is included.</p>
+        </Reveal>
+        <Reveal className="lp-price-toggle" delay={60}>
+          <span role="radiogroup" aria-label="Billing">
+            <button role="radio" aria-checked={!yearly} className={yearly ? '' : 'on'} onClick={() => setYearly(false)}>
+              Monthly
+            </button>
+            <button role="radio" aria-checked={yearly} className={yearly ? 'on' : ''} onClick={() => setYearly(true)}>
+              Yearly <em>2 months free</em>
+            </button>
+          </span>
+        </Reveal>
+        <div className="lp-prices">
+          {plans.map((p, i) => (
+            <Reveal key={p.id} className={'lp-price' + (p.id === 'studio' ? ' pick' : '')} delay={80 + i * 50}>
+              <div className="lp-price-top">
+                <b>{p.name}</b>
+                {p.id === 'studio' && <span className="lp-price-tag">Most teams</span>}
+              </div>
+              <div className="lp-price-people">
+                <strong>{p.people}</strong> people
+              </div>
+              <div className="lp-price-amount">
+                <strong>€{p.price}</strong>
+                <span>{p.price ? '/ month' : 'forever'}</span>
+              </div>
+              <small>{p.note}</small>
+              {p.id === 'free' ? (
+                v.kind === 'new' ? (
+                  <button className="lp-btn primary" onClick={startPlanning}>
+                    Start planning
+                  </button>
+                ) : (
+                  <a className="lp-btn primary" href="/app">
+                    Open PrepWeek
+                  </a>
+                )
+              ) : (
+                <a className="lp-btn ghost" href={v.kind === 'new' ? '/?signin' : '/app'} title="Upgrade from People in your workspace">
+                  {v.kind === 'signedIn' ? 'Upgrade' : 'Try it free'}
+                </a>
+              )}
+            </Reveal>
+          ))}
+        </div>
+        <Reveal className="lp-price-every" delay={120}>
+          {EVERY_PLAN.map((t) => (
+            <span key={t}>
+              <Tick /> {t}
+            </span>
+          ))}
+        </Reveal>
+        <p className="lp-price-fine">
+          Prices in euro. Payments, invoices and VAT are handled by Paddle, our reseller. A person is a row you plan for, not a login. Cancel
+          any time; a refund within 14 days, no questions asked. Planning for more than 100 people? <a href="mailto:support@prepweek.com">Get in touch</a>.
+        </p>
+      </div>
+    </section>
+  );
+}
+
 export function Landing() {
   const [scrolled, setScrolled] = useState(false);
   const v = visitor();
@@ -1083,6 +1171,7 @@ export function Landing() {
             <a href="#features">Features</a>
             <a href="#mobile">Mobile</a>
             <a href="#import">Import</a>
+            <a href="#pricing">Pricing</a>
             <a href="/s/demo">Demo</a>
           </span>
           <span className="lp-nav-actions">
@@ -1112,6 +1201,7 @@ export function Landing() {
       <Steps />
       <Import />
       <Honest />
+      <Pricing v={v} />
 
       <section className="lp-section lp-final">
         <div className="lp-wrap">

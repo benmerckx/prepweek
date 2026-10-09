@@ -192,10 +192,10 @@ html:has(.lp) {
 }
 .lp-reveal {
   opacity: 0;
-  transform: translateY(18px);
+  transform: translateY(10px);
   transition:
-    opacity 700ms var(--lp-ease),
-    transform 700ms var(--lp-ease);
+    opacity 450ms var(--lp-ease),
+    transform 450ms var(--lp-ease);
   transition-delay: var(--d, 0ms);
 }
 .lp-reveal.is-in {
@@ -463,8 +463,38 @@ html:has(.lp) {
 .lp-app-head {
   display: grid;
   grid-template-columns: repeat(10, 1fr);
-  height: 46px;
+  grid-template-rows: 22px 44px;
   border-bottom: 1px solid var(--border);
+}
+/* The month band on top, with the Today pill over today's column. */
+.lp-app-month {
+  grid-row: 1;
+  grid-column: 1 / -1;
+  padding: 5px 10px 0;
+  font-size: 11.5px;
+  font-style: normal;
+  font-weight: 650;
+}
+.lp-app-month i {
+  color: var(--text-faint);
+  font-style: normal;
+  font-weight: 500;
+}
+.lp-app-todaypill {
+  grid-row: 1;
+  align-self: end;
+  justify-self: center;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--today);
+  color: #fff;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 13px;
+}
+.lp-app-head > span {
+  grid-row: 2;
 }
 .lp-app-head span {
   display: flex;
@@ -486,12 +516,15 @@ html:has(.lp) {
   font-weight: 650;
 }
 .lp-app-head .week {
-  border-left: 1px solid var(--border);
+  border-left: 1px solid var(--grid-week);
+}
+.lp-app-head .today small {
+  color: var(--today);
 }
 .lp-app-head .today b {
   padding: 0 6px;
-  border-radius: 6px;
-  background: #ef4444;
+  border-radius: 9px;
+  background: var(--today);
   color: #fff;
 }
 .lp-app-row {
@@ -552,8 +585,13 @@ html:has(.lp) {
   height: var(--row-h);
   padding: 6px 0;
   border-bottom: 1px solid var(--border);
-  background-image: linear-gradient(90deg, var(--border) 1px, transparent 1px);
-  background-size: 10% 100%;
+  /* Day lines, and a stronger one where the second week starts. */
+  background-image:
+    linear-gradient(90deg, transparent calc(50% - 0.5px), var(--grid-week) calc(50% - 0.5px), var(--grid-week) calc(50% + 0.5px), transparent calc(50% + 0.5px)),
+    linear-gradient(90deg, var(--grid-day) 1px, transparent 1px);
+  background-size:
+    100% 100%,
+    10% 100%;
 }
 .lp-app-row:last-of-type .lp-app-lanes,
 .lp-app-row:last-of-type .lp-app-person {
@@ -563,27 +601,8 @@ html:has(.lp) {
   position: absolute;
   inset: 0 auto 0 10%;
   width: 10%;
-  background: color-mix(in oklab, #ef4444 6%, transparent);
+  background: var(--today-col);
   pointer-events: none;
-}
-.lp-app-todayline {
-  position: absolute;
-  top: 46px;
-  bottom: 0;
-  left: calc(200px + (100% - 200px) * 0.15 - 1px);
-  width: 2px;
-  background: #ef4444;
-  pointer-events: none;
-}
-.lp-app-todayline::before {
-  content: '';
-  position: absolute;
-  top: -4px;
-  left: -3px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #ef4444;
 }
 .lp-slot {
   position: relative;
@@ -798,24 +817,7 @@ html:has(.lp) {
 }
 
 .lp-app-foot {
-  display: grid;
-  grid-template-columns: 200px 1fr;
   border-top: 1px solid var(--border);
-}
-.lp-app-range {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 2px;
-  padding: 0 14px;
-  border-right: 1px solid var(--border);
-}
-.lp-app-range b {
-  font-size: 13px;
-}
-.lp-app-range small {
-  color: var(--text-faint);
-  font-size: 11px;
 }
 
 /* Scrubber (hero footer and the feature card) */
@@ -835,8 +837,14 @@ html:has(.lp) {
   font-weight: 650;
 }
 .lp-scrub-months .year {
-  color: var(--text);
-  border-color: var(--text-dim);
+  /* A year starts: a label you can spot, as in the app. */
+  top: 2px;
+  padding: 0 5px;
+  border: none;
+  border-radius: 4px;
+  background: var(--text);
+  color: var(--bg);
+  line-height: 14px;
 }
 .lp-scrub-plan {
   position: absolute;
@@ -861,8 +869,23 @@ html:has(.lp) {
   top: 16px;
   bottom: 0;
   left: 44%;
+  z-index: 1;
   width: 2px;
-  background: #ef4444;
+  background: var(--today);
+}
+.lp-scrub-today em {
+  position: absolute;
+  top: -15px;
+  left: 1px;
+  translate: -50% 0;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: var(--today);
+  color: #fff;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 14px;
 }
 .lp-scrub-handle {
   position: absolute;
@@ -1641,8 +1664,8 @@ html:has(.lp) {
 }
 .lp-phone-head .today b {
   padding: 0 5px;
-  border-radius: 5px;
-  background: #ef4444;
+  border-radius: 9px;
+  background: var(--today);
   color: #fff;
 }
 .lp-phone-rows {
@@ -1654,7 +1677,7 @@ html:has(.lp) {
   bottom: 0;
   left: 36px;
   width: calc((100% - 36px) / 5);
-  background: color-mix(in oklab, #ef4444 6%, transparent);
+  background: var(--today-col);
 }
 .lp-phone-row {
   position: relative;
@@ -2193,6 +2216,184 @@ html:has(.lp) {
   color: var(--text);
 }
 
+/* --- Pricing --- */
+.lp-pricing .lp-heading {
+  margin-bottom: 28px;
+}
+.lp-price-toggle {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 28px;
+}
+.lp-price-toggle > span {
+  display: inline-flex;
+  padding: 3px;
+  border: 1px solid var(--lp-line);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--text) 3%, transparent);
+}
+.lp-price-toggle button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 32px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 999px;
+  background: none;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 560;
+  cursor: pointer;
+}
+.lp-price-toggle button.on {
+  background: var(--raised);
+  box-shadow: var(--shadow-sm), 0 0 0 1px var(--lp-line);
+  color: var(--text);
+}
+.lp-price-toggle em {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: color-mix(in oklab, #2a9a6a 16%, transparent);
+  color: color-mix(in oklab, #2a9a6a 80%, var(--text));
+  font-size: 11.5px;
+  font-style: normal;
+  font-weight: 650;
+}
+.lp-prices {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+.lp-price {
+  display: flex;
+  flex-direction: column;
+  padding: 22px 20px 20px;
+  border: 1px solid var(--lp-line);
+  border-radius: 18px;
+  background: var(--lp-card);
+}
+.lp-price.pick {
+  border-color: color-mix(in oklab, var(--accent) 55%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--accent) 35%, transparent);
+}
+.lp-price-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 22px;
+}
+.lp-price-top b {
+  font-size: 15px;
+  font-weight: 650;
+}
+.lp-price-tag {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--accent) 16%, transparent);
+  color: color-mix(in oklab, var(--accent) 80%, var(--text));
+  font-size: 11px;
+  font-weight: 650;
+}
+.lp-price-people {
+  margin-top: 14px;
+  color: var(--text-dim);
+  font-size: 14px;
+}
+.lp-price-people strong {
+  color: var(--text);
+  font-weight: 650;
+}
+.lp-price-amount {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: 6px;
+}
+.lp-price-amount strong {
+  font-family: var(--font-title);
+  font-size: 36px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.lp-price-amount span {
+  color: var(--text-faint);
+  font-size: 13px;
+}
+.lp-price > small {
+  min-height: 18px;
+  margin-bottom: 20px;
+  color: var(--text-faint);
+  font-size: 12.5px;
+}
+/* Buttons line up at the bottom, however long the note above. */
+.lp-price .lp-btn {
+  margin-top: auto;
+}
+.lp-price-every {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 22px;
+  margin-top: 26px;
+  color: var(--text-dim);
+  font-size: 13.5px;
+}
+.lp-price-every span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.lp-price-every svg {
+  color: #2a9a6a;
+}
+.lp-price-fine {
+  max-width: 640px;
+  margin: 18px auto 0;
+  color: var(--text-faint);
+  font-size: 12.5px;
+  line-height: 1.6;
+  text-align: center;
+}
+.lp-price-fine a {
+  color: var(--text-dim);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+@media (max-width: 960px) {
+  .lp-prices {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (max-width: 520px) {
+  /* Two by two, so all four fit about one screen. */
+  .lp-prices {
+    gap: 10px;
+  }
+  .lp-price {
+    padding: 16px 14px 14px;
+    border-radius: 14px;
+  }
+  .lp-price-amount strong {
+    font-size: 28px;
+  }
+  .lp-price > small {
+    font-size: 11.5px;
+  }
+  .lp-price > small {
+    margin-bottom: 14px;
+  }
+  .lp-price .lp-btn {
+    padding: 0 8px;
+  }
+  .lp-price-tag {
+    display: none;
+  }
+}
+
 /* --- Smaller screens --- */
 @media (max-width: 960px) {
   .lp-bento {
@@ -2208,12 +2409,8 @@ html:has(.lp) {
   .lp-app {
     --row-h: 96px;
   }
-  .lp-app-grid,
-  .lp-app-foot {
+  .lp-app-grid {
     grid-template-columns: 150px 1fr;
-  }
-  .lp-app-todayline {
-    left: calc(150px + (100% - 150px) * 0.15 - 1px);
   }
   .lp-app-tabs {
     display: none;
@@ -2258,28 +2455,50 @@ html:has(.lp) {
   .lp-section {
     padding-top: 88px;
   }
-  /* The mini app keeps its desktop layout and scales down as a whole. */
+  /* The mini app keeps its desktop layout at a size you can read: the
+     people and the first days show, the rest fades out at the edge. */
   .lp-hero-frame {
     overflow: hidden;
     padding: 5px;
     border-radius: 16px;
   }
+  .lp-hero-frame::after {
+    content: '';
+    position: absolute;
+    inset: 0 0 0 auto;
+    width: 48px;
+    background: linear-gradient(90deg, transparent, var(--bg));
+    pointer-events: none;
+  }
   .lp-app {
     width: 880px;
-    zoom: var(--lp-zoom, 0.42);
+    zoom: max(var(--lp-zoom, 0.42), 0.64);
   }
-  .lp-app-grid,
-  .lp-app-foot {
-    grid-template-columns: 200px 1fr;
+  .lp-app-grid {
+    grid-template-columns: 128px 1fr;
   }
-  .lp-app-todayline {
-    left: calc(200px + (100% - 200px) * 0.15 - 1px);
+  .lp-app-person small {
+    display: none;
   }
   .lp-app-tabs {
     display: flex;
   }
   .lp-foot-links {
     margin-left: 0;
+  }
+}
+
+@media (max-width: 520px) {
+  /* Four promises as two even rows; "Built in Europe" is in the footer. */
+  .lp-note {
+    display: grid;
+    grid-template-columns: auto auto;
+    justify-content: center;
+    gap: 8px 18px;
+  }
+  .lp-note .lp-note-eu,
+  .lp-pill-more {
+    display: none;
   }
 }
 
@@ -2819,5 +3038,5 @@ html:has(.lp) {
   font-size: 13px;
 }
 .lp-eu {
-  fill: #f2c230;
+  border-radius: 2.5px;
 }
