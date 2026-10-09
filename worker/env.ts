@@ -39,4 +39,13 @@ export interface Env {
   APPSUMO_BASE?: string;
   /** The public address, for links in emails sent without a request (the digest cron). */
   APP_URL?: string;
+  /** Usage statistics (stats.ts): Workers Analytics Engine, dataset prepweek_events. */
+  EVENTS?: AnalyticsEngineDataset;
+  /** Who may open /admin: email addresses, comma separated. */
+  ADMIN_EMAILS?: string;
+  /** For reading the statistics back (admin.ts): the account id, and an API token with Account Analytics: Read. */
+  CF_ACCOUNT_ID?: string;
+  CF_API_TOKEN?: string;
+  /** Optional: mixed into the daily visitor codes. */
+  STATS_SALT?: string;
 }

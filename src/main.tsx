@@ -4,9 +4,13 @@ import { loadFonts } from './fonts.ts';
 import { loadMe } from './data/account.ts';
 import { setupInstall } from './lib/install.ts';
 import { loadChunk } from './lib/chunks.ts';
+import { trackErrors, trackView } from './lib/stats.ts';
 
 loadFonts();
 setupInstall();
+trackErrors();
+// The admin dashboard doesn't count itself.
+if (!location.pathname.startsWith('/admin')) trackView();
 const root = createRoot(document.getElementById('root')!);
 
 // Who's signed in (when the app is served by the worker). The planner
@@ -20,7 +24,10 @@ const path = location.pathname;
 // The AppSumo page waits until the deal is live (see lib/plans.ts).
 const landing = path === '/' || path === '/welcome' || (!APPSUMO_LIVE && /^\/appsumo\/?$/.test(path));
 const page = ({ ...(APPSUMO_LIVE ? { '/appsumo': 'AppSumoPage' } : {}), '/help': 'HelpPage', '/daily': 'DailyPage', '/roadmap': 'RoadmapPage', '/privacy': 'PrivacyPage', '/terms': 'TermsPage' } as const)[path.replace(/\/$/, '') as '/help'];
-if (page) {
+if (path.replace(/\/$/, '') === '/admin') {
+  const [{ AdminPage }] = await Promise.all([loadChunk(() => import('./landing/Admin.tsx')), me]);
+  root.render(<AdminPage />);
+} else if (page) {
   const [pages] = await Promise.all([loadChunk(() => import('./landing/Pages.tsx')), me]);
   const Page = pages[page];
   root.render(<Page />);

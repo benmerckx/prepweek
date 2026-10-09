@@ -35,6 +35,7 @@ import type { User, WorkspaceRole } from './directory.ts';
 import { buildDigest, localTime } from './digest.ts';
 import { cancelSubscriptions } from './billing.ts';
 import { escapeHtml, renderEmail } from './email.ts';
+import { dailyCode, track } from './stats.ts';
 
 const COOKIE = 'pw_session';
 const OAUTH_COOKIE = 'pw_oauth';
@@ -145,7 +146,8 @@ export const sendEmail = async (env: Env, to: string, subject: string, html: str
 
 
 const signedIn = async (env: Env, url: URL, email: string, next: string, profile?: { name?: string; avatar?: string }) => {
-  const { token } = await directory(env).signIn(email, profile);
+  const { token, isNew } = await directory(env).signIn(email, profile);
+  if (isNew) track(env, 'event', ['signup', profile?.avatar !== undefined ? 'google' : 'email']);
   return new Response(null, {
     status: 302,
     headers: { location: next, 'set-cookie': cookie(url, COOKIE, token, 60 * 86400), 'cache-control': 'no-store' },
@@ -324,6 +326,8 @@ export async function handleApi(req: Request, env: Env, url: URL): Promise<Respo
   }
 
   if (seg[0] === 'me' && seg.length === 1 && req.method === 'GET') {
+    // Someone opened the app today (counted once a day, anonymously).
+    if (user) track(env, 'active', [await dailyCode(env, 'person', user.id)]);
     return json(user ? { user, workspaces: await dir.workspaces(user.id, env.PLAN_LIMITS === 'on'), digest: await dir.digestSettings(user.id) } : { user: null, workspaces: [] });
   }
   if (!user) return fail('Sign in first', 401);

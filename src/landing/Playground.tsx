@@ -22,6 +22,7 @@ import {
   type Rule,
   type Week,
 } from './daily.ts';
+import { trackEvent } from '../lib/stats.ts';
 
 // --- Saved progress (this device) ---
 
@@ -152,6 +153,7 @@ export function DailyWeek({ page = false }: { page?: boolean }) {
     if (done || !isSolved(week, places)) return;
     setDone('solved');
     setPicked(null);
+    trackEvent('daily_solve', practice ? 'practice' : LEVELS[week.level]);
     // No focus ring left on the last block placed.
     if (document.activeElement instanceof HTMLElement && document.activeElement.closest('.lp-dw')) document.activeElement.blur();
     if (!practice) markSolved(daily.number);
@@ -163,6 +165,7 @@ export function DailyWeek({ page = false }: { page?: boolean }) {
     const cur = places[i];
     if (cur === at || (cur && at && cur.row === at.row && cur.col === at.col)) return;
     setPlaces(places.map((p, j) => (j === i ? at : p)));
+    if (moves === 0) trackEvent('daily_play', practice ? 'practice' : LEVELS[week.level]);
     setMoves((m) => m + 1);
   };
 
@@ -176,6 +179,7 @@ export function DailyWeek({ page = false }: { page?: boolean }) {
     setShared('');
   };
   const showAnswer = () => {
+    trackEvent('daily_reveal', practice ? 'practice' : LEVELS[week.level]);
     setPlaces(week.solution);
     setDone('shown');
     setPicked(null);
@@ -247,6 +251,7 @@ export function DailyWeek({ page = false }: { page?: boolean }) {
 
   // --- Sharing ---
   const share = async () => {
+    trackEvent('daily_share');
     const streak = streakOf(daily.number);
     const text = [
       `Prepweek Daily #${daily.number} · ${LEVELS[daily.level]}`,

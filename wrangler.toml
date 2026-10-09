@@ -38,6 +38,9 @@ class_name = "ArchiveDurableObject"
 #   MANDRILL_API_KEY        magic-link and invite emails (Mandrill)
 #   GOOGLE_CLIENT_SECRET    "Continue with Google"
 #   APPSUMO_CLIENT_SECRET, APPSUMO_API_KEY   AppSumo licences (see worker/appsumo.ts)
+#   ADMIN_EMAILS            who may open /admin (comma separated)
+#   CF_ACCOUNT_ID, CF_API_TOKEN   reading usage statistics back for /admin
+#                           (an API token with "Account Analytics: Read")
 [vars]
 # Plans: "on" limits how many people a workspace plans for (Free 5, AppSumo
 # tiers 15/40/100). Off, plans show but nothing is blocked. Turn on at launch.
@@ -54,6 +57,12 @@ GOOGLE_CLIENT_ID = "536583470323-hurodoi9k3c7voaik9i3fjbvjgk1amh3.apps.googleuse
 # Hourly: sends the daily digest to everyone whose workday morning it is.
 [triggers]
 crons = ["0 * * * *"]
+
+# Usage statistics for /admin (worker/stats.ts): cookieless counts of
+# requests, errors, page views and a few product events. Kept 3 months.
+[[analytics_engine_datasets]]
+binding = "EVENTS"
+dataset = "prepweek_events"
 
 # Attachment storage (served by the worker at /files/<sheet>/<id>).
 # Disabled until the bucket exists. To enable: run

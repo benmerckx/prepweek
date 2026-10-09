@@ -420,6 +420,14 @@ export function PrivacyPage() {
           </p>,
         ],
         [
+          'Usage statistics',
+          <p>
+            To keep Prepweek running well we count page views, errors, how long requests take and how much the app is used. No cookies and
+            nothing that identifies you: a visitor is a code made from your address and browser that changes every day and can’t be turned back
+            into either. The counts stay with Cloudflare for three months.
+          </p>,
+        ],
+        [
           'Who helps us run it',
           <ul>
             <li>

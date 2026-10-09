@@ -11,6 +11,8 @@ import { getServerHttp, getSheet } from './sync.ts';
 import { withKey } from './access.ts';
 
 export const MAX_FILE_BYTES = 25 * 1024 * 1024;
+/** All of a plan's files together (the worker checks too). */
+export const SHEET_FILES_BYTES = 1024 ** 3;
 
 const DB = 'prepweek-files';
 const STORE = 'blobs';

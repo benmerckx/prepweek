@@ -480,10 +480,16 @@ export class DirectoryDurableObject extends DurableObject<Env> {
       if (u.off) continue;
       const t = localTime(now, u.tz ?? '');
       if (t.weekend || t.hour < DIGEST_HOUR || t.hour >= DIGEST_HOUR + 4 || u.last_day === t.date) continue;
-      const sheets = this.all<{ id: string; name: string }>(
-        'SELECT s.id, s.name FROM members m JOIN sheets s ON s.workspace_id = m.workspace_id WHERE m.user_id = ? AND s.deleted = 0 ORDER BY s.created',
+      // Only sheets they're planned on (a sheet's part of the digest is
+      // about its row): waking the others would load them for nothing.
+      // Sheets that haven't said who's on them yet are asked anyway.
+      const mine = `e:${u.email.trim().toLowerCase()}`;
+      const sheets = this.all<{ id: string; name: string; people: string | null }>(
+        'SELECT s.id, s.name, p.people FROM members m JOIN sheets s ON s.workspace_id = m.workspace_id LEFT JOIN sheet_people p ON p.sheet_id = s.id WHERE m.user_id = ? AND s.deleted = 0 ORDER BY s.created',
         u.id,
-      );
+      )
+        .filter((s) => s.people === null || (JSON.parse(s.people) as string[]).includes(mine))
+        .map(({ id, name }) => ({ id, name }));
       // Links need an address; it is learned from the person's browser.
       if (!sheets.length || !(u.origin || this.env.APP_URL)) continue;
       const { token } = this.digestRow(u.id);
@@ -495,6 +501,37 @@ export class DirectoryDurableObject extends DurableObject<Env> {
   async markDigestSent(userId: string, date: string, at: number) {
     this.digestRow(userId);
     this.sql.exec('UPDATE digests SET last_day = ?, last_at = ? WHERE user_id = ?', date, at, userId);
+  }
+
+  // --- Admin dashboard -----------------------------------------------------------
+
+  /** Totals and day-by-day growth for the last `days` days (admin.ts). */
+  async adminStats(days: number) {
+    const now = Date.now();
+    const from = now - days * DAY;
+    const count = (q: string, ...a: unknown[]) => this.one<{ n: number }>(q, ...a)?.n ?? 0;
+    const perDay = (table: string, extra = '') =>
+      this.all<{ day: number; n: number }>(`SELECT CAST(created / ${DAY} AS INTEGER) AS day, COUNT(*) AS n FROM ${table} WHERE created >= ? ${extra} GROUP BY day ORDER BY day`, from);
+    const subs = this.all<{ plan: string; status: string; n: number }>('SELECT plan, status, COUNT(*) AS n FROM subscriptions GROUP BY plan, status');
+    return {
+      users: { total: count('SELECT COUNT(*) AS n FROM users'), recent: count('SELECT COUNT(*) AS n FROM users WHERE created >= ?', from) },
+      workspaces: { total: count('SELECT COUNT(*) AS n FROM workspaces'), recent: count('SELECT COUNT(*) AS n FROM workspaces WHERE created >= ?', from) },
+      sheets: {
+        total: count('SELECT COUNT(*) AS n FROM sheets WHERE deleted = 0'),
+        recent: count('SELECT COUNT(*) AS n FROM sheets WHERE deleted = 0 AND created >= ?', from),
+        deleted: count('SELECT COUNT(*) AS n FROM sheets WHERE deleted = 1'),
+      },
+      people: count("SELECT COALESCE(SUM(json_array_length(people)), 0) AS n FROM sheet_people"),
+      digestsOff: count('SELECT COUNT(*) AS n FROM digests WHERE off = 1'),
+      licenses: count("SELECT COUNT(*) AS n FROM licenses WHERE status = 'active' AND workspace_id != ''"),
+      subscriptions: subs,
+      signups: perDay('users'),
+      newWorkspaces: perDay('workspaces'),
+      newSheets: perDay('sheets', 'AND deleted = 0'),
+      recentUsers: this.all<{ name: string; email: string; created: number; workspaces: number }>(
+        'SELECT u.name, u.email, u.created, (SELECT COUNT(*) FROM members m WHERE m.user_id = u.id) AS workspaces FROM users u ORDER BY u.created DESC LIMIT 12',
+      ),
+    };
   }
 
   // --- Plans and licences -------------------------------------------------------

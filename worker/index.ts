@@ -22,6 +22,8 @@ import { createDurableObjectSqlStoragePersister } from 'tinybase/persisters/pers
 import { WsServerDurableObject } from 'tinybase/synchronizers/synchronizer-ws-server-durable-object';
 import { directory, handleApi, handleAuth, sessionUser } from './auth.ts';
 import { sendDigests, sheetDigest } from './digest.ts';
+import { routeOf, statsApi, track } from './stats.ts';
+import { adminApi } from './admin.ts';
 import { buildCalendar } from './ical.ts';
 import { appsumoApi, appsumoCallback, appsumoWebhook } from './appsumo.ts';
 import { billingApi } from './billing.ts';
@@ -109,6 +111,8 @@ export class SheetDurableObject extends WsServerDurableObject {
     };
     const quiet = new Proxy(sql, { get: (target, key) => (key === 'exec' ? exec : Reflect.get(target, key, target)) });
     const persister = createDurableObjectSqlStoragePersister(store, quiet, { mode: 'fragmented' });
+    // A wake: the plan is loaded from storage (what most of the hosting costs).
+    track(this.env as Env, 'event', ['sheet_load', '']);
     // Sheets saved before the switch: carry the JSON copy over, once.
     const tables = new Set(sql.exec<{ name: string }>("SELECT name FROM sqlite_master WHERE type = 'table'").toArray().map((r) => r.name));
     const migrated = tables.has('tinybase_tables') && sql.exec('SELECT 1 FROM tinybase_tables LIMIT 1').toArray().length > 0;
@@ -125,6 +129,16 @@ export class SheetDurableObject extends WsServerDurableObject {
     persister.addStatusListener((_, status) => {
       if (status === 2 /* saving */) saving = true;
       else if (saving && status === 0 /* idle */) skipWrites = false;
+    });
+    // When the plan last changed (after loading), at most a write a minute:
+    // the daily alarm only keeps coming back while there's something new.
+    let marked = 0;
+    store.addDidFinishTransactionListener(() => {
+      if (skipWrites || Date.now() - marked < 60_000) return;
+      const [tables] = store.getTransactionChanges();
+      if (!Object.keys(tables).length) return;
+      marked = Date.now();
+      this.ctx.storage.kv.put('changed', marked);
     });
     return persister;
   }
@@ -302,7 +316,9 @@ export class SheetDurableObject extends WsServerDurableObject {
 
   /**
    * Daily: rebuild when it's worth it. Only while nobody is connected (they
-   * would have to reload), unless the plan is so big it can't wait.
+   * would have to reload), unless the plan is so big it can't wait. A plan
+   * nobody has touched since its last rebuild isn't woken again (each wake
+   * loads the whole plan): the next connection sets the alarm again.
    */
   override async alarm() {
     const busy = this.ctx.getWebSockets().length > 0;
@@ -315,7 +331,9 @@ export class SheetDurableObject extends WsServerDurableObject {
       if (!r.startsWith('rebuilt')) console.log(this.ctx.storage.kv.get('sheet'), 'rebuild', r);
       if (r.startsWith('rebuilt')) return; // restarting; the next connection sets the alarm again
     }
-    await this.ctx.storage.setAlarm(Date.now() + (due && busy ? HOUR_MS : DAY_MS));
+    const changed = this.ctx.storage.kv.get<number>('changed') ?? Date.now();
+    const rebuilt = this.ctx.storage.kv.get<number>('rebuilt') ?? 0;
+    if (!due || busy || changed > rebuilt) await this.ctx.storage.setAlarm(Date.now() + (due && busy ? HOUR_MS : DAY_MS));
   }
 
   /**
@@ -529,13 +547,21 @@ const sheetAccess = async (request: Request, env: Env, sheet: string, key: strin
 
 export default {
   async fetch(request: Request, env: Env) {
+    const t0 = Date.now();
+    const route = routeOf(new URL(request.url).pathname);
+    let res: Response;
     try {
-      return await handle(request, env);
+      res = await handle(request, env);
     } catch (e) {
       // Without this a failure is only Cloudflare's opaque 1101 page.
       console.error(e);
-      return new Response(`Server error: ${e instanceof Error ? e.message : String(e)}`, { status: 500 });
+      track(env, 'error', ['worker', (e instanceof Error ? e.message : String(e)).slice(0, 200), route]);
+      res = new Response(`Server error: ${e instanceof Error ? e.message : String(e)}`, { status: 500 });
     }
+    // Every request the worker handles (static files never reach it): for
+    // request counts, error rates and timings on the admin dashboard.
+    if (route !== '/api/stats') track(env, 'req', [route, request.method, `${Math.floor(res.status / 100)}xx`], [1, res.status, Date.now() - t0]);
+    return res;
   },
   // Hourly (wrangler.toml): the daily digests whose morning it is.
   async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext) {
@@ -555,6 +581,8 @@ async function handle(request: Request, env: Env): Promise<Response> {
   if (url.pathname.startsWith('/api/appsumo/')) return appsumoApi(request, env, url, url.pathname.split('/').slice(2));
   if (url.pathname.startsWith('/api/billing/')) return billingApi(request, env, url, url.pathname.split('/').slice(2));
   if (url.pathname.startsWith('/auth/')) return handleAuth(request, env, url);
+  if (url.pathname === '/api/stats') return statsApi(request, env, url);
+  if (url.pathname.startsWith('/api/admin/')) return adminApi(request, env, url);
   if (url.pathname.startsWith('/api/')) return handleApi(request, env, url);
   const ical = /^\/ical\/([^/]+)\/([^/]+)\.ics$/.exec(url.pathname);
   if (ical) {
@@ -629,6 +657,20 @@ async function handle(request: Request, env: Env): Promise<Response> {
 }
 
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
+/** All of a plan's files together (src/data/files.ts says so before uploading). */
+const SHEET_FILES_BYTES = 1024 ** 3;
+
+/** Bytes stored under a plan's prefix (the app checks first; this is the backstop). */
+const storedBytes = async (bucket: R2Bucket, prefix: string) => {
+  let total = 0;
+  let cursor: string | undefined;
+  do {
+    const page = await bucket.list({ prefix, cursor, limit: 1000 });
+    for (const o of page.objects) total += o.size;
+    cursor = page.truncated ? page.cursor : undefined;
+  } while (cursor);
+  return total;
+};
 
 /**
  * Attachment bytes: PUT/GET /files/<sheet>/<id>, stored in R2 under
@@ -643,6 +685,8 @@ async function files(request: Request, env: Env, url: URL): Promise<Response> {
   if (request.method === 'PUT') {
     const len = Number(request.headers.get('content-length') ?? 0);
     if (len > MAX_FILE_BYTES) return new Response('Too large', { status: 413 });
+    if ((await storedBytes(env.FILES, `${decodeURIComponent(m[1]!)}/`)) + len > SHEET_FILES_BYTES)
+      return new Response('This plan’s files are full', { status: 413 });
     await env.FILES.put(key, request.body, {
       httpMetadata: { contentType: request.headers.get('content-type') ?? 'application/octet-stream' },
     });

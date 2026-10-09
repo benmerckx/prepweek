@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { addAttachment, newId, removeAttachment, store, type AttachmentRow } from '../data/store.ts';
-import { formatBytes, loadFile, MAX_FILE_BYTES, saveFile } from '../data/files.ts';
+import { formatBytes, loadFile, MAX_FILE_BYTES, saveFile, SHEET_FILES_BYTES } from '../data/files.ts';
+import { shrinkImage } from '../lib/images.ts';
 import { Close, External, FileIcon, LinkIcon, Paperclip } from '../ui/icons.tsx';
 
 type Item = AttachmentRow & { id: string };
@@ -42,10 +43,17 @@ const normalizeUrl = (raw: string) => {
   return /^[a-z][a-z0-9+.-]*:/i.test(s) ? s : `https://${s}`;
 };
 
+/** The plan's uploaded files, together. */
+const filesBytes = () =>
+  store.getRowIds('attachments').reduce((n, id) => n + (store.getCell('attachments', id, 'kind') === 'file' ? Number(store.getCell('attachments', id, 'size') ?? 0) : 0), 0);
+
 /** Attach files (from a picker, drop or paste) to a task. */
 export const attachFiles = async (taskId: string, files: Iterable<File>): Promise<string | null> => {
-  for (const f of files) {
+  for (const original of files) {
+    const f = await shrinkImage(original);
     if (f.size > MAX_FILE_BYTES) return `${f.name} is larger than ${formatBytes(MAX_FILE_BYTES)}.`;
+    if (filesBytes() + f.size > SHEET_FILES_BYTES)
+      return `This plan’s files are full (${formatBytes(SHEET_FILES_BYTES)}). Remove some you no longer need, or attach a link instead.`;
     const id = newId();
     await saveFile(id, f);
     addAttachment({ taskId, kind: 'file', name: f.name || 'Pasted file', url: '', mime: f.type, size: f.size }, id);

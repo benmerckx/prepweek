@@ -12,6 +12,7 @@ import {
   parseSkip,
 } from "../src/lib/recur.ts";
 import { canEmail, directory, sendEmail } from "./auth.ts";
+import { track } from "./stats.ts";
 import { escapeHtml, renderDigest, type DigestSection } from "./email.ts";
 import type { Env } from "./env.ts";
 
@@ -358,11 +359,13 @@ export const sendDigests = async (env: Env, now = Date.now()) => {
         { ...r, since: Math.max(r.since, now - WEEK_MS) },
         origin,
       );
-      if (mail)
+      if (mail) {
         await sendEmail(env, r.email, mail.subject, mail.html, {
           "List-Unsubscribe": `<${mail.offHref}>`,
           "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
         });
+        track(env, "event", ["digest", ""]);
+      }
       await directory(env).markDigestSent(r.userId, r.date, now);
     } catch (e) {
       console.error("digest for", r.userId, e);
