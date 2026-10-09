@@ -129,7 +129,7 @@ export const requestSignIn = () => window.dispatchEvent(new Event('prepweek:sign
 /**
  * Sign out. The workspace's sheets stay on this device only as "claimed":
  * their local copies go, so the next person at this computer can't open
- * them without signing in.
+ * them without signing in (they see a lock screen with "Log in").
  */
 export const signOut = async () => {
   const sheets = me?.workspaces.flatMap((w) => w.sheets.map((s) => s.id)) ?? [];
@@ -139,7 +139,8 @@ export const signOut = async () => {
     markClaimed(id, true);
     forgetLocalCopy(id);
   }
-  if (sheets.includes(lastSheet() ?? '')) forgetLastSheet();
+  // The last sheet stays the last one: opening the app goes back to it,
+  // locked, with a way to log in again (not to a new, empty sheet).
   await loadMe();
 };
 

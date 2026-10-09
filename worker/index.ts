@@ -578,6 +578,8 @@ async function handle(request: Request, env: Env): Promise<Response> {
   if (kind === 'share') {
     if (request.method === 'GET') {
       const keys = role === 'edit' && isPrivate ? await stub.shareKeys() : null;
+      // Locked out: nothing about the sheet or its workspace.
+      if (role === 'none') return json({ role, private: isPrivate, signedIn: !!user, deleted: info.deleted });
       return json({ role, private: isPrivate, ...keys, name: info.name, workspace: info.workspace, signedIn: !!user, deleted: info.deleted, plan: 'plan' in info ? info.plan : null, limitsOn: env.PLAN_LIMITS === 'on' });
     }
     if (request.method === 'POST') {

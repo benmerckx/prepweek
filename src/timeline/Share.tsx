@@ -2,6 +2,7 @@ import { useEffect, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { calendarLink, changeSharing, getAccess, hasServer, onAccess, shareLink } from '../data/access.ts';
 import { getMe } from '../data/identity.ts';
+import { isClaimed } from '../data/claimed.ts';
 import { store, type UserRow } from '../data/store.ts';
 import { Select } from '../ui/Select.tsx';
 import { useBackToClose, useEscape } from '../lib/useBackToClose.ts';
@@ -163,17 +164,21 @@ export function LockScreen({ signedIn, deleted, onSignIn }: { signedIn: boolean;
         </div>
       </div>
     );
+  // A workspace sheet this device knows (you signed out of it): welcome back.
+  const returning = !signedIn && isClaimed(decodeURIComponent(location.pathname.match(/^\/s\/([^/]+)/)?.[1] ?? ''));
   return (
     <div className="lock">
       <div className="lock-card">
         <span className="lock-icon">
           <Lock size={22} />
         </span>
-        <h1>This sheet is private</h1>
+        <h1>{returning ? 'You’re logged out' : 'This sheet is private'}</h1>
         <p>
           {signedIn
             ? 'Your account isn’t in the workspace this sheet belongs to. Ask an admin to invite you, or ask for a share link.'
-            : 'Log in if it belongs to your workspace, or ask someone on the team for a share link.'}
+            : returning
+              ? 'Log in to pick up where you left off.'
+              : 'Log in if it belongs to your workspace, or ask someone on the team for a share link.'}
         </p>
         {!signedIn && (
           <button className="btn primary big" onClick={onSignIn}>
