@@ -6862,6 +6862,19 @@ a.menu-item {
   border-color: var(--accent);
   box-shadow: var(--ring);
 }
+/* Chosen on the home page's pricing. */
+.plan-card.picked {
+  border-color: color-mix(in oklab, var(--accent) 60%, var(--border));
+}
+.plans-for select {
+  max-width: 220px;
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: inherit;
+  font: inherit;
+}
 .plan-card b {
   font-size: 15px;
 }

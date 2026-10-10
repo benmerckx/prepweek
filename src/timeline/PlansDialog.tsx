@@ -45,12 +45,30 @@ const loadPaddle = (c: Checkout) =>
     document.head.append(s);
   }));
 
-export function PlansDialog({ workspaceId, onClose }: { workspaceId: string; onClose(): void }) {
+/**
+ * `pick` and `initialInterval`: from the home page's pricing, the plan
+ * clicked and its period. `choose`: workspaces to pick from (the home page
+ * doesn't know which one you mean when you're admin of several).
+ */
+export function PlansDialog({
+  workspaceId: initialWorkspace,
+  onClose,
+  pick,
+  initialInterval = 'year',
+  choose,
+}: {
+  workspaceId: string;
+  onClose(): void;
+  pick?: string;
+  initialInterval?: 'month' | 'year';
+  choose?: { id: string; name: string }[];
+}) {
   useBackToClose(true, onClose);
   useEscape(onClose);
+  const [workspaceId, setWorkspaceId] = useState(initialWorkspace);
   const ws = getMe()?.workspaces.find((w) => w.id === workspaceId);
   const paid = ws?.plan?.paid && ['active', 'trialing', 'past_due'].includes(ws.plan.paid.status) ? ws.plan.paid : null;
-  const [interval, setInterval] = useState<'month' | 'year'>('year');
+  const [interval, setInterval] = useState<'month' | 'year'>(initialInterval);
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
   useEffect(() => {
@@ -91,7 +109,20 @@ export function PlansDialog({ workspaceId, onClose }: { workspaceId: string; onC
     <div className="modal-backdrop" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal plans-modal" role="dialog" aria-label="Plans">
         <header className="modal-head">
-          <h2>Plans for {ws?.name ?? 'this workspace'}</h2>
+          {choose && choose.length > 1 ? (
+            <h2 className="plans-for">
+              Plans for{' '}
+              <select value={workspaceId} onChange={(e) => setWorkspaceId(e.currentTarget.value)} aria-label="Workspace">
+                {choose.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.name}
+                  </option>
+                ))}
+              </select>
+            </h2>
+          ) : (
+            <h2>Plans for {ws?.name ?? 'this workspace'}</h2>
+          )}
           <button className="tb-search-btn" aria-label="Close" onClick={onClose}>
             <Close />
           </button>
@@ -124,7 +155,7 @@ export function PlansDialog({ workspaceId, onClose }: { workspaceId: string; onC
             {PAID_PLANS.map((p) => {
               const current = paid?.plan === p.id;
               return (
-                <div key={p.id} className={'plan-card' + (current ? ' current' : '')}>
+                <div key={p.id} className={'plan-card' + (current ? ' current' : pick === p.id ? ' picked' : '')}>
                   <b>{p.name}</b>
                   <span className="plan-people">{p.people} people</span>
                   <span className="plan-price">

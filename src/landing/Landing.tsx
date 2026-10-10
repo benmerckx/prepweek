@@ -12,6 +12,7 @@ import { Playground } from './Playground.tsx';
 import { FREE_PEOPLE, PAID_PLANS } from '../lib/plans.ts';
 
 // After a deploy the old chunk is gone: reload into a page that reopens sign-in.
+const PlansDialog = lazy(() => loadChunk(() => import('../timeline/PlansDialog.tsx')).then((m) => ({ default: m.PlansDialog })));
 const SignInDialog = lazy(() => loadChunk(() => import('../timeline/Account.tsx'), '/?signin').then((m) => ({ default: m.SignInDialog })));
 
 const C = {
@@ -1055,6 +1056,12 @@ const EVERY_PLAN = ['Every feature, on every plan', 'Unlimited logins and viewer
 
 function Pricing({ v }: { v: Visitor }) {
   const [yearly, setYearly] = useState(true);
+  // Signed in: upgrading happens right here, in the app's plans dialog.
+  const [upgrading, setUpgrading] = useState<string | null>(null);
+  const all = getMe()?.workspaces ?? [];
+  // Only admins can change a workspace's plan: theirs first, else any (the dialog says why not).
+  const mine = all.filter((w) => w.role === 'admin');
+  const workspaces = (mine.length ? mine : all).map((w) => ({ id: w.id, name: w.name }));
   const plans = [
     { id: 'free', name: 'Free', people: FREE_PEOPLE, price: 0, note: 'For a small team, for as long as you like' },
     ...PAID_PLANS.map((p) => ({
@@ -1108,9 +1115,15 @@ function Pricing({ v }: { v: Visitor }) {
                   </a>
                 )
               ) : (
-                <a className="lp-btn ghost" href={v.kind === 'new' ? '/?signin' : '/app'} title="Upgrade from People in your workspace">
-                  {v.kind === 'signedIn' ? 'Upgrade' : 'Try it free'}
-                </a>
+                v.kind === 'signedIn' && workspaces.length ? (
+                  <button className="lp-btn ghost" onClick={() => setUpgrading(p.id)}>
+                    Upgrade
+                  </button>
+                ) : (
+                  <a className="lp-btn ghost" href={v.kind === 'new' ? '/?signin' : '/app'}>
+                    {v.kind === 'signedIn' ? 'Upgrade' : 'Try it free'}
+                  </a>
+                )
               )}
             </Reveal>
           ))}
@@ -1127,6 +1140,17 @@ function Pricing({ v }: { v: Visitor }) {
           any time; a refund within 14 days, no questions asked. Planning for more than 100 people? <a href="mailto:support@prepweek.com">Get in touch</a>.
         </p>
       </div>
+      {upgrading && workspaces[0] && (
+        <Suspense fallback={null}>
+          <PlansDialog
+            workspaceId={workspaces[0].id}
+            choose={workspaces}
+            pick={upgrading}
+            initialInterval={yearly ? 'year' : 'month'}
+            onClose={() => setUpgrading(null)}
+          />
+        </Suspense>
+      )}
     </section>
   );
 }
