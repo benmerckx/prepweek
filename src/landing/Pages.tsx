@@ -18,7 +18,6 @@ const COMPANY = {
   name: 'Codeurs bv',
   address: 'Muizenstraat 172, 1981 Hofstade, Belgium',
   number: 'BE 0552.544.959',
-  register: 'RPR Mechelen',
 };
 
 function Shell({ title, children }: { title: string; children: ReactNode }) {
@@ -464,7 +463,7 @@ export function PrivacyPage() {
           'Questions',
           <p>
             Prepweek is run by {COMPANY.name}, {COMPANY.address} ({COMPANY.number}), which is responsible for your data. Write to{' '}
-            <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>. Prepweek isn’t meant for children under 16.
+            <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.
           </p>,
         ],
       ]}
@@ -481,7 +480,7 @@ export function TermsPage() {
         [
           'Who we are',
           <p>
-            Prepweek is made and run by <b>{COMPANY.name}</b>, {COMPANY.address}; enterprise and VAT number {COMPANY.number}, {COMPANY.register}. In
+            Prepweek is made and run by <b>{COMPANY.name}</b>, {COMPANY.address}; enterprise and VAT number {COMPANY.number}. In
             these terms, “we” and “us” mean {COMPANY.name}.
           </p>,
         ],
