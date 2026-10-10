@@ -1246,7 +1246,7 @@ export function Landing() {
                 Log in
               </button>
             )}
-            <span className="lp-dim">© {new Date().getFullYear()} Prepweek</span>
+            <span className="lp-dim">© {new Date().getFullYear()} Codeurs bv</span>
           </span>
         </div>
       </footer>

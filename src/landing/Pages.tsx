@@ -13,6 +13,14 @@ const SignInDialog = lazy(() => loadChunk(() => import('../timeline/Account.tsx'
 /** Where questions go. */
 export const SUPPORT_EMAIL = 'support@prepweek.com';
 
+/** Who makes and runs Prepweek (as on codeurs.be). */
+const COMPANY = {
+  name: 'Codeurs bv',
+  address: 'Muizenstraat 172, 1981 Hofstade, Belgium',
+  number: 'BE 0552.544.959',
+  register: 'RPR Mechelen',
+};
+
 function Shell({ title, children }: { title: string; children: ReactNode }) {
   useEffect(() => {
     document.title = `${title} · Prepweek`;
@@ -455,7 +463,8 @@ export function PrivacyPage() {
         [
           'Questions',
           <p>
-            Write to <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>. Prepweek isn’t meant for children under 16.
+            Prepweek is run by {COMPANY.name}, {COMPANY.address} ({COMPANY.number}), which is responsible for your data. Write to{' '}
+            <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>. Prepweek isn’t meant for children under 16.
           </p>,
         ],
       ]}
@@ -469,6 +478,13 @@ export function TermsPage() {
       title="Terms"
       lede="The short version: use Prepweek to plan your team’s work, keep it legal, and your plans stay yours."
       sections={[
+        [
+          'Who we are',
+          <p>
+            Prepweek is made and run by <b>{COMPANY.name}</b>, {COMPANY.address}; enterprise and VAT number {COMPANY.number}, {COMPANY.register}. In
+            these terms, “we” and “us” mean {COMPANY.name}.
+          </p>,
+        ],
         ['Your account', <p>You’re responsible for what happens in your account and workspaces. Keep your email account safe: it’s how you sign in.</p>],
         [
           'Your content',
@@ -509,6 +525,8 @@ export function TermsPage() {
           'Contact',
           <p>
             <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>
+            <br />
+            {COMPANY.name}, {COMPANY.address}
           </p>,
         ],
       ]}
