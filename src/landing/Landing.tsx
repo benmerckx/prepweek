@@ -132,16 +132,6 @@ const Arrow = () => (
     <path d="M3 8h10M9 4l4 4-4 4" />
   </svg>
 );
-/** The European flag: twelve stars in a ring on blue. */
-const EuStars = () => (
-  <svg className="lp-eu" width="18" height="13" viewBox="0 0 18 13" aria-hidden>
-    <rect width="18" height="13" rx="2.5" fill="#1f45b8" />
-    {Array.from({ length: 12 }, (_, i) => {
-      const a = (i / 12) * Math.PI * 2;
-      return <circle key={i} cx={9 + 4.2 * Math.sin(a)} cy={6.5 - 4.2 * Math.cos(a)} r="0.75" fill="#ffd23f" />;
-    })}
-  </svg>
-);
 const Tick = () => (
   <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
     <path d="m3.5 8.5 3 3 6-7" />
@@ -476,9 +466,6 @@ function Hero({ v }: { v: Visitor }) {
           </span>
           <span>
             <Tick /> Live for the whole team
-          </span>
-          <span className="lp-note-eu">
-            <EuStars /> Built in Europe
           </span>
         </p>
       </div>
@@ -1233,7 +1220,7 @@ export function Landing() {
             <Logo size={20} />
             <Wordmark size={20} title="Prepweek" />
           </span>
-          <span className="lp-dim">Built in Europe, for teams who plan in weeks.</span>
+          <span className="lp-dim">Built in Belgium, for teams who plan in weeks.</span>
           <span className="lp-foot-links">
             <a href="/s/demo">Demo</a>
             <a href="/help">Help</a>

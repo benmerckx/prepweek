@@ -2489,14 +2489,13 @@ html:has(.lp) {
 }
 
 @media (max-width: 520px) {
-  /* Four promises as two even rows; "Built in Europe" is in the footer. */
+  /* The promises as two even rows. */
   .lp-note {
     display: grid;
     grid-template-columns: auto auto;
     justify-content: center;
     gap: 8px 18px;
   }
-  .lp-note .lp-note-eu,
   .lp-pill-more {
     display: none;
   }
@@ -3303,9 +3302,6 @@ html:has(.lp) {
 .lp-legal-date {
   margin-top: 40px;
   font-size: 13px;
-}
-.lp-eu {
-  border-radius: 2.5px;
 }
 
 /* --- /daily: the daily week on its own page --- */
