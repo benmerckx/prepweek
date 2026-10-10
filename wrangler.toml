@@ -38,7 +38,6 @@ class_name = "ArchiveDurableObject"
 #   MANDRILL_API_KEY        magic-link and invite emails (Mandrill)
 #   GOOGLE_CLIENT_SECRET    "Continue with Google"
 #   APPSUMO_CLIENT_SECRET, APPSUMO_API_KEY   AppSumo licences (see worker/appsumo.ts)
-#   ADMIN_EMAILS            who may open /admin (comma separated)
 #   CF_ACCOUNT_ID, CF_API_TOKEN   reading usage statistics back for /admin
 #                           (an API token with "Account Analytics: Read")
 [vars]
@@ -53,6 +52,8 @@ APPSUMO_CLIENT_ID = ""
 # to pin one, e.g. APP_URL = "https://plan.example.com".
 EMAIL_FROM = "no-reply@prepweek.com"
 GOOGLE_CLIENT_ID = "536583470323-hurodoi9k3c7voaik9i3fjbvjgk1amh3.apps.googleusercontent.com"
+# Who may open /admin (comma separated).
+ADMIN_EMAILS = "ben@codeurs.be"
 
 # Hourly: sends the daily digest to everyone whose workday morning it is.
 [triggers]

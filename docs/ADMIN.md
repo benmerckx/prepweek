@@ -6,9 +6,8 @@ times (usage statistics). Only the addresses in `ADMIN_EMAILS` can open it.
 
 ## Setting it up
 
-1. **Who's an admin.** In Cloudflare (Workers → prepweek → Settings →
-   Variables and Secrets) add a secret `ADMIN_EMAILS`: one or more email
-   addresses, comma separated. Log in with one of them and open `/admin`.
+1. **Who's an admin:** `ADMIN_EMAILS` in `wrangler.toml` (`[vars]`), one or
+   more addresses, comma separated. Log in with one of them and open `/admin`.
 2. **Usage statistics** are recorded from the first deploy with the
    `EVENTS` binding (`wrangler.toml`, Workers Analytics Engine, dataset
    `prepweek_events`). To read them back on the dashboard, add two more
