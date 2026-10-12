@@ -5,6 +5,7 @@ import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
 import { getMe } from '../data/account.ts';
 import { APPSUMO_TIERS, FREE_PEOPLE, type PlanInfo } from '../lib/plans.ts';
 import { COMPANY } from '../lib/company.ts';
+import { FootLegal } from './FootLegal.tsx';
 import { loadChunk } from '../lib/chunks.ts';
 import { Logo, Wordmark } from '../ui/brand.tsx';
 import { DailyWeek } from './Playground.tsx';
@@ -49,11 +50,9 @@ function Shell({ title, children }: { title: string; children: ReactNode }) {
             <a href="/help">Help</a>
             <a href="/daily">Daily puzzle</a>
             <a href="/roadmap">Roadmap</a>
-            <a href="/privacy">Privacy</a>
-            <a href="/terms">Terms</a>
-            <a href="/refunds">Refunds</a>
           </span>
         </div>
+        <FootLegal />
       </footer>
     </div>
   );

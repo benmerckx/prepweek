@@ -2215,6 +2215,20 @@ html:has(.lp) {
 .lp-foot-links .lp-link:hover {
   color: var(--text);
 }
+/* Second line: the company and the policies, smaller and quieter. */
+.lp-foot-legal {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 24px;
+  padding: 14px 0 18px;
+  border-top: 1px solid var(--lp-line);
+  font-size: 12.5px;
+  color: var(--text-dim);
+}
+.lp-foot-legal .lp-foot-links {
+  gap: 16px;
+}
 
 /* --- Pricing --- */
 .lp-pricing .lp-heading {
@@ -2485,6 +2499,9 @@ html:has(.lp) {
   }
   .lp-foot-links {
     margin-left: 0;
+  }
+  .lp-foot-inner {
+    padding-block: 22px 20px;
   }
 }
 

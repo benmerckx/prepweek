@@ -10,6 +10,7 @@ import { Logo, Wordmark } from '../ui/brand.tsx';
 import { loadChunk } from '../lib/chunks.ts';
 import { Playground } from './Playground.tsx';
 import { FREE_PEOPLE, PAID_PLANS, PLAN_INCLUDES } from '../lib/plans.ts';
+import { FootLegal } from './FootLegal.tsx';
 
 // After a deploy the old chunk is gone: reload into a page that reopens sign-in.
 const PlansDialog = lazy(() => loadChunk(() => import('../timeline/PlansDialog.tsx')).then((m) => ({ default: m.PlansDialog })));
@@ -1249,17 +1250,14 @@ export function Landing() {
             <a href="/help">Help</a>
             <a href="/daily">Daily puzzle</a>
             <a href="/roadmap">Roadmap</a>
-            <a href="/privacy">Privacy</a>
-            <a href="/terms">Terms</a>
-            <a href="/refunds">Refunds</a>
             {v.accounts && v.kind !== 'signedIn' && (
               <button className="lp-link" onClick={signIn}>
                 Log in
               </button>
             )}
-            <span className="lp-dim">© {new Date().getFullYear()} Codeurs bv</span>
           </span>
         </div>
+        <FootLegal />
       </footer>
 
       {signingIn && (
