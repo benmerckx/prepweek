@@ -3,7 +3,7 @@ import { flushSync } from 'react-dom';
 import { canRedo, canUndo, isHistoryBusy, onHistoryChange, redo, store, undo } from '../data/store.ts';
 import { getSyncStatus, onSyncStatus } from '../data/sync.ts';
 import type { TimelineModel } from './model.ts';
-import { FilterMenu, ViewsMenu, type FilterState } from './Filters.tsx';
+import { FilterMenu, type FilterState } from './Filters.tsx';
 import { NotificationsMenu } from './Discussion.tsx';
 import { PresenceAvatars } from './Presence.tsx';
 import { AccountButton, SheetSwitcher, useAccount } from './Account.tsx';
@@ -155,7 +155,6 @@ export const Toolbar = memo(function Toolbar(props: Props) {
       <SectionTabs current={route.section} />
       {plan && (
       <>
-      <ViewsMenu current={props.view} onApply={props.onApplyView} />
       <div className="seg">
         <button className="btn icon tb-page" onClick={() => onPage(-1)} aria-label="Earlier" title="Earlier">
           <ChevronLeft />
@@ -173,7 +172,15 @@ export const Toolbar = memo(function Toolbar(props: Props) {
       {plan && (
         <>
           <Search {...props} open={searchOpen} setOpen={setSearchOpen} />
-          <FilterMenu model={model} filter={props.filter} onFilter={props.onFilter} onManageProjects={props.onManageProjects} />
+          <FilterMenu
+            model={model}
+            filter={props.filter}
+            onFilter={props.onFilter}
+            onManageProjects={props.onManageProjects}
+            view={props.view}
+            onApplyView={props.onApplyView}
+            readOnly={props.readOnly}
+          />
         </>
       )}
       <PresenceAvatars onFollow={props.onFollow} />
