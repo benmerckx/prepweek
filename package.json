@@ -5,7 +5,7 @@
   "packageManager": "bun@1.4.2",
   "scripts": {
     "dev": "bun --hot server.ts",
-    "build": "rm -rf dist && bun build ./src/index.html --outdir dist --production --splitting --sourcemap=linked --public-path=/ && cp -r public/. dist/",
+    "build": "rm -rf dist && bun build ./src/index.html --outdir dist --production --splitting --sourcemap=linked --public-path=/ && cp -r public/. dist/ && bun scripts/prerender.tsx",
     "start": "NODE_ENV=production bun server.ts",
     "typecheck": "tsc --noEmit -p . && tsc --noEmit -p worker",
     "test": "bun test",

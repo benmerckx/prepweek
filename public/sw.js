@@ -4,7 +4,8 @@
 //    /s/<sheet> URL is the same single-page app);
 //  - hashed bundles, fonts and icons: cache first (bundle and font names change
 //    when their content does; icons keep theirs, so bump CACHE when they change);
-//  - sync, presence, files, sharing and the account API go straight to the network.
+//  - sync, presence, files, sharing, the account API and the price sheet go
+//    straight to the network.
 
 const CACHE = 'prepweek-v5';
 const SHELL = '/';
@@ -31,7 +32,7 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   const url = new URL(req.url);
-  if (req.method !== 'GET' || url.origin !== location.origin || LIVE.test(url.pathname)) return;
+  if (req.method !== 'GET' || url.origin !== location.origin || LIVE.test(url.pathname) || url.pathname.endsWith('.pdf')) return;
 
   // Pages and the manifest (the installed app's name and icons): network
   // first, so changes arrive; the cached copy is the offline fallback.

@@ -44,7 +44,7 @@ const PAGES: [RegExp, string][] = [
   [/^\/$/, 'home'],
   [/^\/s\/demo\/?$/, 'demo'],
   [/^\/(app|s\/.+)$/, 'app'],
-  [/^\/(daily|help|roadmap|privacy|terms|welcome|invite)\b/, ''],
+  [/^\/(daily|help|roadmap|privacy|terms|refunds|welcome|invite)\b/, ''],
 ];
 const pageOf = (path: string) => {
   for (const [re, name] of PAGES) if (re.test(path)) return name || path.split('/')[1]!;

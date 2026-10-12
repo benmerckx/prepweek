@@ -27,6 +27,15 @@ export const PAID_PLANS = [
   { id: 'studio', name: 'Studio', people: 40, month: 69, year: 690 },
   { id: 'agency', name: 'Agency', people: 100, month: 129, year: 1290 },
 ] as const;
+/** What every plan includes, free or paid (the pricing section and the price sheet). */
+export const PLAN_INCLUDES = [
+  'Every feature, on every plan',
+  'Unlimited plans, logins and viewers',
+  'Live editing, comments and files',
+  'Calendar feeds and daily digest emails',
+  'Import from Teamweek, export any time',
+  'On phone and desktop, works offline',
+];
 export type PaidPlanId = (typeof PAID_PLANS)[number]['id'];
 export const paidPlan = (id: string) => PAID_PLANS.find((p) => p.id === id);
 

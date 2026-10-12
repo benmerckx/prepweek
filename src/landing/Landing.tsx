@@ -9,7 +9,7 @@ import { getMe, lastSheet, mySheets, newSheetId, rememberMySheet } from '../data
 import { Logo, Wordmark } from '../ui/brand.tsx';
 import { loadChunk } from '../lib/chunks.ts';
 import { Playground } from './Playground.tsx';
-import { FREE_PEOPLE, PAID_PLANS } from '../lib/plans.ts';
+import { FREE_PEOPLE, PAID_PLANS, PLAN_INCLUDES } from '../lib/plans.ts';
 
 // After a deploy the old chunk is gone: reload into a page that reopens sign-in.
 const PlansDialog = lazy(() => loadChunk(() => import('../timeline/PlansDialog.tsx')).then((m) => ({ default: m.PlansDialog })));
@@ -1052,7 +1052,6 @@ const FINAL_WEEK: { title: string; meta: string; color: string; pattern?: string
 // --- Pricing ------------------------------------------------------------------------------------
 
 /** What a plan covers, the same on every one of them. */
-const EVERY_PLAN = ['Every feature, on every plan', 'Unlimited logins and viewers', 'Unlimited plans and history', 'Import and export any time'];
 
 function Pricing({ v }: { v: Visitor }) {
   const [yearly, setYearly] = useState(true);
@@ -1129,7 +1128,7 @@ function Pricing({ v }: { v: Visitor }) {
           ))}
         </div>
         <Reveal className="lp-price-every" delay={120}>
-          {EVERY_PLAN.map((t) => (
+          {PLAN_INCLUDES.map((t) => (
             <span key={t}>
               <Tick /> {t}
             </span>
@@ -1137,7 +1136,7 @@ function Pricing({ v }: { v: Visitor }) {
         </Reveal>
         <p className="lp-price-fine">
           Prices in euro. Payments, invoices and VAT are handled by Paddle, our reseller. A person is a row you plan for, not a login. Cancel
-          any time; a refund within 14 days, no questions asked. Planning for more than 100 people? <a href="mailto:support@prepweek.com">Get in touch</a>.
+          any time; a <a href="/refunds">refund within 14 days</a>, no questions asked. Planning for more than 100 people? <a href="mailto:support@prepweek.com">Get in touch</a>. All of this as a <a href="/prepweek-price-sheet.pdf" download>price sheet (PDF)</a>.
         </p>
       </div>
       {upgrading && workspaces[0] && (
@@ -1252,6 +1251,7 @@ export function Landing() {
             <a href="/roadmap">Roadmap</a>
             <a href="/privacy">Privacy</a>
             <a href="/terms">Terms</a>
+            <a href="/refunds">Refunds</a>
             {v.accounts && v.kind !== 'signedIn' && (
               <button className="lp-link" onClick={signIn}>
                 Log in

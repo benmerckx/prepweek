@@ -4,6 +4,7 @@
 import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
 import { getMe } from '../data/account.ts';
 import { APPSUMO_TIERS, FREE_PEOPLE, type PlanInfo } from '../lib/plans.ts';
+import { COMPANY } from '../lib/company.ts';
 import { loadChunk } from '../lib/chunks.ts';
 import { Logo, Wordmark } from '../ui/brand.tsx';
 import { DailyWeek } from './Playground.tsx';
@@ -14,12 +15,6 @@ const SignInDialog = lazy(() => loadChunk(() => import('../timeline/Account.tsx'
 export const SUPPORT_EMAIL = 'support@prepweek.com';
 
 /** Who makes and runs Prepweek (as on codeurs.be). */
-const COMPANY = {
-  name: 'Codeurs bv',
-  address: 'Muizenstraat 172, 1981 Hofstade, Belgium',
-  number: 'BE 0552.544.959',
-};
-
 function Shell({ title, children }: { title: string; children: ReactNode }) {
   useEffect(() => {
     document.title = `${title} · Prepweek`;
@@ -35,6 +30,7 @@ function Shell({ title, children }: { title: string; children: ReactNode }) {
           </a>
           <span className="lp-nav-links">
             <a href="/#features">Features</a>
+            <a href="/#pricing">Pricing</a>
             <a href="/help">Help</a>
             <a href="/roadmap">Roadmap</a>
           </span>
@@ -55,6 +51,7 @@ function Shell({ title, children }: { title: string; children: ReactNode }) {
             <a href="/roadmap">Roadmap</a>
             <a href="/privacy">Privacy</a>
             <a href="/terms">Terms</a>
+            <a href="/refunds">Refunds</a>
           </span>
         </div>
       </footer>
@@ -508,7 +505,10 @@ export function TermsPage() {
               invoices and billing questions; their buyer terms apply to the purchase.
             </li>
             <li>Subscriptions renew until you cancel; cancelling keeps your plan until the end of the period you paid for.</li>
-            <li>Changed your mind? Ask within 14 days of a subscription payment and you get it back in full.</li>
+            <li>
+              Changed your mind? Ask within 14 days of a subscription payment and you get it back in full; see the{' '}
+              <a href="/refunds">refund policy</a>.
+            </li>
             <li>When a subscription ends, the workspace goes back to the free plan; nothing is deleted.</li>
           </ul>,
         ],
@@ -526,6 +526,45 @@ export function TermsPage() {
             <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>
             <br />
             {COMPANY.name}, {COMPANY.address}
+          </p>,
+        ],
+      ]}
+    />
+  );
+}
+
+export function RefundsPage() {
+  return (
+    <Doc
+      title="Refund policy"
+      lede="If Prepweek isn’t right for your team, you get your money back. No forms, no questions."
+      sections={[
+        [
+          '14 days, in full',
+          <p>
+            Ask for a refund within 14 days of any subscription payment (the first one or a renewal, monthly or yearly) and you get that
+            payment back in full.
+          </p>,
+        ],
+        [
+          'How to ask',
+          <p>
+            Write to <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> from the address you bought with, or reply to the receipt from
+            Paddle. Paddle.com, our reseller and the merchant of record, pays the refund back the way you paid, usually within 5 to 10
+            working days.
+          </p>,
+        ],
+        [
+          'Cancelling instead',
+          <p>
+            You can cancel any time from your workspace’s plan settings (Invoices, card and cancelling). Your plan stays until the end of the
+            period you paid for, then the workspace goes back to the free plan. Nothing is deleted.
+          </p>,
+        ],
+        [
+          'Who we are',
+          <p>
+            Prepweek is made and run by {COMPANY.name}, {COMPANY.address} ({COMPANY.number}). See also the <a href="/terms">terms</a>.
           </p>,
         ],
       ]}
