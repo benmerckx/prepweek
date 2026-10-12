@@ -121,9 +121,11 @@
       html[data-landing] .boot {
         display: none;
       }
-      /* Pages rendered at build time (scripts/prerender.tsx): only on their
-         own addresses, never under the app, which shares index.html. */
-      html:not([data-landing]) .prerendered {
+      /* Pages rendered at build time (scripts/prerender.tsx) are for readers
+         without scripts (see the noscript below). With scripts, the page
+         renders and animates in as usual: showing this copy first would
+         flash the intro twice. */
+      .prerendered {
         display: none;
       }
       @media (prefers-reduced-motion: reduce) {

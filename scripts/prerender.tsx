@@ -3,9 +3,9 @@
 // says "Opening your sheet…" until the script runs: search engines, link
 // previews and checks that don't run scripts (Paddle's domain review) saw
 // nothing. Each page is rendered here into a copy of index.html (as
-// <page>.html, which Cloudflare serves at /<page>); the browser then renders
-// it again as usual. The home page goes into index.html itself, hidden on
-// the app's own addresses (they share that file).
+// <page>.html, which Cloudflare serves at /<page>; the home page into
+// index.html itself). It only shows without scripts (index.html's
+// noscript); with them, the browser renders the page as usual.
 
 import { renderToString } from 'react-dom/server';
 import type { ComponentType } from 'react';
