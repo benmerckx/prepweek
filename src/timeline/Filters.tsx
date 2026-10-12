@@ -61,6 +61,11 @@ export function FilterMenu({
   const [q, setQ] = useState('');
   const query = q.trim().toLowerCase();
   const shownProjects = query ? projects.filter((p) => p.name.toLowerCase().includes(query) || p.client.toLowerCase().includes(query)) : projects;
+  // Projects without tasks only add length: tucked away until asked for
+  // (a search, or one that's picked, still shows them).
+  const [showEmpty, setShowEmpty] = useState(false);
+  const planned = showEmpty ? projects : projects.filter((p) => (counts.get(p.id) ?? 0) > 0 || filter.projects.includes(p.id));
+  const empty = projects.length - planned.length;
   const shownTags = query ? tags.filter((t) => t.toLowerCase().includes(query)) : tags;
 
   const Item = ({ id, label, color, sub }: { id: string; label: string; color?: string; sub?: string }) => {
@@ -88,6 +93,7 @@ export function FilterMenu({
         if (!e.currentTarget.open) {
           setQ('');
           setNaming(null);
+          setShowEmpty(false);
         }
       }}
     >
@@ -152,6 +158,7 @@ export function FilterMenu({
               onKeyDown={(e) => e.key === 'Escape' && q && (e.stopPropagation(), setQ(''))}
             />
             <div className="fl-scroll">
+              {shownTags.length > 0 && <div className="fl-section">Tags</div>}
               {shownTags.length > 0 && (
                 <div className="fl-tags">
                   {shownTags.map((t) => {
@@ -169,10 +176,11 @@ export function FilterMenu({
                   })}
                 </div>
               )}
+              {(!query || shownProjects.length > 0) && <div className="fl-section">Projects</div>}
               {projects.length === 0 && <p className="fl-empty">No projects yet.</p>}
               {query
                 ? shownProjects.map((p) => <Item key={p.id} id={p.id} label={p.name} color={p.color} sub={p.client || String(counts.get(p.id) ?? 0)} />)
-                : byClient(projects).map(([client, ps]) => (
+                : byClient(planned).map(([client, ps]) => (
                     <div key={client || '-'} className="fl-group">
                       {client && <div className="fl-client">{client}</div>}
                       {ps.map((p) => (
@@ -181,6 +189,11 @@ export function FilterMenu({
                     </div>
                   ))}
               {!query && projects.length > 0 && <Item id="" label="No project" sub={String(counts.get('') ?? 0)} />}
+              {!query && empty > 0 && (
+                <button className="fl-more" onClick={() => setShowEmpty(true)}>
+                  Show {empty === 1 ? '1 project' : `${empty} projects`} without tasks
+                </button>
+              )}
               {query && !shownProjects.length && !shownTags.length && <p className="fl-empty">Nothing matches “{q.trim()}”.</p>}
             </div>
             {!readOnly &&

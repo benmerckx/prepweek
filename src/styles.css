@@ -6816,8 +6816,9 @@ a.menu-item {
   flex-shrink: 0;
 }
 .fl-search {
+  flex: none;
   margin: 8px 8px 2px;
-  height: 32px;
+  height: 34px;
   padding: 0 10px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -6831,9 +6832,37 @@ a.menu-item {
   border-color: var(--border-strong);
 }
 .fl-tags {
-  padding: 6px 4px 8px;
+  padding: 2px 4px 8px;
   border-bottom: 1px solid var(--border);
   margin-bottom: 4px;
+}
+.fl-section {
+  padding: 8px 10px 4px;
+  color: var(--text-faint);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+/* Denser rows than the other menus: this list can run long. */
+.fl-menu .tb-person {
+  height: 30px;
+}
+.fl-more {
+  margin: 4px 4px 2px;
+  padding: 6px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+.fl-more:hover {
+  background: var(--hover);
+  color: var(--text);
 }
 .fl-foot {
   display: flex;
