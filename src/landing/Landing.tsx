@@ -1174,7 +1174,18 @@ export function Landing() {
     <div className="lp">
       <nav className={'lp-nav' + (scrolled ? ' scrolled' : '')}>
         <div className="lp-wrap lp-nav-inner">
-          <a className="lp-brand" href="/" aria-label="Prepweek home">
+          <a
+            className="lp-brand"
+            href="/"
+            aria-label="Prepweek home"
+            onClick={(e) => {
+              // Already home (maybe scrolled to a section): back to the top, no reload.
+              if (location.pathname !== '/' || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+              e.preventDefault();
+              if (location.hash) history.pushState(null, '', '/');
+              window.scrollTo({ top: 0 });
+            }}
+          >
             <Logo size={24} />
             <Wordmark className="lp-brand-name" size={24} />
           </a>
