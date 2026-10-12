@@ -1137,7 +1137,7 @@ function Pricing({ v }: { v: Visitor }) {
         </Reveal>
         <p className="lp-price-fine">
           Prices in euro. Payments, invoices and VAT are handled by Paddle, our reseller. A person is a row you plan for, not a login. Cancel
-          any time; a <a href="/refunds">refund within 14 days</a>, no questions asked. Planning for more than 100 people? <a href="mailto:support@prepweek.com">Get in touch</a>. All of this as a <a href="/prepweek-price-sheet.pdf" download>price sheet (PDF)</a>.
+          any time; a <a href="/refunds">refund within 14 days</a>, no questions asked.
         </p>
       </div>
       {upgrading && workspaces[0] && (
