@@ -980,6 +980,7 @@ export function Timeline({ model }: { model: TimelineModel }) {
   // selection change re-renders two rows instead of all of them.
   const selUser = selected ? model.findTask(selected)?.userId : undefined;
   const dragUser = drag ? model.getPreview()?.userId ?? model.findTask(drag.id)?.userId : undefined;
+  const selectedThread = selected ? (model.findTask(selected)?.thread ?? null) : null;
   const rendered = [];
   for (let i = Math.max(0, win.r0); i <= win.r1 && i < rows.length; i++) {
     const r = rows[i]!;
@@ -1150,8 +1151,9 @@ export function Timeline({ model }: { model: TimelineModel }) {
           >
             <GridBackground d0={win.d0} d1={win.d1} scale={scale} height={bodyH} today={todayDay} />
             <MilestoneLines milestones={model.milestones} d0={win.d0} d1={win.d1} scale={scale} height={bodyH} drag={msDrag} />
-            <LinkLayer model={model} scale={scale} version={model.version} width={bodyW} height={bodyH} selected={selected ? (model.findTask(selected)?.thread ?? null) : null} />
+            <LinkLayer model={model} scale={scale} version={model.version} width={bodyW} height={bodyH} selected={selectedThread} />
             {rendered}
+            <LinkLayer model={model} scale={scale} version={model.version} width={bodyW} height={bodyH} selected={selectedThread} top />
             {rows.length === 0 && !focus && !readOnly && synced && (
               <EmptySheet
                 left={(vp.scroller?.scrollLeft ?? 0) + (compact ? 14 : 20)}

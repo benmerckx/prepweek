@@ -271,6 +271,17 @@ export const groupMembers = (id: string): string[] => {
   const g = store.getCell('tasks', base, 'group') as string;
   return g ? store.getRowIds('tasks').filter((t) => store.getCell('tasks', t, 'group') === g) : [base];
 };
+/**
+ * The rows on a thread (see threadOf). Unlike groupMembers this takes the
+ * thread itself, which stays the same when the row it was named after goes
+ * (that person was taken off the task): links, comments and files keep
+ * finding the others.
+ */
+export const threadMembers = (thread: string): string[] => {
+  const rows = store.getRowIds('tasks').filter((t) => store.getCell('tasks', t, 'group') === thread);
+  if (store.hasRow('tasks', thread) && !rows.includes(thread) && !store.getCell('tasks', thread, 'group')) rows.unshift(thread);
+  return rows;
+};
 /** Where a task's comments and files live: shared by everyone it's assigned to. */
 export const threadOf = (id: string): string => {
   const { base } = splitOccurrence(id);
@@ -628,7 +639,7 @@ const pushDependents = (thread: string, end: number, moves: Map<string, { start:
   for (const l of allLinks()) {
     if (l.from !== thread) continue;
     let latest = -Infinity;
-    for (const t of groupMembers(l.to)) {
+    for (const t of threadMembers(l.to)) {
       const cur = moves.get(t) ?? rowDates(t);
       if (cur.start > end) continue;
       let start = end + 1;
@@ -662,9 +673,9 @@ export const addLink = (fromId: string, toId: string): string => {
   if (leadsTo(to, from)) return 'That would make them wait for each other';
   const id = newId();
   const moves = new Map<string, { start: number; end: number }>();
-  const end = Math.max(...groupMembers(from).map((t) => rowDates(t).end));
+  const end = Math.max(...threadMembers(from).map((t) => rowDates(t).end));
   // The waiting task (and what waits for it in turn) moves if it starts too early.
-  for (const t of groupMembers(to)) {
+  for (const t of threadMembers(to)) {
     const cur = rowDates(t);
     if (cur.start > end) continue;
     let start = end + 1;
@@ -746,13 +757,22 @@ export const setAssignees = (id: string, userIds: string[]): string => {
   const lead = row.group || base;
   const members = groupMembers(base);
   const byUser = new Map(members.map((t) => [store.getCell('tasks', t, 'userId') as string, t]));
-  const drop = members.filter((t) => !want.includes(store.getCell('tasks', t, 'userId') as string));
-  const added = want.filter((u) => !byUser.has(u)).map((u) => [u, newId()] as const);
+  const leaving = members.filter((t) => !want.includes(store.getCell('tasks', t, 'userId') as string));
+  const joining = want.filter((u) => !byUser.has(u));
+  if (!leaving.length && !joining.length) return id;
+  // Someone swapped for someone else keeps the row (and its id), just moved
+  // to the other person; the rest are added or removed.
+  const moved = joining.slice(0, leaving.length).map((u, i) => [u, leaving[i]!] as const);
+  const drop = leaving.slice(moved.length);
+  const added = joining.slice(moved.length).map((u) => [u, newId()] as const);
   const kept = members.filter((t) => !drop.includes(t)).concat(added.map(([, t]) => t));
-  if (!drop.length && !added.length) return id;
-  const label = added.length && !drop.length ? 'Add person' : drop.length && !added.length ? 'Remove person' : 'Change people';
+  const label = joining.length && !leaving.length ? 'Add person' : leaving.length && !joining.length ? 'Remove person' : 'Change people';
   commit(label, [...members, ...added.map(([, t]) => t)].map((t) => ['tasks', t] as [TableId, string]), () => {
     for (const t of drop) store.delRow('tasks', t);
+    for (const [u, t] of moved) {
+      store.setCell('tasks', t, 'userId', u);
+      store.setCell('tasks', t, 'lane', -1);
+    }
     for (const [u, t] of added) store.setRow('tasks', t, lean(t, { ...row, userId: u, lane: -1, group: lead }));
     for (const t of kept) store.setCell('tasks', t, 'group', lead);
   });

@@ -8,7 +8,7 @@ import {
   checksOf,
   deleteCheck,
   getUser,
-  groupMembers,
+  threadMembers,
   linksOf,
   removeLink,
   store,
@@ -50,7 +50,7 @@ export function KindField({ task }: { task: TaskView }) {
 
 /** The task to show for a thread: its first row. */
 const rowOf = (thread: string): (TaskRow & { id: string }) | null => {
-  const id = groupMembers(thread)[0];
+  const id = threadMembers(thread)[0];
   return id ? { id, ...(store.getRow('tasks', id) as TaskRow) } : null;
 };
 const who = (t: TaskRow) => getUser(t.userId)?.name ?? '';

@@ -6666,6 +6666,22 @@ a.menu-item {
 .dep-layer marker.dep-late path {
   fill: var(--danger);
 }
+.dep-seam circle {
+  fill: var(--bg);
+  stroke: color-mix(in oklab, var(--text) 38%, transparent);
+  stroke-width: 1.5;
+}
+.dep-seam path {
+  fill: none;
+  stroke: var(--text-dim);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.dep-seam.on circle,
+.dep-seam.on path {
+  stroke: var(--accent);
+}
 /* Calendar feed dialog (Share.tsx) */
 .cal-who {
   display: flex;

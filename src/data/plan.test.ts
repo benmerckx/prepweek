@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { addCheck, addLink, allLinks, checksOf, createTask, deleteTask, setAssignees, store, updateTask, type TaskRow } from './store.ts';
+import { addCheck, addLink, allLinks, checksOf, createTask, deleteTask, linksOf, setAssignees, store, threadMembers, threadOf, updateTask, type TaskRow } from './store.ts';
 import { isoWeekday } from '../lib/dates.ts';
 
 // Day 11 is a Monday (day 0 was a Thursday).
@@ -49,5 +49,31 @@ describe('dependencies', () => {
     deleteTask(b);
     expect(allLinks().some((l) => l.to === b)).toBe(false);
     expect(checksOf(b)).toHaveLength(0);
+  });
+
+  test('changing who does a task keeps its links', () => {
+    const a = task(MON, MON + 1, 'Spec');
+    const b = task(MON + 2, MON + 3, 'Build');
+    addLink(a, b);
+    // Swapped for someone else: the same row, now on bob's line.
+    expect(setAssignees(a, ['bob'])).toBe(a);
+    expect(store.getCell('tasks', a, 'userId')).toBe('bob');
+    expect(linksOf(threadOf(b)).waitsFor.map((l) => l.from)).toEqual([threadOf(a)]);
+    // Moving it later still carries the waiting task along.
+    updateTask(a, { start: MON + 2, end: MON + 4 });
+    expect(dates(b)).toEqual([MON + 7, MON + 8]);
+  });
+
+  test('taking the first person off a shared task keeps its links', () => {
+    const a = task(MON, MON, 'Kickoff');
+    const b = task(MON + 1, MON + 1, 'Pair');
+    setAssignees(b, ['ann', 'bob']);
+    addLink(a, b);
+    // The thread is named after ann's row; she leaves.
+    const left = setAssignees(b, ['bob']);
+    expect(store.hasRow('tasks', b)).toBe(false);
+    expect(threadMembers(b)).toEqual([left]);
+    updateTask(a, { start: MON + 1, end: MON + 1 });
+    expect(dates(left)).toEqual([MON + 2, MON + 2]);
   });
 });

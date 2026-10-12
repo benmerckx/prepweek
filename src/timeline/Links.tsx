@@ -1,8 +1,10 @@
 // Dependency arrows: from the end of a task to the start of what waits for
 // it. Drawn under the blocks; red when the waiting task starts too early.
+// Back to back on one lane there's no room for an arrow: a badge on the
+// seam, in a second layer over the blocks, shows the link instead.
 
 import { memo } from 'react';
-import { allLinks, groupMembers } from '../data/store.ts';
+import { allLinks, threadMembers } from '../data/store.ts';
 import type { TaskView, TimelineModel } from './model.ts';
 import type { Scale } from './scale.ts';
 
@@ -15,9 +17,11 @@ interface Props {
   height: number;
   /** The selected block's thread: its arrows stand out. */
   selected: string | null;
+  /** The layer over the blocks (seam badges) rather than the one under them. */
+  top?: boolean;
 }
 
-export const LinkLayer = memo(function LinkLayer({ model, scale, width, height, selected }: Props) {
+export const LinkLayer = memo(function LinkLayer({ model, scale, width, height, selected, top }: Props) {
   const links = allLinks();
   if (!links.length) return null;
   const { dims } = model;
@@ -33,12 +37,13 @@ export const LinkLayer = memo(function LinkLayer({ model, scale, width, height, 
     return { ...t, y: model.rowTops[i]! + dims.pad + t.lane * dims.laneH + dims.blockH / 2 };
   };
   const paths = [];
+  const seams = [];
   for (const l of links) {
     const on = selected !== null && (l.from === selected || l.to === selected);
-    for (const a of groupMembers(l.from)) {
+    for (const a of threadMembers(l.from)) {
       const from = place(a);
       if (!from) continue;
-      for (const b of groupMembers(l.to)) {
+      for (const b of threadMembers(l.to)) {
         const to = place(b);
         if (!to) continue;
         const late = to.start <= from.end;
@@ -46,13 +51,37 @@ export const LinkLayer = memo(function LinkLayer({ model, scale, width, height, 
         const x2 = scale.x(to.start) + 1;
         const y1 = from.y;
         const y2 = to.y;
+        const half = dims.blockH / 2;
         let d: string;
         if (x2 - x1 >= 14) {
           const k = Math.min(48, (x2 - x1) / 2);
           d = `M${x1} ${y1} C${x1 + k} ${y1} ${x2 - k} ${y2} ${x2 - 1} ${y2}`;
+        } else if (!late) {
+          // Back to back: no room for a line between them, so the arrow
+          // leaves near the end of one and lands on the start of the other,
+          // from above or below.
+          const sx = Math.max((scale.x(from.start) + x1) / 2, x1 - 9);
+          const ex = Math.min((x2 + scale.x(to.end + 1)) / 2, x2 + 9);
+          if (Math.abs(y2 - y1) < 1) {
+            // One after the other on a lane: a badge on the seam instead
+            // (drawn over the blocks, as there's no room around them).
+            seams.push(
+              <g key={`${l.id}:${a}:${b}`} className={'dep-seam' + (on ? ' on' : '')} transform={`translate(${(x1 + x2) / 2} ${y1})`}>
+                <circle r="7" />
+                <path d="M-1.5 -3 1.5 0 -1.5 3" />
+              </g>,
+            );
+            continue;
+          } else {
+            const dir = y2 > y1 ? 1 : -1;
+            const sy = y1 + dir * half;
+            const ey = y2 - dir * (half + 1);
+            const m = (sy + ey) / 2;
+            d = `M${sx} ${sy} C${sx} ${m} ${ex} ${m} ${ex} ${ey}`;
+          }
         } else {
-          // Backwards (or touching): out of the end, along the gap above the
-          // waiting block, into its start.
+          // Backwards (it starts too early): out of the end, along the gap
+          // above the waiting block, into its start.
           const mid = y2 + (y2 > y1 ? -1 : 1) * (dims.blockH / 2 + (dims.laneH - dims.blockH) / 2);
           d = `M${x1} ${y1} h8 V${mid} H${x2 - 8} V${y2} H${x2 - 1}`;
         }
@@ -60,6 +89,12 @@ export const LinkLayer = memo(function LinkLayer({ model, scale, width, height, 
       }
     }
   }
+  if (top)
+    return seams.length ? (
+      <svg className="dep-layer dep-top" width={width} height={height} aria-hidden>
+        {seams}
+      </svg>
+    ) : null;
   return (
     <svg className="dep-layer" width={width} height={height} aria-hidden>
       <defs>
