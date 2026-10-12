@@ -188,7 +188,7 @@ export function Minimap({ model, vp, today, filter = null, span = TARGET_DAYS }:
       // bar (like the blocks themselves). You see whose time is taken where
       // at a glance, and the strip looks like the timeline it scrubs. Time
       // off is drawn faint, done work dimmed; with a search or filter on,
-      // the rest fades and what matches stands out.
+      // the rest fades to grey and what matches stands out.
       const people = model.rows.filter((r) => r.kind === 'person');
       const top = LABEL_H + 4;
       const bottom = H - 3;
@@ -205,8 +205,10 @@ export function Minimap({ model, vp, today, filter = null, span = TARGET_DAYS }:
           // A hair between blocks that follow each other.
           const w = Math.max(1, span - (span > 4 ? 1 : 0));
           const match = !f || f(t);
-          o.fillStyle = t.off ? c.text! : t.color;
-          o.globalAlpha = !match ? 0.12 : t.off ? 0.25 : t.done ? 0.35 : 0.75;
+          // Searching: the rest goes to a faint grey (no color left to
+          // compete), and what matches is drawn at full strength.
+          o.fillStyle = t.off || !match ? c.text! : t.color;
+          o.globalAlpha = !match ? 0.07 : t.off ? 0.25 : f ? (t.done ? 0.6 : 1) : t.done ? 0.35 : 0.75;
           if (round && w >= 3) {
             o.beginPath();
             o.roundRect(x, y, w, bar, Math.min(1.5, w / 2, bar / 2));
