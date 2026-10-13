@@ -54,6 +54,10 @@ EMAIL_FROM = "no-reply@prepweek.com"
 GOOGLE_CLIENT_ID = "536583470323-hurodoi9k3c7voaik9i3fjbvjgk1amh3.apps.googleusercontent.com"
 # Who may open /admin (comma separated).
 ADMIN_EMAILS = "ben@codeurs.be"
+# Paddle Billing (docs/BILLING.md). The client-side token isn't secret; a
+# test_… token means the sandbox (set PADDLE_ENV = "production" with a
+# live_… token). Secrets: PADDLE_API_KEY, PADDLE_WEBHOOK_SECRET.
+PADDLE_CLIENT_TOKEN = "test_e5bfe018913b8025c609f83ce41"
 
 # Hourly: sends the daily digest to everyone whose workday morning it is.
 [triggers]
