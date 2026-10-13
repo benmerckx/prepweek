@@ -30,12 +30,16 @@ on a live account.
 2. **Default payment link.** *Checkout → Checkout settings*: set it to
    `https://<your host>/app`. Paddle requires one before transactions can be
    made.
-3. **API key.** *Developer tools → Authentication*: create an API key with
-   write access to products, prices, transactions, customers (portal sessions)
-   and subscriptions.
-4. **Client-side token.** Same page: create a client-side token. Paddle.js
-   uses it to open the checkout; it isn't secret.
-5. **Notifications.** *Developer tools → Notifications → New destination*:
+3. **API key.** *My account → Settings → Authentication → API keys → New
+   API key*. Give it these permissions (the calls in `worker/billing.ts`):
+   `product.write`, `price.write`, `transaction.write`, `subscription.write`
+   and `customer_portal_session.write` (the matching reads come with them or
+   can be ticked too). Set the expiry as far out as allowed (a year at most)
+   and put a reminder in: billing stops working when it expires. Copy the
+   key when it's shown; Paddle shows it only once.
+4. **Client-side token.** Same page, *Client-side tokens* tab: create one.
+   Paddle.js uses it to open the checkout; it isn't secret.
+5. **Notifications.** *Events → Notifications → New destination*:
    URL `https://<your host>/api/billing/webhook`, with these events:
    `transaction.completed`, `subscription.created`, `subscription.updated`,
    `subscription.activated`, `subscription.past_due`, `subscription.paused`,
