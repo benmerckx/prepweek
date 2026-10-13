@@ -34,7 +34,8 @@ const paddle = async <T>(env: Env, method: string, path: string, body?: unknown)
     data: T;
     error?: { detail?: string };
   };
-  if (!res.ok) throw new Error(data.error?.detail ?? `Paddle ${res.status}`);
+  // 403: the API key lacks a permission for this call (docs/BILLING.md lists them).
+  if (!res.ok) throw new Error((data.error?.detail ?? `Paddle ${res.status}`) + (res.status === 403 ? ' (the Paddle API key needs this permission)' : ''));
   return data.data;
 };
 
@@ -84,6 +85,7 @@ export async function billingApi(req: Request, env: Env, url: URL, seg: string[]
     plan?: string;
     interval?: string;
     transactionId?: string;
+    preview?: boolean;
   };
   const dir = directory(env);
   const ws = body.workspaceId ?? '';
@@ -123,12 +125,30 @@ export async function billingApi(req: Request, env: Env, url: URL, seg: string[]
       if (!plan) return fail('Unknown plan');
       const price = await priceFor(env, plan.id, interval);
       if (live) {
-        // Switch in place: Paddle charges or credits the difference now.
-        await paddle(env, 'PATCH', `subscriptions/${current.subscription}`, {
+        // Switch in place: Paddle charges (or credits) the difference now,
+        // on the card it has. With {preview: true} nothing changes yet: the
+        // amounts are returned to confirm first.
+        const change = {
           items: [{ price_id: price, quantity: 1 }],
           proration_billing_mode: 'prorated_immediately',
+          on_payment_failure: 'prevent_change',
           custom_data: { workspace: ws, plan: plan.id },
-        });
+        };
+        if (body.preview) {
+          const p = await paddle<SwitchPreview>(env, 'PATCH', `subscriptions/${current.subscription}/preview`, change);
+          const cents = (v?: string) => (v ? Number(v) / 100 : 0);
+          return json({
+            preview: {
+              currency: p.currency_code ?? 'EUR',
+              // Charged now (after the credit for what's left of the old plan), or credited.
+              charge: p.update_summary?.result?.action === 'charge' ? cents(p.update_summary.result.amount) : 0,
+              credit: p.update_summary?.result?.action === 'credit' ? cents(p.update_summary.result.amount) : 0,
+              next: cents(p.next_transaction?.details?.totals?.grand_total),
+              nextAt: Date.parse(p.next_billed_at ?? '') || 0,
+            },
+          });
+        }
+        await paddle(env, 'PATCH', `subscriptions/${current.subscription}`, change);
         await dir.setSubscription(ws, { plan: plan.id });
         return json({ switched: true });
       }
@@ -165,6 +185,13 @@ type Subscription = {
   custom_data?: Custom;
   items?: { price?: { custom_data?: Custom } }[];
   current_billing_period?: { ends_at?: string } | null;
+};
+/** The parts of PATCH /subscriptions/{id}/preview we show. Amounts in cents. */
+type SwitchPreview = {
+  currency_code?: string;
+  next_billed_at?: string | null;
+  update_summary?: { result?: { action: 'charge' | 'credit'; amount: string } } | null;
+  next_transaction?: { details?: { totals?: { grand_total?: string } } } | null;
 };
 type Transaction = {
   subscription_id?: string | null;

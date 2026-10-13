@@ -10,7 +10,7 @@ import { reloadAccess } from '../data/access.ts';
 import { FREE_PEOPLE, PAID_PLANS, PLAN_INCLUDES } from '../lib/plans.ts';
 import { getTheme } from '../lib/theme.ts';
 import { useBackToClose, useEscape } from '../lib/useBackToClose.ts';
-import { Check, ChevronLeft, Close } from '../ui/icons.tsx';
+import { Check, ChevronLeft, ChevronRight, Close } from '../ui/icons.tsx';
 
 const CURRENCY = '€';
 
@@ -27,6 +27,8 @@ type CheckoutData = {
   totals?: { subtotal: number; discount: number; tax: number; total: number };
   recurring_totals?: { total: number } | null;
 };
+/** What switching would cost (worker/billing.ts), in currency units. */
+type SwitchPreview = { currency: string; charge: number; credit: number; next: number; nextAt: number };
 type PaddleEvent = { name?: string; data?: CheckoutData };
 type PaddleJs = {
   Environment: { set(env: string): void };
@@ -158,19 +160,33 @@ export function PlansDialog({
     };
   }, [paying]);
 
-  const go = async (path: 'checkout' | 'portal', plan?: string) => {
+  // Switching a paid plan: what Paddle will charge, to confirm; then done.
+  const [switching, setSwitching] = useState<{ plan: string; interval: 'month' | 'year'; preview: SwitchPreview; done?: boolean } | null>(null);
+  const go = async (path: 'checkout' | 'portal', plan?: string, confirmed = false) => {
     setBusy(plan ?? path);
     setError('');
     try {
-      const r = await api<{ url?: string; switched?: boolean } & Partial<Checkout>>('POST', `/api/billing/${path}`, { workspaceId, plan, interval });
+      const preview = path === 'checkout' && !!paid && !confirmed;
+      const r = await api<{ url?: string; switched?: boolean; preview?: SwitchPreview } & Partial<Checkout>>('POST', `/api/billing/${path}`, {
+        workspaceId,
+        plan,
+        interval: switching && confirmed ? switching.interval : interval,
+        preview,
+      });
       if (r.url) location.href = r.url;
-      else if (r.transactionId) {
+      else if (r.preview) {
+        setSwitching({ plan: plan!, interval, preview: r.preview });
+        setBusy('');
+      } else if (r.transactionId) {
         setData(null);
         setPaying({ ...(r as Checkout), plan: plan!, interval });
       } else {
         await loadMe();
         await reloadAccess();
-        onClose();
+        if (switching) {
+          setSwitching({ ...switching, done: true });
+          setBusy('');
+        } else onClose();
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -193,12 +209,17 @@ export function PlansDialog({
                 ))}
               </select>
             </h2>
-          ) : paying ? (
+          ) : paying || switching ? (
             <h2 className="checkout-title">
-              <button className="tb-search-btn" aria-label="Back to the plans" disabled={!!paidNow} onClick={() => setPaying(null)}>
+              <button
+                className="tb-search-btn"
+                aria-label="Back to the plans"
+                disabled={!!paidNow || !!switching?.done || !!busy}
+                onClick={() => (setPaying(null), setSwitching(null), setError(''))}
+              >
                 <ChevronLeft />
               </button>
-              Checkout
+              {switching ? 'Switch plan' : 'Checkout'}
             </h2>
           ) : (
             <h2>Plans for {ws?.name ?? 'this workspace'}</h2>
@@ -207,7 +228,17 @@ export function PlansDialog({
             <Close />
           </button>
         </header>
-        {paying ? (
+        {switching ? (
+          <SwitchStep
+            switching={switching}
+            from={PAID_PLANS.find((p) => p.id === paid?.plan)?.name}
+            busy={!!busy}
+            error={error}
+            onConfirm={() => void go('checkout', switching.plan, true)}
+            onCancel={() => (setSwitching(null), setError(''))}
+            onClose={onClose}
+          />
+        ) : paying ? (
           paidNow ? (
             <PaidStep state={paidNow} plan={paying.plan} onClose={onClose} />
           ) : (
@@ -383,6 +414,82 @@ function PaidStep({ state, plan, onClose }: { state: 'checking' | 'active' | 'la
       <button className="btn primary" disabled={state === 'checking'} onClick={onClose}>
         {state === 'checking' ? 'One moment…' : 'Done'}
       </button>
+    </div>
+  );
+}
+
+/** Switching a paid plan: what it costs now and later, to confirm; then done. */
+function SwitchStep({
+  switching: { plan, interval, preview, done },
+  from,
+  busy,
+  error,
+  onConfirm,
+  onCancel,
+  onClose,
+}: {
+  switching: { plan: string; interval: 'month' | 'year'; preview: SwitchPreview; done?: boolean };
+  from?: string;
+  busy: boolean;
+  error: string;
+  onConfirm(): void;
+  onCancel(): void;
+  onClose(): void;
+}) {
+  const p = PAID_PLANS.find((x) => x.id === plan)!;
+  const cur = preview.currency;
+  const when = preview.nextAt ? new Date(preview.nextAt).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+  const now = preview.charge
+    ? `${money(preview.charge, cur)} is charged now to the card Paddle has on file: the new plan for the rest of this period, less what’s left of ${from ?? 'your plan'}.`
+    : preview.credit
+      ? `What’s left of ${from ?? 'your plan'} is worth more than the rest of this period on ${p.name}: ${money(preview.credit, cur)} goes to your balance and comes off the next bills.`
+      : 'Nothing is charged now.';
+  if (done)
+    return (
+      <div className="share-body checkout-done">
+        <span className="checkout-done-mark">
+          <Check size={22} />
+        </span>
+        <h3>You’re on {p.name}</h3>
+        <p>{preview.charge ? `${money(preview.charge, cur)} was charged; the receipt comes from Paddle.` : preview.credit ? `${money(preview.credit, cur)} was added to your balance.` : 'Nothing was charged.'}</p>
+        <button className="btn primary" onClick={onClose}>
+          Done
+        </button>
+      </div>
+    );
+  return (
+    <div className="share-body switch-step">
+      <div className="switch-plans">
+        <span>{from ?? 'Your plan'}</span>
+        <ChevronRight />
+        <b>
+          {p.name} · {p.people} people · {interval === 'year' ? 'yearly' : 'monthly'}
+        </b>
+      </div>
+      <dl className="checkout-totals">
+        <div className="checkout-total">
+          <dt>{preview.credit ? 'Credit now' : 'Due now'}</dt>
+          <dd>{money(preview.credit || preview.charge, cur)}</dd>
+        </div>
+        {preview.next > 0 && (
+          <div>
+            <dt>Then{when ? `, from ${when}` : ''}</dt>
+            <dd>
+              {money(preview.next, cur)}/{interval}
+            </dd>
+          </div>
+        )}
+      </dl>
+      <p className="share-note">{now}</p>
+      {error && <p className="editor-error">{error}</p>}
+      <div className="share-actions">
+        <button className="btn" disabled={busy} onClick={onCancel}>
+          Cancel
+        </button>
+        <button className="btn primary" disabled={busy} onClick={onConfirm}>
+          {busy ? 'Switching…' : preview.charge ? `Pay ${money(preview.charge, cur)} and switch` : 'Switch plan'}
+        </button>
+      </div>
     </div>
   );
 }

@@ -92,7 +92,10 @@ plans aren't set up yet; the free plan and AppSumo work as before.
   failed payments before cancelling); `paused` and `canceled` drop back to the
   free plan. Nothing is deleted.
 - **Switching plans** happens in place (`PATCH /subscriptions/…`), prorated
-  immediately.
+  immediately: the difference is charged to the card on file (or credited to
+  the balance when it's a step down). The dialog shows Paddle's preview of
+  that amount first and switches on confirm; a failed charge leaves the plan
+  as it was.
 - **Invoices, card and cancelling** open Paddle's customer portal.
 - **Deleting** a workspace or an account cancels its subscriptions right away.
 

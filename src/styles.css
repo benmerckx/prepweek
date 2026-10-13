@@ -6965,6 +6965,32 @@ a.menu-item {
     grid-template-columns: 1fr;
   }
 }
+/* Switching a paid plan: the change and its cost, to confirm. */
+.switch-plans {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+}
+.switch-plans > span {
+  color: var(--text-dim);
+}
+.switch-plans > svg {
+  color: var(--text-faint);
+}
+.switch-step .checkout-totals {
+  margin: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
+}
+.switch-step .checkout-totals .checkout-total {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
 /* Checkout: our summary beside Paddle's inline form (PlansDialog.tsx). */
 .plans-modal.paying {
   width: min(860px, calc(100vw - 32px));
