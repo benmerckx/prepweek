@@ -33,8 +33,8 @@ on a live account.
 3. **API key.** *My account → Settings → Authentication → API keys → New
    API key*. Give it these permissions (the calls in `worker/billing.ts`):
    `product.write`, `price.write`, `transaction.write`, `subscription.write`
-   and `customer_portal_session.write` (the matching reads come with them or
-   can be ticked too). Set the expiry as far out as allowed (a year at most)
+   and `customer_portal_session.write`, plus `transaction.read` and
+   `subscription.read` (to confirm a payment when the webhook is late). Set the expiry as far out as allowed (a year at most)
    and put a reminder in: billing stops working when it expires. Copy the
    key when it's shown; Paddle shows it only once.
 4. **Client-side token.** Same page, *Client-side tokens* tab: create one.
@@ -44,7 +44,14 @@ on a live account.
    `transaction.completed`, `subscription.created`, `subscription.updated`,
    `subscription.activated`, `subscription.past_due`, `subscription.paused`,
    `subscription.resumed`, `subscription.canceled`. Copy its secret key.
-6. **Configure the worker:**
+6. **Checkout styling.** The checkout opens inside the plans dialog
+   (Paddle's inline checkout, beside our own order summary). Its fields and
+   buttons are styled in *Checkout → Checkout configuration → Styling*. To
+   match the app: font *System default* (or the closest sans-serif), text
+   `#221f28`, secondary text `#66616f`, borders `#e4e1e9` at 1px, radius
+   8px, focus `#c23c63`, primary button `#26222d` with text `#fbfafc`,
+   links `#c23c63`, checkout padding off.
+7. **Configure the worker:**
 
    ```sh
    wrangler secret put PADDLE_API_KEY
@@ -59,6 +66,13 @@ on a live account.
    BILLING_CURRENCY = "eur"         # optional
    PLAN_LIMITS = "on"               # make the limits count
    ```
+
+**Paid but still on Free?** The plan is set by the webhook. Check *Events →
+Notifications* → the destination's logs: the URL must be
+`https://<your host>/api/billing/webhook` and `PADDLE_WEBHOOK_SECRET` must be
+that destination's secret (sandbox and live have their own). As a fallback
+the app asks Paddle itself (`/api/billing/sync`) right after paying and
+whenever an admin opens Plans on a free workspace.
 
 Without `PADDLE_API_KEY` and `PADDLE_CLIENT_TOKEN`, choosing a plan says paid
 plans aren't set up yet; the free plan and AppSumo work as before.

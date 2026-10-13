@@ -5,6 +5,9 @@
 //        opened with Paddle.js on the page; with a live subscription the plan
 //        is switched in place instead (prorated) → {switched: true}
 //   POST /api/billing/portal {workspaceId}                    → {url}: Paddle's customer portal
+//   POST /api/billing/sync {workspaceId, transactionId?}      → {plan}: asks Paddle for the
+//        workspace's paid checkout (that one, or among the latest) and records its
+//        subscription, for when the webhook is late or didn't arrive
 //   POST /api/billing/webhook                                 Paddle notifications (signed)
 //
 // Products and prices are made through the API the first time they're needed
@@ -80,12 +83,33 @@ export async function billingApi(req: Request, env: Env, url: URL, seg: string[]
     workspaceId?: string;
     plan?: string;
     interval?: string;
+    transactionId?: string;
   };
   const dir = directory(env);
   const ws = body.workspaceId ?? '';
   try {
     const current = await dir.billing(user.id, ws);
     const live = current && current.subscription && current.status !== 'canceled';
+    if (seg[1] === 'sync') {
+      if (live) return json({ plan: current.plan });
+      const id = (body.transactionId ?? '').replace(/[^\w-]/g, '');
+      const mine = (t: Transaction) => t.custom_data?.workspace === ws && !!t.subscription_id && ['paid', 'completed'].includes(t.status);
+      const tx = id
+        ? await paddle<Transaction>(env, 'GET', `transactions/${id}`)
+        : (await paddle<Transaction[]>(env, 'GET', 'transactions?status=paid,completed&order_by=created_at[DESC]&per_page=50')).find(mine);
+      if (!tx || !mine(tx)) return json({ plan: null });
+      const sub = await paddle<Subscription>(env, 'GET', `subscriptions/${tx.subscription_id}`);
+      const plan = sub.items?.[0]?.price?.custom_data?.plan || tx.custom_data?.plan;
+      // No time given: a notification that comes in later still applies.
+      await dir.setSubscription(ws, {
+        customer: sub.customer_id,
+        subscription: sub.id,
+        plan,
+        status: sub.status,
+        periodEnd: Date.parse(sub.current_billing_period?.ends_at ?? '') || 0,
+      });
+      return json({ plan });
+    }
     if (seg[1] === 'portal') {
       if (!current?.customer) return fail('This workspace has no billing yet', 404);
       const s = await paddle<{ urls: { general: { overview: string } } }>(env, 'POST', `customers/${current.customer}/portal-sessions`, {

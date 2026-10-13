@@ -6965,6 +6965,165 @@ a.menu-item {
     grid-template-columns: 1fr;
   }
 }
+/* Checkout: our summary beside Paddle's inline form (PlansDialog.tsx). */
+.plans-modal.paying {
+  width: min(860px, calc(100vw - 32px));
+}
+.checkout-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: -6px;
+}
+.checkout {
+  display: grid;
+  grid-template-columns: 290px 1fr;
+  min-height: 0;
+  overflow-y: auto;
+}
+.checkout-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 22px 22px 24px;
+  border-right: 1px solid var(--border);
+  background: var(--panel);
+}
+.checkout-kicker {
+  color: var(--text-faint);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.checkout-plan {
+  display: grid;
+  gap: 3px;
+}
+.checkout-plan b {
+  font-size: 18px;
+  letter-spacing: -0.01em;
+}
+.checkout-plan span {
+  color: var(--text-dim);
+  font-size: 13px;
+}
+.checkout-includes {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+.checkout-includes li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.checkout-includes svg {
+  flex: none;
+  color: var(--accent);
+}
+.checkout-totals {
+  display: grid;
+  gap: 8px;
+  margin: 4px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  font-size: 13.5px;
+  font-variant-numeric: tabular-nums;
+}
+.checkout-totals > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.checkout-totals dt {
+  color: var(--text-dim);
+}
+.checkout-totals dd {
+  margin: 0;
+}
+.checkout-totals dd.dim {
+  color: var(--text-faint);
+}
+.checkout-totals .checkout-total {
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  font-size: 15px;
+  font-weight: 650;
+}
+.checkout-totals .checkout-total dt {
+  color: var(--text);
+}
+.checkout-totals .checkout-total dd {
+  font-size: 22px;
+  letter-spacing: -0.02em;
+}
+.checkout-note {
+  margin: auto 0 0;
+  color: var(--text-faint);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.checkout-note a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.checkout-pay {
+  min-width: 0;
+  padding: 14px 16px 18px;
+}
+.checkout-done {
+  align-items: center;
+  padding: 40px 28px 32px;
+  text-align: center;
+}
+.checkout-done h3 {
+  margin: 4px 0 0;
+  font-size: 20px;
+}
+.checkout-done p {
+  max-width: 420px;
+  margin: 0;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+.checkout-done .checkout-receipt {
+  color: var(--text-faint);
+  font-size: 12.5px;
+}
+.checkout-done .btn {
+  margin-top: 8px;
+  min-width: 120px;
+}
+.checkout-done-mark {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+@media (max-width: 720px) {
+  .checkout {
+    grid-template-columns: 1fr;
+  }
+  .checkout-summary {
+    gap: 12px;
+    padding: 16px 18px;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .checkout-includes {
+    display: none;
+  }
+}
 .app-toast {
   position: fixed;
   bottom: 110px;

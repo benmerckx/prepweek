@@ -1,13 +1,16 @@
-// Choosing a paid plan for a workspace (Paddle's checkout overlay), or switching it.
+// Choosing a paid plan for a workspace, or switching it. Paying happens in
+// the dialog itself: our own order summary beside Paddle's inline checkout
+// (its fields and buttons are styled in Paddle > Checkout > Checkout
+// configuration > Styling; see docs/BILLING.md).
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { api, getMe, loadMe } from '../data/account.ts';
 import { reloadAccess } from '../data/access.ts';
-import { FREE_PEOPLE, PAID_PLANS } from '../lib/plans.ts';
+import { FREE_PEOPLE, PAID_PLANS, PLAN_INCLUDES } from '../lib/plans.ts';
 import { getTheme } from '../lib/theme.ts';
 import { useBackToClose, useEscape } from '../lib/useBackToClose.ts';
-import { Check, Close } from '../ui/icons.tsx';
+import { Check, ChevronLeft, Close } from '../ui/icons.tsx';
 
 const CURRENCY = '€';
 
@@ -17,10 +20,18 @@ type Checkout = {
   sandbox: boolean;
   email: string;
 };
+/** What Paddle.js tells us about the checkout as it loads and changes. */
+type CheckoutData = {
+  currency_code?: string;
+  items?: { product?: { name?: string }; price_name?: string; billing_cycle?: { interval: string; frequency: number } | null }[];
+  totals?: { subtotal: number; discount: number; tax: number; total: number };
+  recurring_totals?: { total: number } | null;
+};
+type PaddleEvent = { name?: string; data?: CheckoutData };
 type PaddleJs = {
   Environment: { set(env: string): void };
-  Initialize(o: { token: string; eventCallback?(e: { name?: string }): void }): void;
-  Checkout: { open(o: Record<string, unknown>): void };
+  Initialize(o: { token: string; eventCallback?(e: PaddleEvent): void }): void;
+  Checkout: { open(o: Record<string, unknown>): void; close(): void };
 };
 
 let paddle: Promise<PaddleJs> | null = null;
@@ -34,7 +45,7 @@ const loadPaddle = (c: Checkout) =>
       if (c.sandbox) P.Environment.set('sandbox');
       P.Initialize({
         token: c.token,
-        eventCallback: (e) => e.name === 'checkout.closed' && window.dispatchEvent(new Event('prepweek:checkout-closed')),
+        eventCallback: (e) => window.dispatchEvent(new CustomEvent<PaddleEvent>('prepweek:checkout', { detail: e })),
       });
       resolve(P);
     };
@@ -71,11 +82,81 @@ export function PlansDialog({
   const [interval, setInterval] = useState<'month' | 'year'>(initialInterval);
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
+  // Paying: the plan picked, then what Paddle reports (totals, tax).
+  const [paying, setPaying] = useState<(Checkout & { plan: string; interval: 'month' | 'year' }) | null>(null);
+  const [data, setData] = useState<CheckoutData | null>(null);
+  const payingRef = useRef(paying);
+  payingRef.current = paying;
+  // After paying: 'checking' until the plan is on the workspace, 'active'
+  // once it is, 'late' if Paddle hasn't confirmed it yet.
+  const [paidNow, setPaidNow] = useState<'' | 'checking' | 'active' | 'late'>('');
+  /** Ask the server to look the payment up at Paddle (the webhook may be late). */
+  const sync = async (transactionId?: string) => {
+    const r = await api<{ plan: string | null }>('POST', '/api/billing/sync', { workspaceId, transactionId });
+    if (r.plan) {
+      await loadMe();
+      await reloadAccess();
+    }
+    return !!r.plan;
+  };
   useEffect(() => {
-    const closed = () => setBusy('');
-    window.addEventListener('prepweek:checkout-closed', closed);
-    return () => window.removeEventListener('prepweek:checkout-closed', closed);
-  }, []);
+    const on = (e: Event) => {
+      const { name, data } = (e as CustomEvent<PaddleEvent>).detail;
+      if (name === 'checkout.closed') setBusy('');
+      if (data && (name === 'checkout.loaded' || name === 'checkout.updated')) setData(data);
+      if (name === 'checkout.completed') {
+        setPaidNow('checking');
+        const id = (data as { transaction_id?: string } | undefined)?.transaction_id ?? payingRef.current?.transactionId;
+        // Paddle settles the payment a moment after the form says thanks.
+        void (async () => {
+          for (const ms of [0, 2000, 5000, 10000]) {
+            await new Promise((r) => setTimeout(r, ms));
+            if (await sync(id).catch(() => false)) return setPaidNow('active');
+          }
+          setPaidNow('late');
+        })();
+      }
+    };
+    window.addEventListener('prepweek:checkout', on);
+    return () => window.removeEventListener('prepweek:checkout', on);
+  }, [workspaceId]); // eslint-disable-line react-hooks/exhaustive-deps
+  // On a free workspace, a payment Paddle has but we missed shows up here.
+  useEffect(() => {
+    if (!paid) void sync().catch(() => {});
+  }, [workspaceId]); // eslint-disable-line react-hooks/exhaustive-deps
+  // The inline checkout goes into its frame once that's on the page.
+  useEffect(() => {
+    if (!paying) return;
+    let open = true;
+    loadPaddle(paying)
+      .then((P) => {
+        if (!open) return;
+        P.Checkout.open({
+          transactionId: paying.transactionId,
+          customer: { email: paying.email },
+          settings: {
+            displayMode: 'inline',
+            frameTarget: 'checkout-frame',
+            frameInitialHeight: 450,
+            frameStyle: 'width: 100%; min-width: 286px; background-color: transparent; border: none;',
+            variant: 'one-page',
+            theme: getTheme(),
+            allowLogout: false,
+            showAddDiscounts: false,
+          },
+        });
+        setBusy('');
+      })
+      .catch((e) => {
+        setError(e instanceof Error ? e.message : String(e));
+        setPaying(null);
+        setBusy('');
+      });
+    return () => {
+      open = false;
+      void paddle?.then((P) => P.Checkout.close()).catch(() => {});
+    };
+  }, [paying]);
 
   const go = async (path: 'checkout' | 'portal', plan?: string) => {
     setBusy(plan ?? path);
@@ -84,16 +165,8 @@ export function PlansDialog({
       const r = await api<{ url?: string; switched?: boolean } & Partial<Checkout>>('POST', `/api/billing/${path}`, { workspaceId, plan, interval });
       if (r.url) location.href = r.url;
       else if (r.transactionId) {
-        const P = await loadPaddle(r as Checkout);
-        P.Checkout.open({
-          transactionId: r.transactionId,
-          customer: { email: r.email },
-          settings: {
-            displayMode: 'overlay',
-            theme: getTheme(),
-            successUrl: `${location.origin}/app?billing=done`,
-          },
-        });
+        setData(null);
+        setPaying({ ...(r as Checkout), plan: plan!, interval });
       } else {
         await loadMe();
         await reloadAccess();
@@ -107,7 +180,7 @@ export function PlansDialog({
 
   return createPortal(
     <div className="modal-backdrop" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal plans-modal" role="dialog" aria-label="Plans">
+      <div className={'modal plans-modal' + (paying ? ' paying' : '')} role="dialog" aria-label={paying ? 'Checkout' : 'Plans'}>
         <header className="modal-head">
           {choose && choose.length > 1 ? (
             <h2 className="plans-for">
@@ -120,6 +193,13 @@ export function PlansDialog({
                 ))}
               </select>
             </h2>
+          ) : paying ? (
+            <h2 className="checkout-title">
+              <button className="tb-search-btn" aria-label="Back to the plans" disabled={!!paidNow} onClick={() => setPaying(null)}>
+                <ChevronLeft />
+              </button>
+              Checkout
+            </h2>
           ) : (
             <h2>Plans for {ws?.name ?? 'this workspace'}</h2>
           )}
@@ -127,6 +207,13 @@ export function PlansDialog({
             <Close />
           </button>
         </header>
+        {paying ? (
+          paidNow ? (
+            <PaidStep state={paidNow} plan={paying.plan} onClose={onClose} />
+          ) : (
+            <CheckoutStep paying={paying} data={data} workspace={ws?.name} />
+          )
+        ) : (
         <div className="share-body">
           <p className="share-note">
             You pay for the people you plan for. Logins, sheets and every feature are unlimited on every plan; the free plan covers {FREE_PEOPLE} people.
@@ -188,8 +275,114 @@ export function PlansDialog({
             Payments by Paddle, our reseller: they handle VAT and invoices. Cancel any time; the plan stays until the end of the period you paid for.
           </p>
         </div>
+        )}
       </div>
     </div>,
     document.body,
+  );
+}
+
+const money = (n: number, currency = 'EUR') =>
+  new Intl.NumberFormat(undefined, { style: 'currency', currency, minimumFractionDigits: n % 1 ? 2 : 0 }).format(n);
+
+/**
+ * Paying for a plan: what you're buying and what it costs (from Paddle, so
+ * the tax for your country shows once it's known), beside Paddle's form.
+ */
+function CheckoutStep({
+  paying,
+  data,
+  workspace,
+}: {
+  paying: { plan: string; interval: 'month' | 'year' };
+  data: CheckoutData | null;
+  workspace?: string;
+}) {
+  const plan = PAID_PLANS.find((p) => p.id === paying.plan)!;
+  const listed = paying.interval === 'year' ? plan.year : plan.month;
+  const cur = data?.currency_code ?? 'EUR';
+  const t = data?.totals;
+  const renews = new Date();
+  if (paying.interval === 'year') renews.setFullYear(renews.getFullYear() + 1);
+  else renews.setMonth(renews.getMonth() + 1);
+  return (
+    <div className="checkout">
+      <aside className="checkout-summary">
+        <span className="checkout-kicker">{workspace ? `For ${workspace}` : 'Your plan'}</span>
+        <div className="checkout-plan">
+          <b>Prepweek {plan.name}</b>
+          <span>
+            Up to {plan.people} people · billed {paying.interval === 'year' ? 'yearly' : 'monthly'}
+          </span>
+        </div>
+        <ul className="checkout-includes">
+          {PLAN_INCLUDES.slice(0, 4).map((x) => (
+            <li key={x}>
+              <Check size={13} /> {x}
+            </li>
+          ))}
+        </ul>
+        <dl className="checkout-totals">
+          {t ? (
+            <>
+              <div>
+                <dt>Subtotal</dt>
+                <dd>{money(t.subtotal, cur)}</dd>
+              </div>
+              {t.discount > 0 && (
+                <div>
+                  <dt>Discount</dt>
+                  <dd>−{money(t.discount, cur)}</dd>
+                </div>
+              )}
+              <div>
+                <dt>VAT</dt>
+                <dd>{money(t.tax, cur)}</dd>
+              </div>
+            </>
+          ) : (
+            <div>
+              <dt>VAT</dt>
+              <dd className="dim">Included, by country</dd>
+            </div>
+          )}
+          <div className="checkout-total">
+            <dt>Due today</dt>
+            <dd>{money(t ? t.total : listed, cur)}</dd>
+          </div>
+        </dl>
+        <p className="checkout-note">
+          Renews on {renews.toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })} at{' '}
+          {money(data?.recurring_totals?.total ?? t?.total ?? listed, cur)}. Cancel any time; a <a href="/refunds" target="_blank">refund within 14 days</a>.
+        </p>
+      </aside>
+      <div className="checkout-pay">
+        <div className="checkout-frame" />
+      </div>
+    </div>
+  );
+}
+
+/** After paying: the plan being switched on, then done. */
+function PaidStep({ state, plan, onClose }: { state: 'checking' | 'active' | 'late'; plan: string; onClose(): void }) {
+  const name = PAID_PLANS.find((p) => p.id === plan)?.name ?? 'your plan';
+  return (
+    <div className="share-body checkout-done">
+      <span className="checkout-done-mark">
+        <Check size={22} />
+      </span>
+      <h3>{state === 'active' ? `You’re on ${name}` : 'Thanks for your payment'}</h3>
+      <p>
+        {state === 'checking'
+          ? 'Switching the workspace to its new plan…'
+          : state === 'active'
+            ? 'Everyone in the workspace has the new plan now. Invoices, your card and cancelling are under Plan and billing.'
+            : 'Paddle hasn’t confirmed it to us yet. It usually takes under a minute; the plan switches on by itself, and reopening Plans checks again.'}
+      </p>
+      <p className="checkout-receipt">A receipt is on its way to your inbox from Paddle.</p>
+      <button className="btn primary" disabled={state === 'checking'} onClick={onClose}>
+        {state === 'checking' ? 'One moment…' : 'Done'}
+      </button>
+    </div>
   );
 }
